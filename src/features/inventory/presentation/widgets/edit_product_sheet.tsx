@@ -16,6 +16,7 @@ import {
 import { useAppTheme } from '@/core/theme/theme_context';
 import { MaterialIcon } from '@/core/widgets/material_icon';
 import * as ImagePicker from 'expo-image-picker';
+import { useToast } from '@/core/widgets/whatsapp_dialog';
 import { Product, PriceTier, ProductColor, ProductSize, ProductMaterialItem } from '../../domain/entities/product';
 import { useProducts } from '../../context/products_context';
 
@@ -79,6 +80,7 @@ export function EditProductSheet({
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
   const { updateProduct, addProduct, deleteProduct } = useProducts();
+  const { showSuccess, showError } = useToast();
 
   const isEditing = Boolean(product);
 
@@ -343,11 +345,7 @@ export function EditProductSheet({
   // --- Save / Publish Product ---
   const handleSave = () => {
     if (!name.trim()) {
-      if (Platform.OS === 'web') {
-        window.alert('Please enter a Product Name before publishing.');
-      } else {
-        Alert.alert('Required Field', 'Please enter a Product Name.');
-      }
+      showError('Required Field', 'Please enter a Product Name before publishing.');
       return;
     }
 
@@ -396,11 +394,13 @@ export function EditProductSheet({
 
     if (isEditing && product) {
       updateProduct(product.id, payload);
+      showSuccess('Product Updated', `"${payload.name}" has been updated successfully.`);
     } else {
       addProduct({
         ...payload as any,
         supplierName: 'Apex Wholesale Importers',
       });
+      showSuccess('Product Published', `"${payload.name}" is now live in your catalog.`);
     }
 
     onClose();
@@ -411,6 +411,7 @@ export function EditProductSheet({
     if (!product) return;
     const confirmAction = () => {
       deleteProduct(product.id);
+      showSuccess('Product Removed', `"${product.name}" was removed from your catalog.`);
       onClose();
       if (onSuccess) onSuccess();
     };

@@ -17,6 +17,7 @@ import { AppColors } from '@/core/theme/app_theme';
 import { useAppTheme } from '@/core/theme/theme_context';
 import { MaterialIcon } from '@/core/widgets/material_icon';
 import { NodeIcon } from '@/core/widgets/node_icon';
+import { useToast } from '@/core/widgets/whatsapp_dialog';
 import {
   MOCK_USER_PROFILE,
   MOCK_SAVED_ITEMS,
@@ -56,6 +57,7 @@ export function ProfilePage() {
   const [pendingOrders, setPendingOrders] = useState<WholesaleOrderItem[]>(MOCK_PENDING_ORDERS);
   const [sentOrders, setSentOrders] = useState<WholesaleOrderItem[]>(MOCK_SENT_ORDERS);
   const [pdfDocuments, setPdfDocuments] = useState<PdfDocumentItem[]>(MOCK_PDF_DOCUMENTS);
+  const { showInfo, showSuccess } = useToast();
 
   // Tab Handlers
   const handlePlaceOrder = (selected: SavedProductItem[]) => {
@@ -77,11 +79,7 @@ export function ProfilePage() {
   };
 
   const handleOpenPdf = (doc: PdfDocumentItem) => {
-    if (Platform.OS === 'web') {
-      window.alert?.(`Downloading ${doc.title} (${doc.fileSize})`);
-    } else {
-      Alert.alert('PDF Document', `Downloading ${doc.title} (${doc.fileSize})`);
-    }
+    showInfo('Document Downloading', `${doc.title} (${doc.fileSize}) is being downloaded.`);
   };
 
   const { signOut } = useAuth();

@@ -19,6 +19,7 @@ import {
 import { AppThemeProvider, useAppTheme } from '@/core/theme/theme_context';
 import { AuthProvider } from '@/features/auth/context/auth_context';
 import { ProductsProvider } from '@/features/inventory/context/products_context';
+import { ToastProvider } from '@/core/widgets/whatsapp_dialog';
 
 function NavigationStack() {
   const { isDark } = useAppTheme();
@@ -66,7 +67,9 @@ export default function RootLayout() {
     <AppThemeProvider>
       <AuthProvider>
         <ProductsProvider>
-          <NavigationStack />
+          <ToastProvider>
+            <NavigationStack />
+          </ToastProvider>
         </ProductsProvider>
       </AuthProvider>
     </AppThemeProvider>
