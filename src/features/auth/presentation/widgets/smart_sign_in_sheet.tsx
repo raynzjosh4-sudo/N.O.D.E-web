@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Pressable,
   Image,
+  useWindowDimensions,
 } from 'react-native';
 import { useAppTheme } from '@/core/theme/theme_context';
 import { MaterialIcon } from '@/core/widgets/material_icon';
@@ -20,6 +21,8 @@ interface SmartSignInSheetProps {
 
 export function SmartSignInSheet({ visible, onClose, onSuccess }: SmartSignInSheetProps) {
   const { colors, isDark } = useAppTheme();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 768;
   const { user, signInWithGoogle, isLoading } = useAuth();
 
   const handleGoogleSignIn = async () => {
@@ -43,11 +46,12 @@ export function SmartSignInSheet({ visible, onClose, onSuccess }: SmartSignInShe
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, isDesktop && styles.overlayDesktop]}>
         <Pressable style={styles.backdrop} onPress={onClose} />
         <View
           style={[
             styles.sheetContainer,
+            isDesktop && styles.sheetContainerDesktop,
             {
               backgroundColor: isDark ? '#1C1C21' : '#FFFFFF',
             },
@@ -174,6 +178,11 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(0, 0, 0, 0.55)',
   },
+  overlayDesktop: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
   backdrop: {
     ...StyleSheet.absoluteFill,
   },
@@ -191,6 +200,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 16,
     elevation: 20,
+    zIndex: 1,
+  },
+  sheetContainerDesktop: {
+    borderRadius: 24,
+    paddingTop: 28,
+    paddingBottom: 36,
+    shadowOffset: { width: 0, height: 10 },
+    shadowRadius: 28,
   },
   topRow: {
     flexDirection: 'row',

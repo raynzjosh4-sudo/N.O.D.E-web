@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Pressable,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAppTheme } from '@/core/theme/theme_context';
@@ -20,6 +21,8 @@ interface AuthPromptSheetProps {
 
 export function AuthPromptSheet({ visible, onClose, onSuccess }: AuthPromptSheetProps) {
   const { colors, isDark } = useAppTheme();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 768;
   const router = useRouter();
   const { signInWithGoogle, isLoading } = useAuth();
 
@@ -54,27 +57,30 @@ export function AuthPromptSheet({ visible, onClose, onSuccess }: AuthPromptSheet
       animationType="slide"
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, isDesktop && styles.overlayDesktop]}>
         <Pressable style={styles.backdrop} onPress={onClose} />
         <View
           style={[
             styles.sheetContainer,
+            isDesktop && styles.sheetContainerDesktop,
             {
               backgroundColor: isDark ? '#1C1C21' : '#FFFFFF',
             },
           ]}
         >
-          {/* Handlebar */}
-          <View
-            style={[
-              styles.handlebar,
-              {
-                backgroundColor: isDark
-                  ? 'rgba(255, 255, 255, 0.2)'
-                  : 'rgba(0, 0, 0, 0.15)',
-              },
-            ]}
-          />
+          {/* Handlebar (Mobile only) */}
+          {!isDesktop && (
+            <View
+              style={[
+                styles.handlebar,
+                {
+                  backgroundColor: isDark
+                    ? 'rgba(255, 255, 255, 0.2)'
+                    : 'rgba(0, 0, 0, 0.15)',
+                },
+              ]}
+            />
+          )}
 
           {/* Title */}
           <Text style={[styles.title, { color: colors.onSurface }]}>
@@ -147,6 +153,11 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(0, 0, 0, 0.55)',
   },
+  overlayDesktop: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
   backdrop: {
     ...StyleSheet.absoluteFill,
   },
@@ -164,6 +175,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 16,
     elevation: 20,
+    zIndex: 1,
+  },
+  sheetContainerDesktop: {
+    borderRadius: 24,
+    paddingTop: 24,
+    paddingBottom: 32,
+    shadowOffset: { width: 0, height: 10 },
+    shadowRadius: 28,
   },
   handlebar: {
     width: 36,

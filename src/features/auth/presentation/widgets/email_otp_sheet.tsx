@@ -10,6 +10,7 @@ import {
   TouchableWithoutFeedback,
   KeyboardAvoidingView,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { useAppTheme } from '@/core/theme/theme_context';
 import { MaterialIcon } from '@/core/widgets/material_icon';
@@ -30,6 +31,8 @@ export function EmailOtpSheet({
   onResend,
 }: EmailOtpSheetProps) {
   const { colors } = useAppTheme();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 768;
   const [digits, setDigits] = useState<string[]>(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(45);
@@ -112,17 +115,20 @@ export function EmailOtpSheet({
       onRequestClose={onClose}
     >
       <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.modalOverlay}>
+        <View style={[styles.modalOverlay, isDesktop && styles.modalOverlayDesktop]}>
           <TouchableWithoutFeedback onPress={() => {}}>
             <KeyboardAvoidingView
               behavior={Platform.OS === 'ios' ? 'padding' : undefined}
               style={[
                 styles.sheetContainer,
+                isDesktop && styles.sheetContainerDesktop,
                 { backgroundColor: colors.surface, borderColor: colors.borderLight },
               ]}
             >
-              {/* Handlebar */}
-              <View style={[styles.handlebar, { backgroundColor: colors.borderLight }]} />
+              {/* Handlebar (Mobile only) */}
+              {!isDesktop && (
+                <View style={[styles.handlebar, { backgroundColor: colors.borderLight }]} />
+              )}
 
               <View style={styles.headerRow}>
                 <Text style={[styles.title, { color: colors.onSurface }]}>Confirm Verification</Text>
@@ -222,6 +228,10 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'center',
   },
+  modalOverlayDesktop: {
+    justifyContent: 'center',
+    padding: 24,
+  },
   sheetContainer: {
     width: '100%',
     maxWidth: 540,
@@ -236,6 +246,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 16,
     elevation: 8,
+    zIndex: 1,
+  },
+  sheetContainerDesktop: {
+    borderRadius: 24,
+    paddingTop: 24,
+    paddingBottom: 32,
+    shadowOffset: { width: 0, height: 10 },
+    shadowRadius: 28,
   },
   handlebar: {
     width: 40,

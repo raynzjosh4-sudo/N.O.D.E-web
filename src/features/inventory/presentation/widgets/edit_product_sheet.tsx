@@ -11,6 +11,7 @@ import {
   Image,
   Alert,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { useAppTheme } from '@/core/theme/theme_context';
 import { MaterialIcon } from '@/core/widgets/material_icon';
@@ -75,6 +76,8 @@ export function EditProductSheet({
   onSuccess,
 }: EditProductSheetProps) {
   const { colors, isDark } = useAppTheme();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 768;
   const { updateProduct, addProduct, deleteProduct } = useProducts();
 
   const isEditing = Boolean(product);
@@ -322,16 +325,24 @@ export function EditProductSheet({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, isDesktop && styles.overlayDesktop]}>
         <Pressable style={styles.backdrop} onPress={onClose} />
-        <View style={[styles.sheetContainer, { backgroundColor: isDark ? '#1C1C21' : '#FFFFFF' }]}>
-          {/* Handlebar */}
-          <View
-            style={[
-              styles.handlebar,
-              { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.15)' },
-            ]}
-          />
+        <View
+          style={[
+            styles.sheetContainer,
+            isDesktop && styles.sheetContainerDesktop,
+            { backgroundColor: isDark ? '#1C1C21' : '#FFFFFF' },
+          ]}
+        >
+          {/* Handlebar (Mobile only) */}
+          {!isDesktop && (
+            <View
+              style={[
+                styles.handlebar,
+                { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.15)' },
+              ]}
+            />
+          )}
 
           {/* Header */}
           <View style={styles.headerRow}>
@@ -1066,6 +1077,11 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(0, 0, 0, 0.65)',
   },
+  overlayDesktop: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
   backdrop: {
     ...StyleSheet.absoluteFill,
   },
@@ -1083,6 +1099,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 20,
     elevation: 24,
+    zIndex: 1,
+  },
+  sheetContainerDesktop: {
+    borderRadius: 24,
+    maxHeight: '85%',
+    maxWidth: 720,
+    paddingTop: 20,
+    paddingBottom: 16,
+    shadowOffset: { width: 0, height: 12 },
+    shadowRadius: 32,
   },
   handlebar: {
     width: 36,
