@@ -89,17 +89,17 @@ export function SupplierProductsScreen() {
             },
           ]}
         >
-          <View style={styles.headerLeft}>
+          <View style={[styles.headerLeft, { flex: 1 }]}>
             <TouchableOpacity
               onPress={() => router.back()}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               style={styles.backBtn}
             >
-              <MaterialIcon name="arrow_back_ios_new" size={20} color={colors.onSurface} />
+              <MaterialIcon name="arrow_back_ios_new" size={18} color={colors.onSurface} />
             </TouchableOpacity>
 
-            <View>
-              <Text style={[styles.headerTitle, { color: colors.onSurface }]}>
+            <View style={{ flex: 1, marginRight: 8 }}>
+              <Text style={[styles.headerTitle, { color: colors.onSurface }]} numberOfLines={1}>
                 Supplier Catalog
               </Text>
               <Text
@@ -107,8 +107,9 @@ export function SupplierProductsScreen() {
                   styles.headerSubtitle,
                   { color: isDark ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)' },
                 ]}
+                numberOfLines={1}
               >
-                Apex Wholesale Importers • Manage listings & tiered prices
+                Apex Wholesale • Catalog & Prices
               </Text>
             </View>
           </View>
@@ -119,7 +120,7 @@ export function SupplierProductsScreen() {
             style={[styles.addBtn, { backgroundColor: colors.primary }]}
           >
             <MaterialIcon name="add" size={18} color="#FFFFFF" />
-            <Text style={styles.addBtnText}>Post Product</Text>
+            <Text style={styles.addBtnText}>Post</Text>
           </TouchableOpacity>
         </View>
 
@@ -129,7 +130,11 @@ export function SupplierProductsScreen() {
         >
           <View style={styles.contentWrapper}>
             {/* KPI Metric Strip */}
-            <View style={styles.kpiRow}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.kpiRow}
+            >
               <View
                 style={[
                   styles.kpiCard,
@@ -180,7 +185,7 @@ export function SupplierProductsScreen() {
                   {stats.lowStockCount}
                 </Text>
               </View>
-            </View>
+            </ScrollView>
 
             {/* Search and Tabs Row */}
             <View style={styles.searchAndTabsSection}>
@@ -210,7 +215,11 @@ export function SupplierProductsScreen() {
               </View>
 
               {/* Filter Tabs */}
-              <View style={styles.tabsRow}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.tabsRow}
+              >
                 {[
                   { key: 'all' as FilterTab, label: `All (${products.length})` },
                   { key: 'active' as FilterTab, label: 'Active' },
@@ -246,7 +255,7 @@ export function SupplierProductsScreen() {
                     </TouchableOpacity>
                   );
                 })}
-              </View>
+              </ScrollView>
             </View>
 
             {/* Products Grid / List */}
@@ -474,22 +483,23 @@ const styles = StyleSheet.create({
   },
   kpiRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 10,
     marginBottom: 16,
+    paddingRight: 16,
   },
   kpiCard: {
-    flex: 1,
-    padding: 14,
-    borderRadius: 16,
+    minWidth: 120,
+    padding: 12,
+    borderRadius: 14,
     borderWidth: 1,
   },
   kpiLabel: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontFamily: 'PlusJakartaSans_500Medium',
     marginBottom: 4,
   },
   kpiValue: {
-    fontSize: 17,
+    fontSize: 15,
     fontFamily: 'Outfit_800ExtraBold',
   },
   searchAndTabsSection: {
