@@ -79,6 +79,7 @@ export function EditProductSheet({
   const { colors, isDark } = useAppTheme();
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const { updateProduct, addProduct, deleteProduct } = useProducts();
   const { showSuccess, showError } = useToast();
 
@@ -237,6 +238,7 @@ export function EditProductSheet({
       setSeoDescription('');
     }
     setActiveSection('identity');
+    setIsFullScreen(false);
   }, [product, visible]);
 
   const handleAddCustomColor = () => {
@@ -436,17 +438,24 @@ export function EditProductSheet({
           style={[
             styles.sheetContainer,
             isDesktop && styles.sheetContainerDesktop,
+            isFullScreen && styles.sheetContainerFullScreen,
             { backgroundColor: isDark ? '#1C1C21' : '#FFFFFF' },
           ]}
         >
           {/* Mobile Handlebar */}
           {!isDesktop && (
-            <View
-              style={[
-                styles.handlebar,
-                { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.15)' },
-              ]}
-            />
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => setIsFullScreen((prev) => !prev)}
+              style={styles.handlebarTouchArea}
+            >
+              <View
+                style={[
+                  styles.handlebar,
+                  { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.15)' },
+                ]}
+              />
+            </TouchableOpacity>
           )}
 
           {/* Header */}
@@ -459,9 +468,23 @@ export function EditProductSheet({
                 {isEditing ? `Editing SKU: ${sku || product?.id}` : 'Complete multi-spec form matching N.O.D.E wholesale distribution protocol'}
               </Text>
             </View>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={styles.closeBtn}>
-              <MaterialIcon name="close" size={22} color={colors.onSurface} />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              {/* Expand / Minimize toggle button */}
+              <TouchableOpacity
+                onPress={() => setIsFullScreen((prev) => !prev)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                style={styles.closeBtn}
+              >
+                <MaterialIcon
+                  name={isFullScreen ? 'fullscreen_exit' : 'fullscreen'}
+                  size={22}
+                  color={colors.onSurfaceMuted}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={styles.closeBtn}>
+                <MaterialIcon name="close" size={22} color={colors.onSurface} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Section Navigation Tabs (All 5 Sections from Dart Spec) */}
@@ -504,7 +527,18 @@ export function EditProductSheet({
           </View>
 
           {/* Main Scroll Content */}
-          <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.scrollArea}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            scrollEventThrottle={16}
+            onScroll={(e) => {
+              const y = e.nativeEvent.contentOffset.y;
+              if (y > 30 && !isFullScreen) {
+                setIsFullScreen(true);
+              }
+            }}
+          >
 
             {/* ═══════════════════════════════════════════════════
                 SECTION 1: BASIC IDENTITY
@@ -1505,7 +1539,9 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 24,
     zIndex: 1,
-  },
+    transitionProperty: 'all',
+    transitionDuration: '280ms',
+  } as any,
   sheetContainerDesktop: {
     borderRadius: 24,
     maxHeight: '88%',
@@ -1514,6 +1550,19 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     shadowOffset: { width: 0, height: 12 },
     shadowRadius: 32,
+  },
+  sheetContainerFullScreen: {
+    maxHeight: '100%',
+    height: '100%',
+    maxWidth: '100%',
+    borderRadius: 0,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    paddingTop: Platform.OS === 'web' ? 16 : 44,
+  },
+  handlebarTouchArea: {
+    paddingVertical: 6,
+    alignItems: 'center',
   },
   handlebar: {
     width: 36,
