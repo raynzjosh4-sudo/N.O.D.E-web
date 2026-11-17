@@ -3,6 +3,16 @@ export interface PriceTier {
   price: number;
 }
 
+export interface ProductColor {
+  name: string;
+  hexCode: string;
+}
+
+export interface ProductSize {
+  name: string;
+  abbreviation: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -20,6 +30,15 @@ export interface Product {
   moq?: number;
   description?: string;
   status?: 'active' | 'low_stock' | 'draft' | 'out_of_stock';
+  colors?: ProductColor[];
+  sizes?: ProductSize[];
+  material?: string;
+  packaging?: string;
+  weight?: string;
+  warranty?: string;
+  compliance?: string;
+  supportPhone?: string;
+  supportWhatsapp?: string;
   mediaUrls?: string[];
   priceTiers: PriceTier[];
 }
@@ -38,6 +57,21 @@ export const MOCK_PRODUCTS: Product[] = [
     categoryName: 'Electronics & Gadgets',
     supplierId: 'sup_apex',
     supplierName: 'Apex Wholesale Importers',
+    material: 'Matte ABS Polymer & Textured Silicone',
+    packaging: 'Commercial Bulk Carton (24 pcs)',
+    weight: '141g / unit',
+    warranty: '2 Years Manufacturer Warranty',
+    compliance: 'UNBS Certified • CE • RoHS',
+    supportPhone: '+256 700 123456',
+    supportWhatsapp: '+256 700 123456',
+    colors: [
+      { name: 'Space Gray', hexCode: '#3A3A3C' },
+      { name: 'Pale Gray', hexCode: '#E5E5EA' },
+      { name: 'Graphite', hexCode: '#1C1C1E' },
+    ],
+    sizes: [
+      { name: 'Standard Ergonomic Right', abbreviation: 'STD' },
+    ],
     description: 'Quiet click performance wireless mouse with 8K DPI any-surface sensor, MagSpeed electromagnetic scrolling, and Bluetooth/Bolt connectivity.',
     imageUrl: 'https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=800&auto=format&fit=crop&q=85',
     aspectRatio: 0.85,
@@ -65,6 +99,21 @@ export const MOCK_PRODUCTS: Product[] = [
     categoryName: 'Electronics & Gadgets',
     supplierId: 'sup_apex',
     supplierName: 'Apex Wholesale Importers',
+    material: 'Soft Fit Synthetic Leather & Aluminum Core',
+    packaging: 'Master Pack (12 units)',
+    weight: '250g / unit',
+    warranty: '1 Year Sony East Africa Replacement Warranty',
+    compliance: 'UNBS Certified • CE Approved',
+    supportPhone: '+256 700 123456',
+    supportWhatsapp: '+256 700 123456',
+    colors: [
+      { name: 'Midnight Black', hexCode: '#000000' },
+      { name: 'Platinum Silver', hexCode: '#DCDCDC' },
+      { name: 'Midnight Blue', hexCode: '#1A2A44' },
+    ],
+    sizes: [
+      { name: 'Universal Adjustable Over-Ear', abbreviation: 'OS' },
+    ],
     description: 'Industry-leading noise canceling with two processors and 8 microphones. Auto NC Optimizer, magnificent call quality, and up to 30h battery life.',
     imageUrl: 'https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=800&auto=format&fit=crop&q=85',
     aspectRatio: 0.95,
@@ -91,6 +140,24 @@ export const MOCK_PRODUCTS: Product[] = [
     categoryName: 'Electronics & Gadgets',
     supplierId: 'sup_apex',
     supplierName: 'Apex Wholesale Importers',
+    material: '100% Recycled Aluminum Enclosure',
+    packaging: 'Factory Sealed Master Box (10 units)',
+    weight: '462g / unit',
+    warranty: '1 Year Apple International Limited Warranty',
+    compliance: 'UNBS Certified • ENERGY STAR',
+    supportPhone: '+256 700 123456',
+    supportWhatsapp: '+256 700 123456',
+    colors: [
+      { name: 'Space Gray', hexCode: '#4B4846' },
+      { name: 'Starlight', hexCode: '#E4DFD5' },
+      { name: 'Purple', hexCode: '#9B99AC' },
+      { name: 'Blue', hexCode: '#738392' },
+    ],
+    sizes: [
+      { name: '128 GB Storage', abbreviation: '128G' },
+      { name: '256 GB Storage', abbreviation: '256G' },
+      { name: '512 GB Storage', abbreviation: '512G' },
+    ],
     description: '11-inch Liquid Retina display powered by the breakthrough Apple M2 chip. Landscape 12MP front camera with Center Stage and superfast Wi-Fi 6E.',
     imageUrl: 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?w=800&auto=format&fit=crop&q=85',
     aspectRatio: 0.75,
@@ -117,6 +184,20 @@ export const MOCK_PRODUCTS: Product[] = [
     categoryName: 'Electronics & Gadgets',
     supplierId: 'sup_apex',
     supplierName: 'Apex Wholesale Importers',
+    material: 'CNC Aluminum Frame & PBT Keycaps',
+    packaging: 'Case Pack (10 units)',
+    weight: '790g / unit',
+    warranty: '1 Year Warranty',
+    compliance: 'CE • FCC • RoHS',
+    colors: [
+      { name: 'Carbon Black', hexCode: '#222222' },
+      { name: 'Retro Gray', hexCode: '#777777' },
+    ],
+    sizes: [
+      { name: 'Red Linear Switches', abbreviation: 'RED' },
+      { name: 'Blue Clicky Switches', abbreviation: 'BLU' },
+      { name: 'Brown Tactile Switches', abbreviation: 'BRN' },
+    ],
     description: 'Compact 75% layout Bluetooth mechanical keyboard with Mac & Windows support, hot-swappable switches, and RGB backlighting.',
     imageUrl: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=800&auto=format&fit=crop&q=85',
     aspectRatio: 0.8,
@@ -141,6 +222,18 @@ export const MOCK_PRODUCTS: Product[] = [
     categoryName: 'Electronics & Gadgets',
     supplierId: 'sup_apex',
     supplierName: 'Apex Wholesale Importers',
+    material: 'Rugged Polymer Housing & Gorilla Glass',
+    packaging: 'Retail Bundle Box (6 units)',
+    weight: '153g / unit',
+    warranty: '1 Year Manufacturer Exchange',
+    compliance: 'UNBS Certified',
+    colors: [
+      { name: 'Matte Black', hexCode: '#111111' },
+    ],
+    sizes: [
+      { name: 'Standard Edition', abbreviation: 'STD' },
+      { name: 'Creator Edition Bundle', abbreviation: 'BUNDLE' },
+    ],
     description: 'Waterproof 4K action camera with HyperSmooth stabilization, front LCD screen, and voice control for extreme outdoor commercial recordings.',
     imageUrl: 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=800&auto=format&fit=crop&q=85',
     aspectRatio: 0.9,
@@ -162,6 +255,20 @@ export const MOCK_PRODUCTS: Product[] = [
     categoryName: 'Electronics & Gadgets',
     supplierId: 'sup_apex',
     supplierName: 'Apex Wholesale Importers',
+    material: 'Polycarbonate body & Silicone band',
+    packaging: 'Case Pack (20 units)',
+    weight: '24.5g / unit',
+    warranty: '1 Year Exchange',
+    compliance: 'CE • UNBS Certified',
+    colors: [
+      { name: 'Midnight Black', hexCode: '#0A0A0A' },
+      { name: 'Cool Mint', hexCode: '#98FF98' },
+      { name: 'White', hexCode: '#F5F5F5' },
+    ],
+    sizes: [
+      { name: 'Small / Medium Band', abbreviation: 'S/M' },
+      { name: 'Large Band', abbreviation: 'L' },
+    ],
     description: 'Slim wellness tracker with touchscreen, Pulse Ox sensor, 24/7 heart rate monitoring, and sleep score tracking.',
     imageUrl: 'https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?w=800&auto=format&fit=crop&q=85',
     aspectRatio: 0.72,
