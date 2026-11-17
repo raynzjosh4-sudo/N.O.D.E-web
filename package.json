@@ -47,7 +47,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "predeploy": "npx expo export --platform web",
+    "predeploy": "npx expo export --platform web --output-dir dist",
     "deploy": "gh-pages -d dist -t true"
   },
   "private": true
