@@ -39,7 +39,7 @@ export function EmailOtpSheet({
   const [canResend, setCanResend] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const inputRefs = useRef<Array<TextInput | null>>([]);
+  const inputRefs = useRef<Array<any>>([]);
 
   useEffect(() => {
     if (!visible) return;
@@ -153,7 +153,9 @@ export function EmailOtpSheet({
                   return (
                     <TextInput
                       key={idx}
-                      ref={(ref) => (inputRefs.current[idx] = ref)}
+                      ref={(ref) => {
+                        inputRefs.current[idx] = ref;
+                      }}
                       value={digit}
                       onChangeText={(val) => handleDigitChange(val, idx)}
                       onKeyPress={(e) => handleKeyPress(e, idx)}

@@ -13,6 +13,11 @@ export interface ProductSize {
   abbreviation: string;
 }
 
+export interface ProductMaterialItem {
+  name: string;
+  imageUrl?: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -26,19 +31,33 @@ export interface Product {
   categoryId?: string;
   categoryName?: string;
   sku?: string;
+  slug?: string;
   stockQuantity?: number;
   moq?: number;
+  moqText?: string;
   description?: string;
   status?: 'active' | 'low_stock' | 'draft' | 'out_of_stock';
   colors?: ProductColor[];
   sizes?: ProductSize[];
+  materialsList?: ProductMaterialItem[];
   material?: string;
-  packaging?: string;
+  denier?: string;
+  hsCode?: string;
+  unbsNumber?: string;
   weight?: string;
+  volumeCbm?: string;
+  originCountry?: string;
+  leadTimeDays?: string;
+  packaging?: string;
   warranty?: string;
   compliance?: string;
+  paymentTerms?: string;
+  deliveryTerms?: string;
   supportPhone?: string;
   supportWhatsapp?: string;
+  supportEmail?: string;
+  seoTitle?: string;
+  seoDescription?: string;
   mediaUrls?: string[];
   priceTiers: PriceTier[];
 }

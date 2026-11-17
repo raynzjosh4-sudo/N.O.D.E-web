@@ -15,7 +15,8 @@ import {
 } from 'react-native';
 import { useAppTheme } from '@/core/theme/theme_context';
 import { MaterialIcon } from '@/core/widgets/material_icon';
-import { Product, PriceTier, ProductColor, ProductSize } from '../../domain/entities/product';
+import * as ImagePicker from 'expo-image-picker';
+import { Product, PriceTier, ProductColor, ProductSize, ProductMaterialItem } from '../../domain/entities/product';
 import { useProducts } from '../../context/products_context';
 
 interface EditProductSheetProps {
@@ -25,24 +26,10 @@ interface EditProductSheetProps {
   onSuccess?: () => void;
 }
 
-// Quick Preset Colors
-const COLOR_PRESETS: { name: string; hex: string }[] = [
-  { name: 'Midnight Black', hex: '#000000' },
-  { name: 'Space Gray', hex: '#3A3A3C' },
-  { name: 'Silver White', hex: '#F0F0F2' },
-  { name: 'Midnight Blue', hex: '#1A2A44' },
-  { name: 'Enterprise Blue', hex: '#12BBF0' },
-  { name: 'Forest Green', hex: '#1E4620' },
-  { name: 'Emerald', hex: '#10B981' },
-  { name: 'Gold / Amber', hex: '#F59E0B' },
-  { name: 'Crimson Red', hex: '#DC2626' },
-  { name: 'Purple', hex: '#7C3AED' },
-  { name: 'Rose', hex: '#EC4899' },
-  { name: 'Sand Khaki', hex: '#C2B280' },
-];
 
-// Quick Preset Size Groups
-const SIZE_PRESETS = {
+
+// Presets by Category
+const SIZE_PRESETS_CATALOG = {
   apparel: [
     { name: 'Extra Small', abbreviation: 'XS' },
     { name: 'Small', abbreviation: 'S' },
@@ -50,24 +37,37 @@ const SIZE_PRESETS = {
     { name: 'Large', abbreviation: 'L' },
     { name: 'Extra Large', abbreviation: 'XL' },
     { name: '2X Large', abbreviation: '2XL' },
+    { name: '3X Large', abbreviation: '3XL' },
+    { name: 'One Size Fits All', abbreviation: 'FREE' },
+  ],
+  shoes: [
+    { name: 'EU 38 / US 6', abbreviation: 'EU38' },
+    { name: 'EU 39 / US 6.5', abbreviation: 'EU39' },
+    { name: 'EU 40 / US 7', abbreviation: 'EU40' },
+    { name: 'EU 41 / US 8', abbreviation: 'EU41' },
+    { name: 'EU 42 / US 8.5', abbreviation: 'EU42' },
+    { name: 'EU 43 / US 9.5', abbreviation: 'EU43' },
+    { name: 'EU 44 / US 10', abbreviation: 'EU44' },
+    { name: 'EU 45 / US 11', abbreviation: 'EU45' },
   ],
   storage: [
-    { name: '64 GB', abbreviation: '64G' },
-    { name: '128 GB', abbreviation: '128G' },
-    { name: '256 GB', abbreviation: '256G' },
-    { name: '512 GB', abbreviation: '512G' },
+    { name: '32 Gigabytes', abbreviation: '32GB' },
+    { name: '64 Gigabytes', abbreviation: '64GB' },
+    { name: '128 Gigabytes', abbreviation: '128GB' },
+    { name: '256 Gigabytes', abbreviation: '256GB' },
+    { name: '512 Gigabytes', abbreviation: '512GB' },
     { name: '1 Terabyte', abbreviation: '1TB' },
+    { name: '2 Terabytes', abbreviation: '2TB' },
   ],
-  screen: [
-    { name: '11-inch', abbreviation: '11"' },
-    { name: '13-inch', abbreviation: '13"' },
-    { name: '14-inch', abbreviation: '14"' },
-    { name: '15.6-inch', abbreviation: '15.6"' },
-    { name: '16-inch', abbreviation: '16"' },
+  bulkPacks: [
+    { name: 'Carton of 12 pcs', abbreviation: '12-Pack' },
+    { name: 'Carton of 24 pcs', abbreviation: '24-Pack' },
+    { name: 'Master Box 48 pcs', abbreviation: '48-Pack' },
+    { name: 'Commercial Pallet', abbreviation: 'Pallet' },
   ],
 };
 
-type ActiveSection = 'general' | 'variants' | 'pricing' | 'logistics';
+type ActiveSection = 'identity' | 'variants' | 'pricing' | 'logistics' | 'support';
 
 export function EditProductSheet({
   visible,
@@ -82,112 +82,160 @@ export function EditProductSheet({
 
   const isEditing = Boolean(product);
 
-  const [activeSection, setActiveSection] = useState<ActiveSection>('general');
+  const [activeSection, setActiveSection] = useState<ActiveSection>('identity');
 
-  // General Identity
+  // --- Section 1: Basic Identity ---
   const [name, setName] = useState('');
   const [brand, setBrand] = useState('');
   const [categoryName, setCategoryName] = useState('');
   const [sku, setSku] = useState('');
-  const [warehouseLoc, setWarehouseLoc] = useState('');
-  const [srp, setSrp] = useState('');
-  const [stockQuantity, setStockQuantity] = useState('');
-  const [moq, setMoq] = useState('');
-  const [description, setDescription] = useState('');
+  const [slug, setSlug] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [description, setDescription] = useState('');
   const [status, setStatus] = useState<'active' | 'low_stock' | 'draft'>('active');
 
-  // Colors & Sizes
+  // --- Section 2: Variants & Attributes ---
   const [productColors, setProductColors] = useState<ProductColor[]>([]);
   const [productSizes, setProductSizes] = useState<ProductSize[]>([]);
+  const [materialsList, setMaterialsList] = useState<ProductMaterialItem[]>([]);
+  const [primaryMaterial, setPrimaryMaterial] = useState('');
+  const [denier, setDenier] = useState('');
+
+  // Color Custom Add
   const [customColorName, setCustomColorName] = useState('');
   const [customColorHex, setCustomColorHex] = useState('#12BBF0');
+
+  // Custom Size & Dimensions
   const [customSizeName, setCustomSizeName] = useState('');
   const [customSizeAbbr, setCustomSizeAbbr] = useState('');
 
-  // Logistics & Attributes
-  const [material, setMaterial] = useState('');
-  const [packaging, setPackaging] = useState('');
-  const [weight, setWeight] = useState('');
-  const [warranty, setWarranty] = useState('');
-  const [compliance, setCompliance] = useState('');
-  const [supportPhone, setSupportPhone] = useState('');
-  const [supportWhatsapp, setSupportWhatsapp] = useState('');
+  // Custom Material
+  const [customMaterialName, setCustomMaterialName] = useState('');
 
-  // Tiered Pricing
+  // --- Section 3: Wholesale & Pricing ---
+  const [srp, setSrp] = useState('');
   const [priceTiers, setPriceTiers] = useState<PriceTier[]>([]);
   const [newTierQty, setNewTierQty] = useState('');
   const [newTierPrice, setNewTierPrice] = useState('');
-
-  // Media Gallery URLs
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [newMediaUrl, setNewMediaUrl] = useState('');
+
+  // --- Section 4: Logistics & Compliance ---
+  const [hsCode, setHsCode] = useState('');
+  const [unbsNumber, setUnbsNumber] = useState('');
+  const [weight, setWeight] = useState('');
+  const [volumeCbm, setVolumeCbm] = useState('');
+  const [originCountry, setOriginCountry] = useState('China');
+  const [stockQuantity, setStockQuantity] = useState('100');
+  const [leadTimeDays, setLeadTimeDays] = useState('3');
+  const [warehouseLoc, setWarehouseLoc] = useState('Kampala Central');
+  const [packaging, setPackaging] = useState('');
+  const [warranty, setWarranty] = useState('1 Year Official');
+  const [compliance, setCompliance] = useState('UNBS Certified • CE');
+
+  // --- Section 5: Trading Terms & Support ---
+  const [moq, setMoq] = useState('5');
+  const [paymentTerms, setPaymentTerms] = useState('30% Downpayment, 70% before delivery');
+  const [deliveryTerms, setDeliveryTerms] = useState('FOB Kampala or Direct Pallet Courier');
+  const [supportWhatsapp, setSupportWhatsapp] = useState('');
+  const [supportPhone, setSupportPhone] = useState('');
+  const [supportEmail, setSupportEmail] = useState('');
+  const [seoTitle, setSeoTitle] = useState('');
+  const [seoDescription, setSeoDescription] = useState('');
 
   useEffect(() => {
     if (product) {
       setName(product.name || '');
       setBrand(product.brand || '');
-      setCategoryName(product.categoryName || 'Electronics & Gadgets');
+      setCategoryName(product.categoryName || 'General Wholesale');
       setSku(product.sku || '');
-      setWarehouseLoc(product.warehouseLoc || 'Kampala Central');
-      setSrp(product.srp ? product.srp.toString() : '');
-      setStockQuantity(product.stockQuantity !== undefined ? product.stockQuantity.toString() : '100');
-      setMoq(product.moq ? product.moq.toString() : '1');
-      setDescription(product.description || '');
+      setSlug(product.slug || product.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || '');
       setImageUrl(product.imageUrl || '');
+      setDescription(product.description || '');
       setStatus((product.status as any) || 'active');
+
       setProductColors(product.colors ? [...product.colors] : []);
       setProductSizes(product.sizes ? [...product.sizes] : []);
-      setMaterial(product.material || '');
-      setPackaging(product.packaging || '');
-      setWeight(product.weight || '');
-      setWarranty(product.warranty || '');
-      setCompliance(product.compliance || '');
-      setSupportPhone(product.supportPhone || '');
-      setSupportWhatsapp(product.supportWhatsapp || '');
+      setMaterialsList(product.materialsList ? [...product.materialsList] : []);
+      setPrimaryMaterial(product.material || '');
+      setDenier(product.denier || '');
+
+      setSrp(product.srp ? product.srp.toString() : '');
       setPriceTiers(product.priceTiers ? [...product.priceTiers] : []);
       setMediaUrls(product.mediaUrls ? [...product.mediaUrls] : []);
+
+      setHsCode(product.hsCode || '');
+      setUnbsNumber(product.unbsNumber || '');
+      setWeight(product.weight || '');
+      setVolumeCbm(product.volumeCbm || '');
+      setOriginCountry(product.originCountry || 'Uganda');
+      setStockQuantity(product.stockQuantity !== undefined ? product.stockQuantity.toString() : '50');
+      setLeadTimeDays(product.leadTimeDays || '2');
+      setWarehouseLoc(product.warehouseLoc || 'Kampala Central');
+      setPackaging(product.packaging || '');
+      setWarranty(product.warranty || '');
+      setCompliance(product.compliance || '');
+
+      setMoq(product.moq ? product.moq.toString() : '5');
+      setPaymentTerms(product.paymentTerms || '');
+      setDeliveryTerms(product.deliveryTerms || '');
+      setSupportWhatsapp(product.supportWhatsapp || '');
+      setSupportPhone(product.supportPhone || '');
+      setSupportEmail(product.supportEmail || '');
+      setSeoTitle(product.seoTitle || '');
+      setSeoDescription(product.seoDescription || '');
     } else {
       setName('');
       setBrand('');
       setCategoryName('Electronics & Gadgets');
-      setSku(`ND-${Math.floor(10000 + Math.random() * 90000)}`);
-      setWarehouseLoc('Kampala Central Warehouse');
-      setSrp('1000000');
-      setStockQuantity('50');
-      setMoq('5');
-      setDescription('');
+      const genSku = `ND-${Math.floor(10000 + Math.random() * 90000)}`;
+      setSku(genSku);
+      setSlug(`product-${genSku.toLowerCase()}`);
       setImageUrl('https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=800&auto=format&fit=crop&q=80');
+      setDescription('');
       setStatus('active');
+
       setProductColors([
-        { name: 'Space Gray', hexCode: '#3A3A3C' },
-        { name: 'Silver', hexCode: '#E5E5EA' },
+        { name: 'Midnight Black', hexCode: '#000000' },
+        { name: 'Silver White', hexCode: '#E5E5EA' },
       ]);
       setProductSizes([
         { name: 'Standard Unit', abbreviation: 'STD' },
       ]);
-      setMaterial('Aerospace Grade Aluminum & Polymer');
-      setPackaging('Master Export Carton (12 units)');
-      setWeight('500g / unit');
-      setWarranty('1 Year Official Manufacturer Warranty');
-      setCompliance('UNBS Certified • CE Approved');
-      setSupportPhone('+256 700 123456');
-      setSupportWhatsapp('+256 700 123456');
+      setMaterialsList([]);
+      setPrimaryMaterial('Polymer & Aerospace Aluminum');
+      setDenier('');
+
+      setSrp('750000');
       setPriceTiers([
-        { minQuantity: 1, price: 950000 },
-        { minQuantity: 5, price: 850000 },
+        { minQuantity: 1, price: 750000 },
+        { minQuantity: 5, price: 680000 },
       ]);
       setMediaUrls([]);
-    }
-    setActiveSection('general');
-  }, [product, visible]);
 
-  // Color actions
-  const handleAddPresetColor = (preset: { name: string; hex: string }) => {
-    if (!productColors.some((c) => c.hexCode.toLowerCase() === preset.hex.toLowerCase())) {
-      setProductColors([...productColors, { name: preset.name, hexCode: preset.hex }]);
+      setHsCode('8517.62.00');
+      setUnbsNumber('UNBS/QMS/2026');
+      setWeight('0.45 KG');
+      setVolumeCbm('0.002 CBM');
+      setOriginCountry('China');
+      setStockQuantity('150');
+      setLeadTimeDays('2');
+      setWarehouseLoc('Kampala Central Industrial Area');
+      setPackaging('Master Export Carton (24 pcs)');
+      setWarranty('1 Year Official Manufacturer Warranty');
+      setCompliance('UNBS Certified • CE • RoHS');
+
+      setMoq('5');
+      setPaymentTerms('30% Downpayment on Order, 70% upon delivery inspection');
+      setDeliveryTerms('Direct Warehouse Pickup or Regional Courier Dispatch');
+      setSupportWhatsapp('+256 700 123456');
+      setSupportPhone('+256 700 123456');
+      setSupportEmail('procurement@apexwholesale.ug');
+      setSeoTitle('');
+      setSeoDescription('');
     }
-  };
+    setActiveSection('identity');
+  }, [product, visible]);
 
   const handleAddCustomColor = () => {
     if (!customColorName.trim()) return;
@@ -200,16 +248,16 @@ export function EditProductSheet({
     setProductColors((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Size actions
-  const handleAddPresetSize = (preset: { name: string; abbreviation: string }) => {
-    if (!productSizes.some((s) => s.abbreviation.toLowerCase() === preset.abbreviation.toLowerCase())) {
-      setProductSizes([...productSizes, preset]);
+  // --- Handlers: Sizes ---
+  const handleAddPresetSize = (s: { name: string; abbreviation: string }) => {
+    if (!productSizes.some((x) => x.abbreviation.toLowerCase() === s.abbreviation.toLowerCase())) {
+      setProductSizes([...productSizes, s]);
     }
   };
 
   const handleAddCustomSize = () => {
     if (!customSizeName.trim()) return;
-    const abbr = customSizeAbbr.trim() || customSizeName.trim().slice(0, 3).toUpperCase();
+    const abbr = customSizeAbbr.trim() || customSizeName.trim().slice(0, 4).toUpperCase();
     setProductSizes([...productSizes, { name: customSizeName.trim(), abbreviation: abbr }]);
     setCustomSizeName('');
     setCustomSizeAbbr('');
@@ -219,7 +267,18 @@ export function EditProductSheet({
     setProductSizes((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Tier actions
+  // --- Handlers: Materials ---
+  const handleAddMaterial = () => {
+    if (!customMaterialName.trim()) return;
+    setMaterialsList([...materialsList, { name: customMaterialName.trim() }]);
+    setCustomMaterialName('');
+  };
+
+  const handleRemoveMaterial = (index: number) => {
+    setMaterialsList((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // --- Handlers: Price Tiers ---
   const handleAddTier = () => {
     const qty = parseInt(newTierQty.replace(/[^0-9]/g, ''), 10);
     const price = parseInt(newTierPrice.replace(/[^0-9]/g, ''), 10);
@@ -236,7 +295,41 @@ export function EditProductSheet({
     setPriceTiers((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Gallery actions
+  // --- Handlers: Media & Image Picker ---
+  const handlePickPrimaryImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setImageUrl(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.warn('Image picker error:', error);
+    }
+  };
+
+  const handlePickGalleryImages = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const newUris = result.assets.map((a) => a.uri);
+        setMediaUrls((prev) => [...prev, ...newUris]);
+      }
+    } catch (error) {
+      console.warn('Gallery image picker error:', error);
+    }
+  };
+
   const handleAddMediaUrl = () => {
     if (!newMediaUrl.trim()) return;
     setMediaUrls([...mediaUrls, newMediaUrl.trim()]);
@@ -247,13 +340,13 @@ export function EditProductSheet({
     setMediaUrls((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Save handler
+  // --- Save / Publish Product ---
   const handleSave = () => {
     if (!name.trim()) {
       if (Platform.OS === 'web') {
-        window.alert('Please enter a product name.');
+        window.alert('Please enter a Product Name before publishing.');
       } else {
-        Alert.alert('Validation Error', 'Please enter a product name.');
+        Alert.alert('Required Field', 'Please enter a Product Name.');
       }
       return;
     }
@@ -261,13 +354,14 @@ export function EditProductSheet({
     const numericSrp = parseInt(srp.replace(/[^0-9]/g, ''), 10) || 0;
     const numericStock = parseInt(stockQuantity.replace(/[^0-9]/g, ''), 10) || 0;
     const numericMoq = parseInt(moq.replace(/[^0-9]/g, ''), 10) || 1;
-    const tiersToSave = priceTiers.length > 0 ? priceTiers : [{ minQuantity: 1, price: numericSrp }];
+    const finalTiers = priceTiers.length > 0 ? priceTiers : [{ minQuantity: 1, price: numericSrp }];
 
     const payload: Partial<Product> = {
       name: name.trim(),
       brand: brand.trim(),
       categoryName: categoryName.trim(),
       sku: sku.trim(),
+      slug: slug.trim() || name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
       warehouseLoc: warehouseLoc.trim(),
       srp: numericSrp,
       stockQuantity: numericStock,
@@ -277,14 +371,26 @@ export function EditProductSheet({
       status,
       colors: productColors,
       sizes: productSizes,
-      material: material.trim(),
-      packaging: packaging.trim(),
+      materialsList,
+      material: primaryMaterial.trim(),
+      denier: denier.trim(),
+      hsCode: hsCode.trim(),
+      unbsNumber: unbsNumber.trim(),
       weight: weight.trim(),
+      volumeCbm: volumeCbm.trim(),
+      originCountry: originCountry.trim(),
+      leadTimeDays: leadTimeDays.trim(),
+      packaging: packaging.trim(),
       warranty: warranty.trim(),
       compliance: compliance.trim(),
+      paymentTerms: paymentTerms.trim(),
+      deliveryTerms: deliveryTerms.trim(),
       supportPhone: supportPhone.trim(),
       supportWhatsapp: supportWhatsapp.trim(),
-      priceTiers: tiersToSave,
+      supportEmail: supportEmail.trim(),
+      seoTitle: seoTitle.trim(),
+      seoDescription: seoDescription.trim(),
+      priceTiers: finalTiers,
       mediaUrls: mediaUrls.length > 0 ? mediaUrls : (imageUrl ? [imageUrl] : []),
     };
 
@@ -298,9 +404,7 @@ export function EditProductSheet({
     }
 
     onClose();
-    if (onSuccess) {
-      onSuccess();
-    }
+    if (onSuccess) onSuccess();
   };
 
   const handleDelete = () => {
@@ -312,11 +416,11 @@ export function EditProductSheet({
     };
 
     if (Platform.OS === 'web') {
-      if (window.confirm?.(`Are you sure you want to delete "${product.name}"?`)) {
+      if (window.confirm?.(`Are you sure you want to permanently delete "${product.name}"?`)) {
         confirmAction();
       }
     } else {
-      Alert.alert('Delete Product', `Delete "${product.name}" from catalog?`, [
+      Alert.alert('Delete Listing', `Permanently remove "${product.name}"?`, [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete', style: 'destructive', onPress: confirmAction },
       ]);
@@ -334,7 +438,7 @@ export function EditProductSheet({
             { backgroundColor: isDark ? '#1C1C21' : '#FFFFFF' },
           ]}
         >
-          {/* Handlebar (Mobile only) */}
+          {/* Mobile Handlebar */}
           {!isDesktop && (
             <View
               style={[
@@ -346,62 +450,71 @@ export function EditProductSheet({
 
           {/* Header */}
           <View style={styles.headerRow}>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={[styles.title, { color: colors.onSurface }]}>
-                {isEditing ? 'Update Wholesale Product' : 'Add Wholesale Product'}
+                {isEditing ? 'Update Wholesale Product' : 'Post Wholesale Product'}
               </Text>
               <Text style={[styles.subtitle, { color: isDark ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)' }]}>
-                {isEditing ? `Editing SKU: ${sku || product?.id}` : 'Create a new inventory listing with variants & tiered pricing'}
+                {isEditing ? `Editing SKU: ${sku || product?.id}` : 'Complete multi-spec form matching N.O.D.E wholesale distribution protocol'}
               </Text>
             </View>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={styles.closeBtn}>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={styles.closeBtn}>
               <MaterialIcon name="close" size={22} color={colors.onSurface} />
             </TouchableOpacity>
           </View>
 
-          {/* Section Navigation Tabs */}
+          {/* Section Navigation Tabs (All 5 Sections from Dart Spec) */}
           <View style={[styles.sectionTabsRow, { borderBottomColor: colors.borderLight }]}>
-            {[
-              { key: 'general' as ActiveSection, label: 'General & Specs', icon: 'info' },
-              { key: 'variants' as ActiveSection, label: 'Colors & Sizes', icon: 'palette' },
-              { key: 'pricing' as ActiveSection, label: 'Wholesale Tiers', icon: 'payments' },
-              { key: 'logistics' as ActiveSection, label: 'Packaging & Support', icon: 'inventory_2' },
-            ].map((tab) => {
-              const isSelected = activeSection === tab.key;
-              return (
-                <TouchableOpacity
-                  key={tab.key}
-                  onPress={() => setActiveSection(tab.key)}
-                  style={[
-                    styles.sectionTabBtn,
-                    isSelected && { borderBottomColor: colors.primary, borderBottomWidth: 2 },
-                  ]}
-                >
-                  <MaterialIcon
-                    name={tab.icon}
-                    size={16}
-                    color={isSelected ? colors.primary : colors.onSurfaceMuted}
-                  />
-                  <Text
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsScrollContent}>
+              {[
+                { key: 'identity' as ActiveSection, label: 'Identity', icon: 'package_2' },
+                { key: 'variants' as ActiveSection, label: 'Colors & Sizes', icon: 'palette' },
+                { key: 'pricing' as ActiveSection, label: 'Wholesale Tiers', icon: 'payments' },
+                { key: 'logistics' as ActiveSection, label: 'Logistics & Stock', icon: 'local_shipping' },
+                { key: 'support' as ActiveSection, label: 'Terms & Support', icon: 'verified_user' },
+              ].map((tab) => {
+                const isSelected = activeSection === tab.key;
+                return (
+                  <TouchableOpacity
+                    key={tab.key}
+                    onPress={() => setActiveSection(tab.key)}
                     style={[
-                      styles.sectionTabText,
-                      { color: isSelected ? colors.primary : colors.onSurfaceMuted },
+                      styles.sectionTabBtn,
+                      isSelected && { borderBottomColor: colors.primary, borderBottomWidth: 2.5 },
                     ]}
                   >
-                    {tab.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+                    <MaterialIcon
+                      name={tab.icon}
+                      size={16}
+                      color={isSelected ? colors.primary : colors.onSurfaceMuted}
+                    />
+                    <Text
+                      style={[
+                        styles.sectionTabText,
+                        { color: isSelected ? colors.primary : colors.onSurfaceMuted },
+                      ]}
+                    >
+                      {tab.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </View>
 
+          {/* Main Scroll Content */}
           <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-            {/* ── 1. GENERAL IDENTITY & SPECS ── */}
-            {activeSection === 'general' && (
+
+            {/* ═══════════════════════════════════════════════════
+                SECTION 1: BASIC IDENTITY
+               ═══════════════════════════════════════════════════ */}
+            {activeSection === 'identity' && (
               <View>
                 {/* Image Preview & URL */}
                 <View style={styles.imagePreviewRow}>
-                  <View
+                  <TouchableOpacity
+                    onPress={handlePickPrimaryImage}
+                    activeOpacity={0.7}
                     style={[
                       styles.imageThumbnailBox,
                       {
@@ -413,28 +526,48 @@ export function EditProductSheet({
                     {imageUrl ? (
                       <Image source={{ uri: imageUrl }} style={styles.previewImage} resizeMode="cover" />
                     ) : (
-                      <MaterialIcon name="image" size={32} color={colors.onSurfaceMuted} />
+                      <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+                        <MaterialIcon name="add_a_photo" size={28} color={colors.primary} />
+                        <Text style={{ fontSize: 10, color: colors.primary, marginTop: 4, fontFamily: 'PlusJakartaSans_600SemiBold' }}>Pick Photo</Text>
+                      </View>
                     )}
-                  </View>
+                  </TouchableOpacity>
                   <View style={styles.imageUrlInputCol}>
-                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Primary Product Image URL</Text>
-                    <View
-                      style={[
-                        styles.inputWrapper,
-                        {
-                          backgroundColor: isDark ? colors.cardColor : '#F6F8FA',
-                          borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)',
-                        },
-                      ]}
-                    >
-                      <TextInput
-                        value={imageUrl}
-                        onChangeText={setImageUrl}
-                        placeholder="https://..."
-                        placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
-                        style={[styles.inputField, { color: colors.onSurface }]}
-                      />
+                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Primary Product Image *</Text>
+                    <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                      <TouchableOpacity
+                        onPress={handlePickPrimaryImage}
+                        style={[
+                          styles.addBtnSmall,
+                          {
+                            backgroundColor: colors.primary,
+                            flexDirection: 'row',
+                            gap: 6,
+                            paddingHorizontal: 16,
+                          },
+                        ]}
+                      >
+                        <MaterialIcon name="photo_camera" size={18} color="#FFFFFF" />
+                        <Text style={styles.addBtnSmallText}>{imageUrl ? 'Change Image' : 'Pick Image'}</Text>
+                      </TouchableOpacity>
+                      {imageUrl ? (
+                        <TouchableOpacity
+                          onPress={() => setImageUrl('')}
+                          style={[
+                            styles.addBtnSmall,
+                            {
+                              backgroundColor: 'rgba(255, 77, 79, 0.12)',
+                              paddingHorizontal: 12,
+                            },
+                          ]}
+                        >
+                          <MaterialIcon name="delete_outline" size={18} color="#FF4D4F" />
+                        </TouchableOpacity>
+                      ) : null}
                     </View>
+                    <Text style={[styles.fieldHelper, { color: isDark ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.4)', marginTop: 6 }]}>
+                      Pick from device camera roll or gallery.
+                    </Text>
                   </View>
                 </View>
 
@@ -442,25 +575,54 @@ export function EditProductSheet({
                 <View style={styles.formGroup}>
                   <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Product Name *</Text>
                   <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                    <MaterialIcon name="label" size={18} color={colors.onSurfaceMuted} />
                     <TextInput
                       value={name}
                       onChangeText={setName}
-                      placeholder="e.g. Apple iPad Air 11-inch M2 Chip"
+                      placeholder="e.g. 100W Solar Kit / Industrial Rice Cooker"
                       placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
                       style={[styles.inputField, { color: colors.onSurface }]}
                     />
                   </View>
                 </View>
 
-                {/* Brand & Category */}
+                {/* SKU & Brand */}
                 <View style={styles.twoColRow}>
                   <View style={styles.halfCol}>
-                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Brand</Text>
+                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>SKU / Unique ID</Text>
+                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                      <TextInput
+                        value={sku}
+                        onChangeText={setSku}
+                        placeholder="SKU-001-ADMIN"
+                        placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
+                        style={[styles.inputField, { color: colors.onSurface }]}
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.halfCol}>
+                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Brand Name</Text>
                     <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
                       <TextInput
                         value={brand}
                         onChangeText={setBrand}
-                        placeholder="e.g. Apple"
+                        placeholder="e.g. Eagle Brand / Prime Tools"
+                        placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
+                        style={[styles.inputField, { color: colors.onSurface }]}
+                      />
+                    </View>
+                  </View>
+                </View>
+
+                {/* SEO Slug & Category */}
+                <View style={styles.twoColRow}>
+                  <View style={styles.halfCol}>
+                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>SEO Slug (URL Handle)</Text>
+                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                      <TextInput
+                        value={slug}
+                        onChangeText={setSlug}
+                        placeholder="product-slug-url"
                         placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
                         style={[styles.inputField, { color: colors.onSurface }]}
                       />
@@ -472,7 +634,7 @@ export function EditProductSheet({
                       <TextInput
                         value={categoryName}
                         onChangeText={setCategoryName}
-                        placeholder="e.g. Electronics & Gadgets"
+                        placeholder="e.g. Electronics & Hardware"
                         placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
                         style={[styles.inputField, { color: colors.onSurface }]}
                       />
@@ -480,128 +642,65 @@ export function EditProductSheet({
                   </View>
                 </View>
 
-                {/* SKU & Warehouse */}
-                <View style={styles.twoColRow}>
-                  <View style={styles.halfCol}>
-                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>SKU / Model Code</Text>
-                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
-                      <TextInput
-                        value={sku}
-                        onChangeText={setSku}
-                        placeholder="e.g. APL-IPADAIR-M2-128"
-                        placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
-                        style={[styles.inputField, { color: colors.onSurface }]}
-                      />
-                    </View>
-                  </View>
-                  <View style={styles.halfCol}>
-                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Warehouse Location</Text>
-                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
-                      <TextInput
-                        value={warehouseLoc}
-                        onChangeText={setWarehouseLoc}
-                        placeholder="e.g. Bugolobi Hub"
-                        placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
-                        style={[styles.inputField, { color: colors.onSurface }]}
-                      />
-                    </View>
-                  </View>
-                </View>
-
-                {/* Stock & MOQ */}
-                <View style={styles.twoColRow}>
-                  <View style={styles.halfCol}>
-                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Warehouse Stock Units</Text>
-                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
-                      <TextInput
-                        value={stockQuantity}
-                        onChangeText={setStockQuantity}
-                        placeholder="e.g. 1450"
-                        keyboardType="numeric"
-                        placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
-                        style={[styles.inputField, { color: colors.onSurface }]}
-                      />
-                    </View>
-                  </View>
-                  <View style={styles.halfCol}>
-                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Minimum Order Qty (MOQ)</Text>
-                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
-                      <TextInput
-                        value={moq}
-                        onChangeText={setMoq}
-                        placeholder="e.g. 2"
-                        keyboardType="numeric"
-                        placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
-                        style={[styles.inputField, { color: colors.onSurface }]}
-                      />
-                    </View>
-                  </View>
-                </View>
-
-                {/* Status Selector */}
+                {/* Description */}
                 <View style={styles.formGroup}>
-                  <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Catalog Listing Status</Text>
-                  <View style={styles.statusRow}>
-                    {(['active', 'low_stock', 'draft'] as const).map((st) => {
-                      const isSelected = status === st;
-                      const label = st === 'active' ? 'Active' : st === 'low_stock' ? 'Low Stock' : 'Draft / Paused';
-                      const activeColor = st === 'active' ? '#10B981' : st === 'low_stock' ? '#F59E0B' : '#6B7280';
-                      return (
-                        <TouchableOpacity
-                          key={st}
-                          activeOpacity={0.8}
-                          onPress={() => setStatus(st)}
-                          style={[
-                            styles.statusChip,
-                            {
-                              backgroundColor: isSelected ? `${activeColor}22` : isDark ? colors.cardColor : '#F3F4F6',
-                              borderColor: isSelected ? activeColor : isDark ? colors.borderLight : 'transparent',
-                            },
-                          ]}
-                        >
-                          <View style={[styles.statusDot, { backgroundColor: activeColor }]} />
-                          <Text style={[styles.statusChipText, { color: isSelected ? activeColor : colors.onSurfaceMuted }]}>
-                            {label}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </View>
-
-                {/* Description & Technical Specs */}
-                <View style={styles.formGroup}>
-                  <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Specifications & Description</Text>
+                  <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Detailed Specifications & Overview</Text>
                   <View style={[styles.textAreaWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
                     <TextInput
                       value={description}
                       onChangeText={setDescription}
                       multiline
                       numberOfLines={4}
-                      placeholder="Detailed product overview, included commercial components, warranty..."
+                      placeholder="Comprehensive product description, key application scenarios, commercial grade..."
                       placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
                       style={[styles.textAreaField, { color: colors.onSurface }]}
                     />
                   </View>
                 </View>
+
+                {/* Listing Status */}
+                <View style={styles.formGroup}>
+                  <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Listing Status</Text>
+                  <View style={styles.statusButtonsRow}>
+                    {(['active', 'low_stock', 'draft'] as const).map((st) => (
+                      <TouchableOpacity
+                        key={st}
+                        onPress={() => setStatus(st)}
+                        style={[
+                          styles.statusBtn,
+                          {
+                            backgroundColor: status === st ? colors.primary : (isDark ? colors.cardColor : '#F3F4F6'),
+                            borderColor: status === st ? colors.primary : (isDark ? colors.borderLight : 'rgba(0,0,0,0.08)'),
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.statusBtnText, { color: status === st ? '#FFFFFF' : colors.onSurface }]}>
+                          {st === 'active' ? '● Active' : st === 'low_stock' ? '▲ Low Stock' : 'Draft'}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
               </View>
             )}
 
-            {/* ── 2. VARIANTS: COLORS & SIZES ── */}
+            {/* ═══════════════════════════════════════════════════
+                SECTION 2: VARIANTS & ATTRIBUTES (COLORS, SIZES, MATERIALS)
+               ═══════════════════════════════════════════════════ */}
             {activeSection === 'variants' && (
               <View>
-                {/* 🎨 AVAILABLE COLORS */}
+                {/* 🎨 ALL COLORS IN THE WORLD PALETTE & SEARCH */}
                 <View style={styles.formGroup}>
                   <View style={styles.sectionHeaderLine}>
                     <Text style={[styles.sectionHeading, { color: colors.onSurface }]}>
-                      Available Colors ({productColors.length})
+                      Available Colors ({productColors.length} Selected)
                     </Text>
                   </View>
                   <Text style={[styles.fieldHelper, { color: isDark ? 'rgba(255, 255, 255, 0.45)' : 'rgba(0, 0, 0, 0.45)' }]}>
-                    Buyers can select their preferred wholesale color breakdown during checkout.
+                    Use the visual color picker to pick any color, write the color name, and click Add.
                   </Text>
 
-                  {/* Active Color Chips */}
+                  {/* Active Selected Colors */}
                   {productColors.length > 0 ? (
                     <View style={styles.chipWrapRow}>
                       {productColors.map((col, idx) => (
@@ -617,7 +716,7 @@ export function EditProductSheet({
                         >
                           <View style={[styles.colorSwatchCircle, { backgroundColor: col.hexCode }]} />
                           <Text style={[styles.variantChipText, { color: colors.onSurface }]}>
-                            {col.name}
+                            {col.name} ({col.hexCode})
                           </Text>
                           <TouchableOpacity onPress={() => handleRemoveColor(idx)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                             <MaterialIcon name="close" size={14} color={colors.onSurfaceMuted} />
@@ -627,57 +726,58 @@ export function EditProductSheet({
                     </View>
                   ) : (
                     <Text style={[styles.emptyVariantNotice, { color: colors.onSurfaceMuted }]}>
-                      No colors assigned yet. Select from the presets below or add a custom color.
+                      No colors assigned yet. Pick from the global catalog below or type custom details.
                     </Text>
                   )}
 
-                  {/* Preset Colors Palette */}
-                  <Text style={[styles.subLabel, { color: colors.onSurface }]}>Quick Preset Palette</Text>
-                  <View style={styles.presetPaletteRow}>
-                    {COLOR_PRESETS.map((preset, idx) => (
-                      <TouchableOpacity
-                        key={idx}
-                        activeOpacity={0.7}
-                        onPress={() => handleAddPresetColor(preset)}
-                        style={[
-                          styles.presetColorBtn,
-                          {
-                            backgroundColor: isDark ? colors.cardColor : '#FFFFFF',
-                            borderColor: isDark ? colors.borderLight : 'rgba(0,0,0,0.1)',
-                          },
-                        ]}
-                      >
-                        <View style={[styles.presetDot, { backgroundColor: preset.hex }]} />
-                        <Text style={[styles.presetName, { color: colors.onSurface }]}>
-                          {preset.name}
-                        </Text>
-                        <MaterialIcon name="add" size={12} color={colors.primary} />
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-
-                  {/* Add Custom Color */}
+                  {/* Visual Color Picker & Name Input */}
                   <View style={styles.customAddCard}>
-                    <Text style={[styles.subLabel, { color: colors.onSurface }]}>Add Custom Color</Text>
+                    <Text style={[styles.subLabel, { color: colors.onSurface }]}>Pick Color & Enter Name</Text>
                     <View style={styles.customAddRow}>
-                      <View style={[styles.inputWrapper, { flex: 1.5, backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                      {/* Interactive Visual Color Picker */}
+                      {Platform.OS === 'web' ? (
+                        <View style={styles.colorPickerWrapper}>
+                          <input
+                            type="color"
+                            value={customColorHex}
+                            onChange={(e: any) => setCustomColorHex(e.target.value)}
+                            style={{
+                              width: 44,
+                              height: 44,
+                              padding: 0,
+                              border: `2px solid ${colors.borderLight}`,
+                              borderRadius: 12,
+                              cursor: 'pointer',
+                              backgroundColor: 'transparent',
+                            }}
+                          />
+                        </View>
+                      ) : (
+                        <View style={[styles.colorPreviewBox, { backgroundColor: customColorHex }]}>
+                          <MaterialIcon name="palette" size={20} color="#FFFFFF" />
+                        </View>
+                      )}
+
+                      <View style={[styles.inputWrapper, { flex: 2, backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
                         <TextInput
                           value={customColorName}
                           onChangeText={setCustomColorName}
-                          placeholder="Color Name (e.g. Sierra Blue)"
+                          placeholder="Color Name (e.g. Royal Blue, Crimson, Gold)..."
                           placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
                           style={[styles.inputField, { color: colors.onSurface }]}
                         />
                       </View>
+
                       <View style={[styles.inputWrapper, { flex: 1, backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
                         <TextInput
                           value={customColorHex}
                           onChangeText={setCustomColorHex}
-                          placeholder="Hex (e.g. #738392)"
+                          placeholder="#12BBF0"
                           placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
                           style={[styles.inputField, { color: colors.onSurface }]}
                         />
                       </View>
+
                       <TouchableOpacity onPress={handleAddCustomColor} style={[styles.addBtnSmall, { backgroundColor: colors.primary }]}>
                         <MaterialIcon name="add" size={16} color="#FFFFFF" />
                         <Text style={styles.addBtnSmallText}>Add</Text>
@@ -686,18 +786,18 @@ export function EditProductSheet({
                   </View>
                 </View>
 
-                {/* 📏 AVAILABLE SIZES / DIMENSIONS */}
+                {/* 📏 SIZES & DIMENSIONS (APPAREL, SHOES, TECH, PACKS) */}
                 <View style={styles.formGroup}>
                   <View style={styles.sectionHeaderLine}>
                     <Text style={[styles.sectionHeading, { color: colors.onSurface }]}>
-                      Available Sizes & Dimensions ({productSizes.length})
+                      Available Sizes & Dimensions ({productSizes.length} Selected)
                     </Text>
                   </View>
                   <Text style={[styles.fieldHelper, { color: isDark ? 'rgba(255, 255, 255, 0.45)' : 'rgba(0, 0, 0, 0.45)' }]}>
-                    Sizes can represent garment sizes, memory capacity, screen dimensions, or bulk packages.
+                    Select presets or enter your own custom sizes and measurements.
                   </Text>
 
-                  {/* Active Size Chips */}
+                  {/* Active Selected Sizes */}
                   {productSizes.length > 0 ? (
                     <View style={styles.chipWrapRow}>
                       {productSizes.map((sz, idx) => (
@@ -727,14 +827,14 @@ export function EditProductSheet({
                     </View>
                   ) : (
                     <Text style={[styles.emptyVariantNotice, { color: colors.onSurfaceMuted }]}>
-                      No sizes assigned yet. Use the presets below or define custom sizes.
+                      No sizes assigned. Pick from categories below or type custom figures.
                     </Text>
                   )}
 
-                  {/* Preset Sizes: Apparel */}
-                  <Text style={[styles.subLabel, { color: colors.onSurface }]}>Apparel / General Sizes</Text>
+                  {/* Tech Capacity / Memory Sizes */}
+                  <Text style={[styles.subLabel, { color: colors.onSurface }]}>💾 Tech Storage & Memory</Text>
                   <View style={styles.presetPaletteRow}>
-                    {SIZE_PRESETS.apparel.map((preset, idx) => (
+                    {SIZE_PRESETS_CATALOG.storage.map((preset, idx) => (
                       <TouchableOpacity
                         key={idx}
                         activeOpacity={0.7}
@@ -755,10 +855,10 @@ export function EditProductSheet({
                     ))}
                   </View>
 
-                  {/* Preset Sizes: Tech Storage */}
-                  <Text style={[styles.subLabel, { color: colors.onSurface }]}>Tech Capacity / Memory</Text>
+                  {/* Apparel & Garment Sizes */}
+                  <Text style={[styles.subLabel, { color: colors.onSurface }]}>👕 Apparel / Clothing Sizes</Text>
                   <View style={styles.presetPaletteRow}>
-                    {SIZE_PRESETS.storage.map((preset, idx) => (
+                    {SIZE_PRESETS_CATALOG.apparel.map((preset, idx) => (
                       <TouchableOpacity
                         key={idx}
                         activeOpacity={0.7}
@@ -779,10 +879,10 @@ export function EditProductSheet({
                     ))}
                   </View>
 
-                  {/* Preset Sizes: Screen Sizes */}
-                  <Text style={[styles.subLabel, { color: colors.onSurface }]}>Screen & Display Sizes</Text>
+                  {/* Footwear / Shoe Sizes */}
+                  <Text style={[styles.subLabel, { color: colors.onSurface }]}>👟 Footwear Sizes (EU / US)</Text>
                   <View style={styles.presetPaletteRow}>
-                    {SIZE_PRESETS.screen.map((preset, idx) => (
+                    {SIZE_PRESETS_CATALOG.shoes.map((preset, idx) => (
                       <TouchableOpacity
                         key={idx}
                         activeOpacity={0.7}
@@ -803,15 +903,15 @@ export function EditProductSheet({
                     ))}
                   </View>
 
-                  {/* Custom Size Form */}
+                  {/* Custom Size / Figures Input */}
                   <View style={styles.customAddCard}>
-                    <Text style={[styles.subLabel, { color: colors.onSurface }]}>Add Custom Dimension / Size</Text>
+                    <Text style={[styles.subLabel, { color: colors.onSurface }]}>Write Custom Size & Figures</Text>
                     <View style={styles.customAddRow}>
                       <View style={[styles.inputWrapper, { flex: 1.5, backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
                         <TextInput
                           value={customSizeName}
                           onChangeText={setCustomSizeName}
-                          placeholder="e.g. 100 Liter Drum"
+                          placeholder="Size Name (e.g. 500 Liters / 30 x 40 cm)"
                           placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
                           style={[styles.inputField, { color: colors.onSurface }]}
                         />
@@ -820,7 +920,7 @@ export function EditProductSheet({
                         <TextInput
                           value={customSizeAbbr}
                           onChangeText={setCustomSizeAbbr}
-                          placeholder="Code (e.g. 100L)"
+                          placeholder="Short Code (e.g. 500L)"
                           placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
                           style={[styles.inputField, { color: colors.onSurface }]}
                         />
@@ -832,20 +932,100 @@ export function EditProductSheet({
                     </View>
                   </View>
                 </View>
+
+                {/* 🧵 MATERIALS & TEXTILES (DENIER, MATERIAL LIST) */}
+                <View style={styles.formGroup}>
+                  <View style={styles.sectionHeaderLine}>
+                    <Text style={[styles.sectionHeading, { color: colors.onSurface }]}>
+                      Materials & Denier
+                    </Text>
+                  </View>
+                  <View style={styles.twoColRow}>
+                    <View style={styles.halfCol}>
+                      <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Primary Material</Text>
+                      <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                        <TextInput
+                          value={primaryMaterial}
+                          onChangeText={setPrimaryMaterial}
+                          placeholder="e.g. 100% Polyester / Aluminium"
+                          placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
+                          style={[styles.inputField, { color: colors.onSurface }]}
+                        />
+                      </View>
+                    </View>
+                    <View style={styles.halfCol}>
+                      <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Denier (Textiles / Fabric)</Text>
+                      <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                        <TextInput
+                          value={denier}
+                          onChangeText={setDenier}
+                          placeholder="e.g. 210D / 600D Oxford"
+                          placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
+                          style={[styles.inputField, { color: colors.onSurface }]}
+                        />
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Materials list chips */}
+                  {materialsList.length > 0 && (
+                    <View style={[styles.chipWrapRow, { marginTop: 10 }]}>
+                      {materialsList.map((m, idx) => (
+                        <View
+                          key={idx}
+                          style={[
+                            styles.variantChip,
+                            {
+                              backgroundColor: isDark ? colors.cardColor : '#F3F4F6',
+                              borderColor: isDark ? colors.borderLight : 'rgba(0,0,0,0.08)',
+                            },
+                          ]}
+                        >
+                          <MaterialIcon name="texture" size={14} color={colors.primary} />
+                          <Text style={[styles.variantChipText, { color: colors.onSurface }]}>
+                            {m.name}
+                          </Text>
+                          <TouchableOpacity onPress={() => handleRemoveMaterial(idx)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                            <MaterialIcon name="close" size={14} color={colors.onSurfaceMuted} />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  <View style={styles.customAddRow}>
+                    <View style={[styles.inputWrapper, { flex: 1, backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                      <TextInput
+                        value={customMaterialName}
+                        onChangeText={setCustomMaterialName}
+                        placeholder="Add another material component (e.g. Carbon Fiber)"
+                        placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
+                        style={[styles.inputField, { color: colors.onSurface }]}
+                      />
+                    </View>
+                    <TouchableOpacity onPress={handleAddMaterial} style={[styles.addBtnSmall, { backgroundColor: colors.primary }]}>
+                      <MaterialIcon name="add" size={16} color="#FFFFFF" />
+                      <Text style={styles.addBtnSmallText}>Add</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
               </View>
             )}
 
-            {/* ── 3. WHOLESALE PRICING & TIERS ── */}
+            {/* ═══════════════════════════════════════════════════
+                SECTION 3: WHOLESALE & PRICING
+               ═══════════════════════════════════════════════════ */}
             {activeSection === 'pricing' && (
               <View>
-                {/* Retail SRP */}
+                {/* Retail Price SRP */}
                 <View style={styles.formGroup}>
-                  <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Suggested Retail Price (SRP) in UGX</Text>
+                  <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Retail Price (UGX) *</Text>
                   <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                    <MaterialIcon name="account_balance_wallet" size={18} color={colors.onSurfaceMuted} />
                     <TextInput
                       value={srp}
                       onChangeText={setSrp}
-                      placeholder="e.g. 2900000"
+                      placeholder="0.00"
                       keyboardType="numeric"
                       placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
                       style={[styles.inputField, { color: colors.onSurface }]}
@@ -853,11 +1033,11 @@ export function EditProductSheet({
                   </View>
                 </View>
 
-                {/* Tiered Volume Discounts */}
+                {/* Wholesale Price Tiers */}
                 <View style={styles.formGroup}>
-                  <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Tiered Wholesale Volume Discounts</Text>
+                  <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Wholesale Price Tiers ({priceTiers.length})</Text>
                   <Text style={[styles.fieldHelper, { color: isDark ? 'rgba(255, 255, 255, 0.45)' : 'rgba(0, 0, 0, 0.45)' }]}>
-                    Buyers purchasing above the tier quantity get the discounted per-unit rate automatically applied.
+                    Buyers purchasing above the tier quantity get the discounted rate.
                   </Text>
 
                   {priceTiers.map((tier, idx) => (
@@ -914,61 +1094,115 @@ export function EditProductSheet({
                   </View>
                 </View>
 
-                {/* Additional Media Gallery URLs */}
+                {/* Product Media Gallery Photos */}
                 <View style={styles.formGroup}>
-                  <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Gallery Media URLs ({mediaUrls.length})</Text>
-                  {mediaUrls.map((url, idx) => (
-                    <View key={idx} style={[styles.mediaUrlRow, { backgroundColor: isDark ? colors.cardColor : '#F8F9FA' }]}>
-                      <Image source={{ uri: url }} style={styles.miniMediaThumb} />
-                      <Text style={[styles.miniMediaUrlText, { color: colors.onSurface }]} numberOfLines={1}>{url}</Text>
-                      <TouchableOpacity onPress={() => handleRemoveMediaUrl(idx)}>
-                        <MaterialIcon name="close" size={16} color="#FF4D4F" />
-                      </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <Text style={[styles.fieldLabel, { color: colors.onSurface, marginBottom: 0 }]}>
+                      Product Gallery Photos ({mediaUrls.length})
+                    </Text>
+                    <TouchableOpacity
+                      onPress={handlePickGalleryImages}
+                      style={[
+                        styles.addBtnSmall,
+                        {
+                          backgroundColor: colors.primary,
+                          height: 36,
+                          paddingHorizontal: 12,
+                        },
+                      ]}
+                    >
+                      <MaterialIcon name="add_photo_alternate" size={16} color="#FFFFFF" />
+                      <Text style={[styles.addBtnSmallText, { fontSize: 11 }]}>Pick Images</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={[styles.fieldHelper, { color: isDark ? 'rgba(255, 255, 255, 0.45)' : 'rgba(0, 0, 0, 0.45)', marginBottom: 8 }]}>
+                    Upload multiple high-resolution photos of packaging, angles, or batch units.
+                  </Text>
+
+                  {/* Thumbnails grid */}
+                  {mediaUrls.length > 0 ? (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 10 }}>
+                      {mediaUrls.map((url, idx) => (
+                        <View
+                          key={idx}
+                          style={{
+                            width: 72,
+                            height: 72,
+                            borderRadius: 10,
+                            overflow: 'hidden',
+                            borderWidth: 1,
+                            borderColor: isDark ? colors.borderLight : 'rgba(0,0,0,0.1)',
+                            position: 'relative',
+                          }}
+                        >
+                          <Image source={{ uri: url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                          <TouchableOpacity
+                            onPress={() => handleRemoveMediaUrl(idx)}
+                            style={{
+                              position: 'absolute',
+                              top: 3,
+                              right: 3,
+                              backgroundColor: 'rgba(0,0,0,0.65)',
+                              borderRadius: 10,
+                              width: 20,
+                              height: 20,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <MaterialIcon name="close" size={12} color="#FFFFFF" />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
                     </View>
-                  ))}
+                  ) : null}
+
+                  {/* Fallback URL input */}
                   <View style={styles.addMediaRow}>
                     <View style={[styles.inputWrapper, { flex: 1, backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
                       <TextInput
                         value={newMediaUrl}
                         onChangeText={setNewMediaUrl}
-                        placeholder="Additional Image URL (https://...)"
+                        placeholder="Or paste external image URL..."
                         placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
                         style={[styles.inputField, { color: colors.onSurface }]}
                       />
                     </View>
-                    <TouchableOpacity onPress={handleAddMediaUrl} style={[styles.addTierBtn, { backgroundColor: colors.primary }]}>
-                      <MaterialIcon name="add_photo_alternate" size={18} color="#FFFFFF" />
-                      <Text style={styles.addTierBtnText}>Add</Text>
+                    <TouchableOpacity onPress={handleAddMediaUrl} style={[styles.addTierBtn, { backgroundColor: colors.cardColor, borderWidth: 1, borderColor: isDark ? colors.borderLight : 'rgba(0,0,0,0.1)' }]}>
+                      <MaterialIcon name="add" size={16} color={colors.onSurface} />
+                      <Text style={[styles.addTierBtnText, { color: colors.onSurface }]}>Add</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
               </View>
             )}
 
-            {/* ── 4. LOGISTICS, PACKAGING & SUPPORT ── */}
+            {/* ═══════════════════════════════════════════════════
+                SECTION 4: LOGISTICS, COMPLIANCE & STORAGE
+               ═══════════════════════════════════════════════════ */}
             {activeSection === 'logistics' && (
               <View>
-                {/* Material & Packaging */}
+                {/* HS Code & UNBS # */}
                 <View style={styles.twoColRow}>
                   <View style={styles.halfCol}>
-                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Primary Material</Text>
+                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>HS Code</Text>
                     <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
                       <TextInput
-                        value={material}
-                        onChangeText={setMaterial}
-                        placeholder="e.g. 100% Cotton / Aluminum"
+                        value={hsCode}
+                        onChangeText={setHsCode}
+                        placeholder="e.g. 8504.40.95"
                         placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
                         style={[styles.inputField, { color: colors.onSurface }]}
                       />
                     </View>
                   </View>
                   <View style={styles.halfCol}>
-                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Packaging Format</Text>
+                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>UNBS Certificate #</Text>
                     <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
                       <TextInput
-                        value={packaging}
-                        onChangeText={setPackaging}
-                        placeholder="e.g. Carton (24 pcs)"
+                        value={unbsNumber}
+                        onChangeText={setUnbsNumber}
+                        placeholder="e.g. UNBS/QMS/2026/89"
                         placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
                         style={[styles.inputField, { color: colors.onSurface }]}
                       />
@@ -976,15 +1210,102 @@ export function EditProductSheet({
                   </View>
                 </View>
 
-                {/* Weight & Warranty */}
+                {/* Weight & Volume */}
                 <View style={styles.twoColRow}>
                   <View style={styles.halfCol}>
-                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Unit Weight</Text>
+                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Weight (KG)</Text>
                     <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
                       <TextInput
                         value={weight}
                         onChangeText={setWeight}
-                        placeholder="e.g. 462g / unit"
+                        placeholder="0.0 KG"
+                        placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
+                        style={[styles.inputField, { color: colors.onSurface }]}
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.halfCol}>
+                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Volume (CBM)</Text>
+                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                      <TextInput
+                        value={volumeCbm}
+                        onChangeText={setVolumeCbm}
+                        placeholder="0.0 CBM"
+                        placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
+                        style={[styles.inputField, { color: colors.onSurface }]}
+                      />
+                    </View>
+                  </View>
+                </View>
+
+                {/* Origin & Current Stock */}
+                <View style={styles.twoColRow}>
+                  <View style={styles.halfCol}>
+                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Origin Country</Text>
+                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                      <TextInput
+                        value={originCountry}
+                        onChangeText={setOriginCountry}
+                        placeholder="e.g. China / Uganda / Kenya"
+                        placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
+                        style={[styles.inputField, { color: colors.onSurface }]}
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.halfCol}>
+                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Current Warehouse Stock</Text>
+                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                      <TextInput
+                        value={stockQuantity}
+                        onChangeText={setStockQuantity}
+                        placeholder="0"
+                        keyboardType="numeric"
+                        placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
+                        style={[styles.inputField, { color: colors.onSurface }]}
+                      />
+                    </View>
+                  </View>
+                </View>
+
+                {/* Lead Time & Warehouse Location */}
+                <View style={styles.twoColRow}>
+                  <View style={styles.halfCol}>
+                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Lead Time (Days)</Text>
+                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                      <TextInput
+                        value={leadTimeDays}
+                        onChangeText={setLeadTimeDays}
+                        placeholder="e.g. 2"
+                        keyboardType="numeric"
+                        placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
+                        style={[styles.inputField, { color: colors.onSurface }]}
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.halfCol}>
+                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Warehouse Location</Text>
+                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                      <MaterialIcon name="place" size={18} color={colors.primary} />
+                      <TextInput
+                        value={warehouseLoc}
+                        onChangeText={setWarehouseLoc}
+                        placeholder="e.g. Kampala Hub A"
+                        placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
+                        style={[styles.inputField, { color: colors.onSurface }]}
+                      />
+                    </View>
+                  </View>
+                </View>
+
+                {/* Packaging & Warranty */}
+                <View style={styles.twoColRow}>
+                  <View style={styles.halfCol}>
+                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Packaging Format</Text>
+                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                      <TextInput
+                        value={packaging}
+                        onChangeText={setPackaging}
+                        placeholder="e.g. Commercial Bulk Carton (24 pcs)"
                         placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
                         style={[styles.inputField, { color: colors.onSurface }]}
                       />
@@ -996,49 +1317,7 @@ export function EditProductSheet({
                       <TextInput
                         value={warranty}
                         onChangeText={setWarranty}
-                        placeholder="e.g. 1 Year Manufacturer"
-                        placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
-                        style={[styles.inputField, { color: colors.onSurface }]}
-                      />
-                    </View>
-                  </View>
-                </View>
-
-                {/* Compliance Certification */}
-                <View style={styles.formGroup}>
-                  <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Standards & Compliance</Text>
-                  <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
-                    <TextInput
-                      value={compliance}
-                      onChangeText={setCompliance}
-                      placeholder="e.g. UNBS Certified • CE • RoHS Approved"
-                      placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
-                      style={[styles.inputField, { color: colors.onSurface }]}
-                    />
-                  </View>
-                </View>
-
-                {/* Direct Wholesale Support Contacts */}
-                <View style={styles.twoColRow}>
-                  <View style={styles.halfCol}>
-                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Supplier Phone</Text>
-                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
-                      <TextInput
-                        value={supportPhone}
-                        onChangeText={setSupportPhone}
-                        placeholder="e.g. +256 700 123456"
-                        placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
-                        style={[styles.inputField, { color: colors.onSurface }]}
-                      />
-                    </View>
-                  </View>
-                  <View style={styles.halfCol}>
-                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>WhatsApp Inquiries</Text>
-                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
-                      <TextInput
-                        value={supportWhatsapp}
-                        onChangeText={setSupportWhatsapp}
-                        placeholder="e.g. +256 700 123456"
+                        placeholder="e.g. 1 Year Official Warranty"
                         placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
                         style={[styles.inputField, { color: colors.onSurface }]}
                       />
@@ -1048,9 +1327,134 @@ export function EditProductSheet({
               </View>
             )}
 
-            <View style={{ height: 20 }} />
+            {/* ═══════════════════════════════════════════════════
+                SECTION 5: TRADING TERMS, SUPPORT & SEO
+               ═══════════════════════════════════════════════════ */}
+            {activeSection === 'support' && (
+              <View>
+                {/* MOQ */}
+                <View style={styles.formGroup}>
+                  <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>MOQ (Minimum Order Quantity)</Text>
+                  <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                    <MaterialIcon name="shopping_bag" size={18} color={colors.primary} />
+                    <TextInput
+                      value={moq}
+                      onChangeText={setMoq}
+                      placeholder="e.g. 5 units"
+                      keyboardType="numeric"
+                      placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
+                      style={[styles.inputField, { color: colors.onSurface }]}
+                    />
+                  </View>
+                </View>
 
-            {/* Save Button */}
+                {/* Payment Terms */}
+                <View style={styles.formGroup}>
+                  <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Payment Terms</Text>
+                  <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                    <TextInput
+                      value={paymentTerms}
+                      onChangeText={setPaymentTerms}
+                      placeholder="e.g. 30% Downpayment, 70% before delivery dispatch"
+                      placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
+                      style={[styles.inputField, { color: colors.onSurface }]}
+                    />
+                  </View>
+                </View>
+
+                {/* Delivery Terms */}
+                <View style={styles.formGroup}>
+                  <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Delivery Terms</Text>
+                  <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                    <TextInput
+                      value={deliveryTerms}
+                      onChangeText={setDeliveryTerms}
+                      placeholder="e.g. FOB Kampala or Direct Commercial Pallet Courier"
+                      placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
+                      style={[styles.inputField, { color: colors.onSurface }]}
+                    />
+                  </View>
+                </View>
+
+                {/* Support Channels: WhatsApp & Phone */}
+                <View style={styles.twoColRow}>
+                  <View style={styles.halfCol}>
+                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Support WhatsApp</Text>
+                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                      <MaterialIcon name="chat" size={18} color="#25D366" />
+                      <TextInput
+                        value={supportWhatsapp}
+                        onChangeText={setSupportWhatsapp}
+                        placeholder="+256 700 123456"
+                        placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
+                        style={[styles.inputField, { color: colors.onSurface }]}
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.halfCol}>
+                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Support Phone</Text>
+                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                      <MaterialIcon name="phone" size={18} color={colors.primary} />
+                      <TextInput
+                        value={supportPhone}
+                        onChangeText={setSupportPhone}
+                        placeholder="+256 700 123456"
+                        placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
+                        style={[styles.inputField, { color: colors.onSurface }]}
+                      />
+                    </View>
+                  </View>
+                </View>
+
+                {/* Support Email */}
+                <View style={styles.formGroup}>
+                  <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Support Email</Text>
+                  <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                    <MaterialIcon name="mail" size={18} color={colors.onSurfaceMuted} />
+                    <TextInput
+                      value={supportEmail}
+                      onChangeText={setSupportEmail}
+                      placeholder="procurement@supplier.ug"
+                      placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
+                      style={[styles.inputField, { color: colors.onSurface }]}
+                    />
+                  </View>
+                </View>
+
+                {/* SEO Meta Title & Description */}
+                <View style={styles.formGroup}>
+                  <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>SEO Meta Title</Text>
+                  <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                    <TextInput
+                      value={seoTitle}
+                      onChangeText={setSeoTitle}
+                      placeholder="Meta Title for Google & Search Engines"
+                      placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
+                      style={[styles.inputField, { color: colors.onSurface }]}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.formGroup}>
+                  <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>SEO Meta Description</Text>
+                  <View style={[styles.textAreaWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                    <TextInput
+                      value={seoDescription}
+                      onChangeText={setSeoDescription}
+                      multiline
+                      numberOfLines={3}
+                      placeholder="Short SEO snippet for catalog indexing..."
+                      placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
+                      style={[styles.textAreaField, { color: colors.onSurface }]}
+                    />
+                  </View>
+                </View>
+              </View>
+            )}
+
+            <View style={{ height: 24 }} />
+
+            {/* Action Buttons */}
             <TouchableOpacity activeOpacity={0.85} onPress={handleSave} style={[styles.saveButton, { backgroundColor: colors.primary }]}>
               <MaterialIcon name="check" size={20} color="#FFFFFF" />
               <Text style={styles.saveButtonText}>{isEditing ? 'Save All Changes' : 'Publish Product to Catalog'}</Text>
@@ -1103,9 +1507,9 @@ const styles = StyleSheet.create({
   },
   sheetContainerDesktop: {
     borderRadius: 24,
-    maxHeight: '85%',
-    maxWidth: 720,
-    paddingTop: 20,
+    maxHeight: '88%',
+    maxWidth: 780,
+    paddingTop: 22,
     paddingBottom: 16,
     shadowOffset: { width: 0, height: 12 },
     shadowRadius: 32,
@@ -1121,7 +1525,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
     paddingHorizontal: 4,
   },
   title: {
@@ -1137,10 +1541,13 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   sectionTabsRow: {
-    flexDirection: 'row',
     borderBottomWidth: 1,
     marginBottom: 16,
-    gap: 4,
+  },
+  tabsScrollContent: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 2,
   },
   sectionTabBtn: {
     flexDirection: 'row',
@@ -1182,19 +1589,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   formGroup: {
-    marginBottom: 14,
-  },
-  twoColRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 14,
-  },
-  halfCol: {
-    flex: 1,
+    marginBottom: 16,
   },
   fieldLabel: {
-    fontSize: 11,
-    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 12,
+    fontFamily: 'Outfit_700Bold',
     marginBottom: 6,
   },
   fieldHelper: {
@@ -1204,10 +1603,10 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   subLabel: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: 'Outfit_700Bold',
-    marginTop: 10,
-    marginBottom: 6,
+    marginTop: 12,
+    marginBottom: 8,
   },
   sectionHeading: {
     fontSize: 14,
@@ -1220,39 +1619,58 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   inputWrapper: {
-    height: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 44,
     borderRadius: 12,
     borderWidth: 1,
     paddingHorizontal: 12,
-    justifyContent: 'center',
+    gap: 8,
   },
   inputField: {
+    flex: 1,
     fontSize: 13,
     fontFamily: 'PlusJakartaSans_500Medium',
     height: '100%',
+    outlineStyle: 'none' as any,
   },
-  statusRow: {
+  textAreaWrapper: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+  },
+  textAreaField: {
+    fontSize: 13,
+    fontFamily: 'PlusJakartaSans_500Medium',
+    minHeight: 80,
+    textAlignVertical: 'top',
+    outlineStyle: 'none' as any,
+  },
+  twoColRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  halfCol: {
+    flex: 1,
+  },
+  statusButtonsRow: {
     flexDirection: 'row',
     gap: 8,
   },
-  statusChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
+  statusBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
     borderWidth: 1,
+    alignItems: 'center',
   },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  statusChipText: {
-    fontSize: 11,
+  statusBtnText: {
+    fontSize: 12,
     fontFamily: 'Outfit_700Bold',
   },
+
+  // Color & Size Chips
   chipWrapRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1265,29 +1683,41 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
   },
   colorSwatchCircle: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.2)',
+    borderColor: 'rgba(0,0,0,0.1)',
   },
   variantChipText: {
     fontSize: 12,
-    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontFamily: 'Outfit_700Bold',
   },
-  sizeAbbrBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
+  emptyVariantNotice: {
+    fontSize: 12,
+    fontFamily: 'PlusJakartaSans_500Medium',
+    fontStyle: 'italic',
+    marginBottom: 8,
   },
-  sizeAbbrText: {
-    fontSize: 10,
-    fontFamily: 'Outfit_800ExtraBold',
+
+  // Color Picker & Swatches
+  colorPickerWrapper: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
+  colorPreviewBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Presets Row
   presetPaletteRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1298,22 +1728,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
     borderWidth: 1,
   },
-  presetDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
   presetName: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontFamily: 'PlusJakartaSans_600SemiBold',
   },
+
+  // Custom Add Cards
   customAddCard: {
-    marginTop: 6,
+    marginTop: 8,
   },
   customAddRow: {
     flexDirection: 'row',
@@ -1324,35 +1751,42 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    height: 46,
+    height: 44,
     paddingHorizontal: 14,
     borderRadius: 12,
+    justifyContent: 'center',
   },
   addBtnSmallText: {
     color: '#FFFFFF',
     fontSize: 12,
     fontFamily: 'Outfit_700Bold',
   },
-  emptyVariantNotice: {
-    fontSize: 12,
-    fontFamily: 'PlusJakartaSans_500Medium',
-    fontStyle: 'italic',
-    marginBottom: 10,
+
+  // Size Badge
+  sizeAbbrBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
   },
+  sizeAbbrText: {
+    fontSize: 11,
+    fontFamily: 'Outfit_800ExtraBold',
+  },
+
+  // Tiers
   tierRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    alignItems: 'center',
+    padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    marginBottom: 6,
+    marginBottom: 8,
   },
   tierInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   tierBadge: {
     paddingHorizontal: 8,
@@ -1360,40 +1794,42 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   tierQty: {
-    fontSize: 12,
-    fontFamily: 'Outfit_800ExtraBold',
+    fontSize: 11,
+    fontFamily: 'Outfit_700Bold',
   },
   tierPrice: {
     fontSize: 13,
-    fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontFamily: 'Outfit_800ExtraBold',
   },
   addTierRow: {
     flexDirection: 'row',
     gap: 8,
-    alignItems: 'center',
     marginTop: 6,
   },
   addTierInputBox: {
     flex: 1,
-    height: 42,
-    borderRadius: 10,
+    height: 44,
+    borderRadius: 12,
     borderWidth: 1,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     justifyContent: 'center',
   },
   addTierBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    height: 42,
+    gap: 6,
     paddingHorizontal: 14,
-    borderRadius: 10,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
   },
   addTierBtnText: {
     color: '#FFFFFF',
     fontSize: 12,
     fontFamily: 'Outfit_700Bold',
   },
+
+  // Media URLs
   mediaUrlRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1409,40 +1845,27 @@ const styles = StyleSheet.create({
   },
   miniMediaUrlText: {
     flex: 1,
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: 'PlusJakartaSans_500Medium',
   },
   addMediaRow: {
     flexDirection: 'row',
     gap: 8,
-    alignItems: 'center',
     marginTop: 6,
   },
-  textAreaWrapper: {
-    minHeight: 88,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  textAreaField: {
-    fontSize: 13,
-    fontFamily: 'PlusJakartaSans_500Medium',
-    lineHeight: 18,
-    textAlignVertical: 'top',
-  },
+
+  // Save / Delete Buttons
   saveButton: {
-    height: 50,
-    borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginTop: 8,
+    height: 48,
+    borderRadius: 14,
   },
   saveButtonText: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: 'Outfit_700Bold',
   },
   deleteButton: {
@@ -1450,12 +1873,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 14,
-    marginTop: 4,
+    height: 44,
+    borderRadius: 14,
+    marginTop: 8,
+    backgroundColor: 'rgba(255, 77, 79, 0.08)',
   },
   deleteButtonText: {
     color: '#FF4D4F',
     fontSize: 13,
-    fontFamily: 'PlusJakartaSans_700Bold',
+    fontFamily: 'Outfit_700Bold',
   },
 });
