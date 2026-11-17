@@ -53,7 +53,7 @@ export function WelcomeScreen() {
           isDark ? 'rgba(18,18,22,0.95)' : 'rgba(255,255,255,0.05)',
         ]}
         locations={[0, 0.2, 0.5, 0.95]}
-        style={StyleSheet.absoluteFillObject}
+        style={StyleSheet.absoluteFill}
       />
 
       {/* 3. Top Mini Logo Branding */}

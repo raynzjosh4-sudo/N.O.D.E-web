@@ -40,7 +40,7 @@ export function PromoBanners({
             source={{
               uri: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1200&auto=format&fit=crop&q=85',
             }}
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
             resizeMode="cover"
           />
           <View style={styles.heroOverlay} />
@@ -77,7 +77,7 @@ export function PromoBanners({
               source={{
                 uri: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=600&auto=format&fit=crop&q=80',
               }}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               resizeMode="cover"
             />
             <View style={styles.subOverlay} />
@@ -132,7 +132,7 @@ export function PromoBanners({
             source={{
               uri: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=800&auto=format&fit=crop&q=80',
             }}
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
             resizeMode="cover"
           />
           <View style={styles.mobileGradient} />
@@ -161,7 +161,7 @@ export function PromoBanners({
               source={{
                 uri: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&auto=format&fit=crop&q=80',
               }}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               resizeMode="cover"
             />
             <View style={styles.mobileSubOverlay} />
@@ -178,7 +178,7 @@ export function PromoBanners({
               source={{
                 uri: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=400&auto=format&fit=crop&q=80',
               }}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               resizeMode="cover"
             />
             <View style={styles.mobileDarkenOverlay} />
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(15, 23, 42, 0.55)',
   },
   heroContent: {
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1E293B',
   },
   subOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(15, 23, 42, 0.6)',
   },
   bentoCardContent: {
@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   mobileGradient: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.45)',
   },
   mobileCenterTitle: {
@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   mobileSubOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
   mobileSubTopTitle: {
@@ -464,7 +464,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   mobileDarkenOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   mobileSubBottomTitle: {

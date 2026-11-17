@@ -413,7 +413,6 @@ export function SignupScreen() {
       <EmailOtpSheet
         visible={showOtpSheet}
         email={email}
-        userId={createdUserId}
         onClose={() => setShowOtpSheet(false)}
         onVerified={handleOtpVerified}
       />

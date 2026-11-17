@@ -53,7 +53,7 @@ export function FeaturedCategoryCard({
             {/* Background Image */}
             <Image
               source={category.localImage ?? { uri: category.imageUrl }}
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               resizeMode="cover"
             />
 
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.3)',
   },
   content: {
