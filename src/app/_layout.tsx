@@ -18,6 +18,7 @@ import {
 } from '@expo-google-fonts/plus-jakarta-sans';
 import { AppThemeProvider, useAppTheme } from '@/core/theme/theme_context';
 import { AuthProvider } from '@/features/auth/context/auth_context';
+import { ProductsProvider } from '@/features/inventory/context/products_context';
 
 function NavigationStack() {
   const { isDark } = useAppTheme();
@@ -64,7 +65,9 @@ export default function RootLayout() {
   return (
     <AppThemeProvider>
       <AuthProvider>
-        <NavigationStack />
+        <ProductsProvider>
+          <NavigationStack />
+        </ProductsProvider>
       </AuthProvider>
     </AppThemeProvider>
   );

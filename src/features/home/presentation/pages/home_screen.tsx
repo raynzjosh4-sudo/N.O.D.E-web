@@ -22,7 +22,8 @@ import { PopularSection } from '@/features/home/presentation/widgets/popularsect
 import { ProductGridSection } from '@/features/home/presentation/widgets/product_grid_section';
 import { ProductDetailSidePanel } from '@/features/home/presentation/widgets/product_detail_side_panel';
 import { SearchHistoryView } from '@/features/home/presentation/widgets/search_history_view';
-import { Product, MOCK_PRODUCTS } from '@/features/inventory/domain/entities/product';
+import { Product } from '@/features/inventory/domain/entities/product';
+import { useProducts } from '@/features/inventory/context/products_context';
 import { useAuth } from '@/features/auth/context/auth_context';
 import { AuthPromptSheet } from '@/features/auth/presentation/widgets/auth_prompt_sheet';
 
@@ -31,6 +32,7 @@ export default function HomeScreen() {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 960;
   const { colors } = useAppTheme();
+  const { products } = useProducts();
 
   // Search States
   const [isSearching, setIsSearching] = useState(false);
@@ -79,7 +81,7 @@ export default function HomeScreen() {
 
   // Filter products by active search query
   const filteredProducts = searchQuery
-    ? MOCK_PRODUCTS.filter((p) => {
+    ? products.filter((p) => {
         const q = searchQuery.toLowerCase();
         return (
           p.name?.toLowerCase().includes(q) ||
@@ -87,7 +89,7 @@ export default function HomeScreen() {
           p.warehouseLoc?.toLowerCase().includes(q)
         );
       })
-    : MOCK_PRODUCTS;
+    : products;
 
   // Handle product click: on desktop open side panel; on mobile navigate full screen
   const handleProductTap = (product: Product) => {
@@ -214,7 +216,7 @@ export default function HomeScreen() {
                 {/* 3. Promo Banners */}
                 <PromoBanners
                   onPromoPress={(id) => console.log('Promo tapped:', id)}
-                  onPostProductPress={() => console.log('Post product tapped')}
+                  onPostProductPress={() => router.push('/supplier-products')}
                 />
 
                 {/* 4. Quick Selections List (Suppliers) */}
@@ -237,7 +239,7 @@ export default function HomeScreen() {
 
                 {/* 7. Product Masonry Waterfall Grid */}
                 <ProductGridSection
-                  products={MOCK_PRODUCTS}
+                  products={products}
                   onProductPress={handleProductTap}
                 />
               </ScrollView>

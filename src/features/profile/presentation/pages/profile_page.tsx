@@ -248,6 +248,24 @@ export function ProfilePage() {
                   </View>
                 </View>
 
+                {/* Supplier Products Shortcut */}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={[
+                    styles.sidebarSupplierBtn,
+                    {
+                      backgroundColor: colors.primary + '18',
+                      borderColor: colors.primary + '40',
+                    },
+                  ]}
+                  onPress={() => router.push('/supplier-products')}
+                >
+                  <MaterialIcon name="inventory_2" size={16} color={colors.primary} />
+                  <Text style={[styles.sidebarSupplierText, { color: colors.primary }]}>
+                    Supplier Catalog (Manage)
+                  </Text>
+                </TouchableOpacity>
+
                 {/* Sign Out CTA */}
                 <TouchableOpacity
                   activeOpacity={0.7}
@@ -662,6 +680,22 @@ const styles = StyleSheet.create({
     lineHeight: 14,
   },
 
+  sidebarSupplierBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginTop: 'auto',
+    marginBottom: 8,
+  },
+  sidebarSupplierText: {
+    fontSize: 12,
+    fontFamily: 'Outfit_700Bold',
+  },
+
   sidebarSignOutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -670,7 +704,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
     backgroundColor: 'rgba(211, 47, 47, 0.06)',
-    marginTop: 'auto',
   },
   sidebarSignOutText: {
     fontSize: 12,
