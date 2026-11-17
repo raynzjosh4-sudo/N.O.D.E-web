@@ -9,12 +9,14 @@ import {
   Image,
   Platform,
   useWindowDimensions,
+  Linking,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useAppNavigation } from '@/core/utils/use_app_navigation';
 import { AppColors } from '@/core/theme/app_theme';
 import { MaterialIcon } from '@/core/widgets/material_icon';
-import { MOCK_PRODUCTS, Product } from '@/features/inventory/domain/entities/product';
+import { Product } from '@/features/inventory/domain/entities/product';
+import { useProducts } from '@/features/inventory/context/products_context';
 import { useAppTheme } from '@/core/theme/theme_context';
 
 export default function ProductSpecsScreen() {
@@ -23,9 +25,9 @@ export default function ProductSpecsScreen() {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 960;
   const { colors } = useAppTheme();
+  const { products, getProductById } = useProducts();
 
-  const product: Product =
-    MOCK_PRODUCTS.find((p) => p.id === id) || MOCK_PRODUCTS[0];
+  const product: Product = getProductById(id as string) || products[0];
 
   const mediaList =
     product.mediaUrls && product.mediaUrls.length > 0
@@ -193,34 +195,142 @@ export default function ProductSpecsScreen() {
       <View style={styles.descriptionSection}>
         <Text style={[styles.sectionHeader, { color: colors.onSurfaceMuted }]}>SPECIFICATIONS & DETAILS</Text>
         <Text style={[styles.descriptionText, { color: colors.onSurface }]}>
-          Enterprise bulk unit with official manufacturer warranty. Includes full QA inspection,
-          individual protective packaging, and direct pallet logistics support across Uganda and
-          the East African Community.
+          {product.description ||
+            'Enterprise bulk unit with official manufacturer warranty. Includes full QA inspection, individual protective packaging, and direct pallet logistics support across Uganda and the East African Community.'}
         </Text>
       </View>
+
+      {/* Colors & Sizes Row */}
+      {((product.colors && product.colors.length > 0) || (product.sizes && product.sizes.length > 0)) && (
+        <View style={styles.variantsSection}>
+          {product.colors && product.colors.length > 0 && (
+            <View style={[styles.variantBlock, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}>
+              <Text style={[styles.sectionHeader, { color: colors.onSurfaceMuted }]}>COLORS</Text>
+              <View style={styles.colorSwatchesRow}>
+                {product.colors.map((c, idx) => (
+                  <View
+                    key={idx}
+                    style={[styles.colorDot, { backgroundColor: c.hexCode, borderColor: c.hexCode === '#FFFFFF' || c.hexCode === '#F0F0F2' ? colors.borderLight : 'transparent' }]}
+                  />
+                ))}
+              </View>
+              <Text style={[styles.variantCount, { color: colors.onSurfaceMuted }]}>{product.colors.length} color variant{product.colors.length !== 1 ? 's' : ''}</Text>
+            </View>
+          )}
+          {product.sizes && product.sizes.length > 0 && (
+            <View style={[styles.variantBlock, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}>
+              <Text style={[styles.sectionHeader, { color: colors.onSurfaceMuted }]}>SIZES</Text>
+              <View style={styles.sizeAbbrRow}>
+                {product.sizes.slice(0, 5).map((s, idx) => (
+                  <View key={idx} style={[styles.sizeAbbrChip, { backgroundColor: colors.surface, borderColor: colors.borderLight }]}>
+                    <Text style={[styles.sizeAbbrText, { color: colors.onSurface }]}>{s.abbreviation}</Text>
+                  </View>
+                ))}
+                {product.sizes.length > 5 && (
+                  <Text style={[styles.moreSizes, { color: colors.onSurfaceMuted }]}>+{product.sizes.length - 5}</Text>
+                )}
+              </View>
+              <Text style={[styles.variantCount, { color: colors.onSurfaceMuted }]}>{product.sizes.length} size{product.sizes.length !== 1 ? 's' : ''} available</Text>
+            </View>
+          )}
+        </View>
+      )}
 
       {/* Technical Attributes Table */}
       <View style={styles.technicalSection}>
         <Text style={[styles.sectionHeader, { color: colors.onSurfaceMuted }]}>TECHNICAL SPECIFICATIONS</Text>
         <View style={[styles.techSpecsList, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}>
-          <View style={styles.techRow}>
-            <Text style={[styles.techKey, { color: colors.onSurfaceMuted }]}>SKU / Model</Text>
-            <Text style={[styles.techVal, { color: colors.onSurface }]}>ND-PROD-{product.id.toUpperCase()}</Text>
-          </View>
-          <View style={styles.techRow}>
-            <Text style={[styles.techKey, { color: colors.onSurfaceMuted }]}>Packaging</Text>
-            <Text style={[styles.techVal, { color: colors.onSurface }]}>Commercial Bulk Carton (24 pcs)</Text>
-          </View>
-          <View style={styles.techRow}>
-            <Text style={[styles.techKey, { color: colors.onSurfaceMuted }]}>Compliance</Text>
-            <Text style={[styles.techVal, { color: colors.onSurface }]}>UNBS Certified • CE Approved</Text>
-          </View>
+          {product.sku && (
+            <View style={styles.techRow}>
+              <Text style={[styles.techKey, { color: colors.onSurfaceMuted }]}>SKU / Model</Text>
+              <Text style={[styles.techVal, { color: colors.onSurface }]}>{product.sku}</Text>
+            </View>
+          )}
+          {product.material && (
+            <View style={styles.techRow}>
+              <Text style={[styles.techKey, { color: colors.onSurfaceMuted }]}>Material</Text>
+              <Text style={[styles.techVal, { color: colors.onSurface }]}>{product.material}</Text>
+            </View>
+          )}
+          {product.packaging && (
+            <View style={styles.techRow}>
+              <Text style={[styles.techKey, { color: colors.onSurfaceMuted }]}>Packaging</Text>
+              <Text style={[styles.techVal, { color: colors.onSurface }]}>{product.packaging}</Text>
+            </View>
+          )}
+          {product.weight && (
+            <View style={styles.techRow}>
+              <Text style={[styles.techKey, { color: colors.onSurfaceMuted }]}>Weight</Text>
+              <Text style={[styles.techVal, { color: colors.onSurface }]}>{product.weight}</Text>
+            </View>
+          )}
+          {product.warranty && (
+            <View style={styles.techRow}>
+              <Text style={[styles.techKey, { color: colors.onSurfaceMuted }]}>Warranty</Text>
+              <Text style={[styles.techVal, { color: colors.onSurface }]}>{product.warranty}</Text>
+            </View>
+          )}
+          {product.compliance && (
+            <View style={styles.techRow}>
+              <Text style={[styles.techKey, { color: colors.onSurfaceMuted }]}>Compliance</Text>
+              <Text style={[styles.techVal, { color: colors.onSurface }]}>{product.compliance}</Text>
+            </View>
+          )}
+          {!product.sku && !product.material && !product.packaging && (
+            <>
+              <View style={styles.techRow}>
+                <Text style={[styles.techKey, { color: colors.onSurfaceMuted }]}>SKU / Model</Text>
+                <Text style={[styles.techVal, { color: colors.onSurface }]}>ND-PROD-{product.id.toUpperCase()}</Text>
+              </View>
+              <View style={styles.techRow}>
+                <Text style={[styles.techKey, { color: colors.onSurfaceMuted }]}>Packaging</Text>
+                <Text style={[styles.techVal, { color: colors.onSurface }]}>Commercial Bulk Carton (24 pcs)</Text>
+              </View>
+              <View style={styles.techRow}>
+                <Text style={[styles.techKey, { color: colors.onSurfaceMuted }]}>Compliance</Text>
+                <Text style={[styles.techVal, { color: colors.onSurface }]}>UNBS Certified • CE Approved</Text>
+              </View>
+            </>
+          )}
           <View style={styles.techRow}>
             <Text style={[styles.techKey, { color: colors.onSurfaceMuted }]}>Return Policy</Text>
             <Text style={[styles.techVal, { color: colors.onSurface }]}>14 Days Manufacturer Exchange</Text>
           </View>
         </View>
       </View>
+
+      {/* Support Contact */}
+      {(product.supportPhone || product.supportWhatsapp) && (
+        <View style={styles.supportSection}>
+          <Text style={[styles.sectionHeader, { color: colors.onSurfaceMuted }]}>SUPPLIER CONTACT</Text>
+          <View style={styles.supportRow}>
+            {product.supportPhone && (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={[styles.supportContactBtn, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}
+                onPress={() => Linking.openURL(`tel:${product.supportPhone}`)}
+              >
+                <MaterialIcon name="call" size={16} color={colors.primary} />
+                <Text style={[styles.supportContactText, { color: colors.onSurface }]}>{product.supportPhone}</Text>
+              </TouchableOpacity>
+            )}
+            {product.supportWhatsapp && (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={[styles.supportContactBtn, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}
+                onPress={() =>
+                  Linking.openURL(
+                    `https://wa.me/${product.supportWhatsapp?.replace(/[^0-9]/g, '')}?text=Hi, I found your product on N.O.D.E - ${product.name}`
+                  )
+                }
+              >
+                <MaterialIcon name="chat" size={16} color="#25D366" />
+                <Text style={[styles.supportContactText, { color: colors.onSurface }]}>WhatsApp</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      )}
     </View>
   );
 
@@ -614,5 +724,86 @@ const styles = StyleSheet.create({
   techVal: {
     fontSize: 12,
     fontFamily: 'Outfit_700Bold',
+    maxWidth: '55%',
+    textAlign: 'right',
+  },
+  // Variants (colors + sizes)
+  variantsSection: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 20,
+  },
+  variantBlock: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  colorSwatchesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 6,
+  },
+  colorDot: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  sizeAbbrRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginBottom: 6,
+  },
+  sizeAbbrChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  sizeAbbrText: {
+    fontSize: 11,
+    fontFamily: 'Outfit_700Bold',
+  },
+  moreSizes: {
+    fontSize: 11,
+    fontFamily: 'PlusJakartaSans_500Medium',
+    alignSelf: 'center',
+  },
+  variantCount: {
+    fontSize: 10,
+    fontFamily: 'PlusJakartaSans_400Regular',
+  },
+  // Support
+  supportSection: {
+    marginTop: 20,
+  },
+  supportRow: {
+    flexDirection: 'row',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  supportContactBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    flex: 1,
+    minWidth: 130,
+  },
+  supportContactText: {
+    fontSize: 13,
+    fontFamily: 'Outfit_700Bold',
+    flex: 1,
   },
 });
