@@ -406,6 +406,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'PlusJakartaSans_500Medium',
     height: '100%',
+    outlineStyle: 'none' as any,
   },
   primaryButton: {
     height: 48,

@@ -520,6 +520,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'PlusJakartaSans_500Medium',
     height: '100%',
+    outlineStyle: 'none' as any,
   },
   tabsRow: {
     flexDirection: 'row',

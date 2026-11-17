@@ -57,7 +57,7 @@ export function ProfilePage() {
   const [pendingOrders, setPendingOrders] = useState<WholesaleOrderItem[]>(MOCK_PENDING_ORDERS);
   const [sentOrders, setSentOrders] = useState<WholesaleOrderItem[]>(MOCK_SENT_ORDERS);
   const [pdfDocuments, setPdfDocuments] = useState<PdfDocumentItem[]>(MOCK_PDF_DOCUMENTS);
-  const { showInfo, showSuccess } = useToast();
+  const { showInfo, showSuccess, showWarning, showToast } = useToast();
 
   // Tab Handlers
   const handlePlaceOrder = (selected: SavedProductItem[]) => {
@@ -84,25 +84,18 @@ export function ProfilePage() {
 
   const { signOut } = useAuth();
 
-  const handleLogout = async () => {
-    if (Platform.OS === 'web') {
-      if (window.confirm?.('Are you sure you want to log out from N.O.D.E.?')) {
+  const handleLogout = () => {
+    showToast({
+      title: 'Sign Out of N.O.D.E.?',
+      message: 'Tap "Log Out" below to sign out of your account.',
+      status: 'warning',
+      duration: 6000,
+      actionLabel: 'Log Out',
+      onAction: async () => {
         await signOut();
         router.replace('/');
-      }
-    } else {
-      Alert.alert('Sign Out', 'Are you sure you want to log out?', [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Log Out',
-          style: 'destructive',
-          onPress: async () => {
-            await signOut();
-            router.replace('/');
-          },
-        },
-      ]);
-    }
+      },
+    });
   };
 
   // Desktop Navigation Items
