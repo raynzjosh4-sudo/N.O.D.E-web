@@ -21,7 +21,6 @@
     },
     "web": {
       "bundler": "metro",
-      "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -36,7 +35,6 @@
       ]
     ],
     "experiments": {
-      "baseUrl": "/N.O.D.E-web",
       "typedRoutes": true,
       "reactCompiler": true
     }
