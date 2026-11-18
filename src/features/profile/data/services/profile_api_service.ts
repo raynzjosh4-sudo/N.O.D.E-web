@@ -63,10 +63,17 @@ export interface BackendOrderResponse {
 
 export class ProfileApiService {
   /**
+   * Fetch complete backend profile response including raw business coordinates & region
+   */
+  static async getFullProfile(): Promise<BackendProfileResponse> {
+    return await apiClient<BackendProfileResponse>(API_ENDPOINTS.PROFILE.ME);
+  }
+
+  /**
    * Fetch current user profile with business details
    */
   static async getProfile(): Promise<UserProfile> {
-    const data = await apiClient<BackendProfileResponse>(API_ENDPOINTS.PROFILE.ME);
+    const data = await this.getFullProfile();
     const u = data.user;
     const b = data.business;
 
@@ -101,7 +108,7 @@ export class ProfileApiService {
   }
 
   /**
-   * Update business details
+   * Update business details including GPS coordinates
    */
   static async updateBusiness(params: {
     legalName: string;
@@ -109,6 +116,8 @@ export class ProfileApiService {
     physicalAddress?: string;
     city?: string;
     region?: string;
+    latitude?: number | null;
+    longitude?: number | null;
   }): Promise<void> {
     await apiClient(API_ENDPOINTS.PROFILE.UPDATE_BUSINESS, {
       method: 'PUT',
@@ -118,9 +127,23 @@ export class ProfileApiService {
         physical_address: params.physicalAddress,
         city: params.city,
         region: params.region,
+        latitude: params.latitude,
+        longitude: params.longitude,
       }),
       headers: { 'Content-Type': 'application/json' },
     });
+  }
+
+  /**
+   * Submit application to become a verified supplier
+   */
+  static async applyToBecomeSupplier(): Promise<{ status: string; message: string }> {
+    return await apiClient<{ status: string; message: string }>(
+      API_ENDPOINTS.PROFILE.APPLY_SUPPLIER,
+      {
+        method: 'POST',
+      }
+    );
   }
 
   /**

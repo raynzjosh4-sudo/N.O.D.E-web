@@ -28,6 +28,7 @@ import { Product } from '@/features/inventory/domain/entities/product';
 import { useProducts } from '@/features/inventory/context/products_context';
 import { useAuth } from '@/features/auth/context/auth_context';
 import { AuthPromptSheet } from '@/features/auth/presentation/widgets/auth_prompt_sheet';
+import { BecomeSupplierSheet } from '@/features/profile/presentation/widgets/become_supplier_sheet';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -52,6 +53,23 @@ export default function HomeScreen() {
   // Authentication State
   const { user, isAuthenticated } = useAuth();
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [showBecomeSupplierModal, setShowBecomeSupplierModal] = useState(false);
+
+  const isSupplierOrAdmin =
+    (user?.role || '').toLowerCase() === 'supplier' ||
+    (user?.role || '').toLowerCase() === 'admin';
+
+  const handleSupplierBannerPress = () => {
+    if (!isAuthenticated) {
+      setShowAuthPrompt(true);
+      return;
+    }
+    if (isSupplierOrAdmin) {
+      router.push('/supplier-products');
+    } else {
+      setShowBecomeSupplierModal(true);
+    }
+  };
 
   // Handle Search Submission or Selection
   const handleExecuteSearch = (query: string) => {
@@ -225,8 +243,9 @@ export default function HomeScreen() {
               >
                 {/* 3. Promo Banners */}
                 <PromoBanners
+                  isSupplierOrAdmin={isSupplierOrAdmin}
                   onPromoPress={(id) => console.log('Promo tapped:', id)}
-                  onPostProductPress={() => router.push('/supplier-products')}
+                  onPostProductPress={handleSupplierBannerPress}
                 />
 
                 {/* 4. Quick Selections List (Suppliers) */}
@@ -278,6 +297,15 @@ export default function HomeScreen() {
       <AuthPromptSheet
         visible={showAuthPrompt}
         onClose={() => setShowAuthPrompt(false)}
+      />
+
+      {/* Become Supplier Application Modal Sheet */}
+      <BecomeSupplierSheet
+        visible={showBecomeSupplierModal}
+        onClose={() => setShowBecomeSupplierModal(false)}
+        onSuccess={() => {
+          setShowBecomeSupplierModal(false);
+        }}
       />
     </SafeAreaView>
   );

@@ -14,11 +14,13 @@ import { MaterialIcon } from '@/core/widgets/material_icon';
 interface PromoBannersProps {
   onPostProductPress?: () => void;
   onPromoPress?: (promoId: string) => void;
+  isSupplierOrAdmin?: boolean;
 }
 
 export function PromoBanners({
   onPostProductPress,
   onPromoPress,
+  isSupplierOrAdmin = false,
 }: PromoBannersProps) {
   const { width } = useWindowDimensions();
   const { colors } = useAppTheme();
@@ -100,9 +102,13 @@ export function PromoBanners({
                 <MaterialIcon name="storefront" size={26} color={colors.primary} />
               </View>
               <View style={styles.supplierTextGroup}>
-                <Text style={[styles.supplierTitle, { color: colors.onSurface }]}>Become a NODE Supplier</Text>
+                <Text style={[styles.supplierTitle, { color: colors.onSurface }]}>
+                  {isSupplierOrAdmin ? 'Supplier Catalog & Posts' : 'Become a NODE Supplier'}
+                </Text>
                 <Text style={[styles.supplierSubtitle, { color: colors.onSurfaceMuted }]}>
-                  Connect with over 10,000+ commercial retail buyers nationwide.
+                  {isSupplierOrAdmin
+                    ? 'Manage wholesale inventory, stock quantities, and tier prices.'
+                    : 'Connect with over 10,000+ commercial retail buyers nationwide.'}
                 </Text>
               </View>
               <View style={styles.supplierChevron}>
@@ -182,7 +188,9 @@ export function PromoBanners({
               resizeMode="cover"
             />
             <View style={styles.mobileDarkenOverlay} />
-            <Text style={styles.mobileSubBottomTitle}>Posts</Text>
+            <Text style={styles.mobileSubBottomTitle}>
+              {isSupplierOrAdmin ? 'Catalog' : 'Become Supplier'}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>

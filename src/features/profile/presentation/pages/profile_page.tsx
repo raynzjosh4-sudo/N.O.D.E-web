@@ -40,6 +40,7 @@ import { PendingOrdersTab } from '../widgets/pending_orders_tab';
 import { SentOrdersTab } from '../widgets/sent_orders_tab';
 import { PdfTab } from '../widgets/pdf_tab';
 import { SettingsTab } from '../widgets/settings_tab';
+import { BecomeSupplierSheet } from '../widgets/become_supplier_sheet';
 import { useAuth } from '@/features/auth/context/auth_context';
 import { ProfileApiService } from '../../data/services/profile_api_service';
 
@@ -49,6 +50,7 @@ export function ProfilePage() {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 960;
   const { user, isAuthenticated, signOut, getToken } = useAuth();
+  const [showBecomeSupplierModal, setShowBecomeSupplierModal] = useState(false);
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<ProfileTabKey>('saved');
@@ -321,24 +323,41 @@ export function ProfilePage() {
                   </View>
                 </View>
 
-                {/* Supplier Products Shortcut — only for suppliers and admins */}
-                {(user?.role?.toLowerCase() === 'supplier' || user?.role?.toLowerCase() === 'admin') && (
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  style={[
-                    styles.sidebarSupplierBtn,
-                    {
-                      backgroundColor: colors.primary + '18',
-                      borderColor: colors.primary + '40',
-                    },
-                  ]}
-                  onPress={() => router.push('/supplier-products')}
-                >
-                  <MaterialIcon name="inventory_2" size={16} color={colors.primary} />
-                  <Text style={[styles.sidebarSupplierText, { color: colors.primary }]}>
-                    Supplier Catalog (Manage)
-                  </Text>
-                </TouchableOpacity>
+                {/* Supplier Catalog or Become a Supplier CTA */}
+                {(user?.role?.toLowerCase() === 'supplier' || user?.role?.toLowerCase() === 'admin') ? (
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={[
+                      styles.sidebarSupplierBtn,
+                      {
+                        backgroundColor: colors.primary + '18',
+                        borderColor: colors.primary + '40',
+                      },
+                    ]}
+                    onPress={() => router.push('/supplier-products')}
+                  >
+                    <MaterialIcon name="inventory_2" size={16} color={colors.primary} />
+                    <Text style={[styles.sidebarSupplierText, { color: colors.primary }]}>
+                      Supplier Catalog (Manage)
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={[
+                      styles.sidebarSupplierBtn,
+                      {
+                        backgroundColor: colors.primary + '18',
+                        borderColor: colors.primary + '40',
+                      },
+                    ]}
+                    onPress={() => setShowBecomeSupplierModal(true)}
+                  >
+                    <MaterialIcon name="storefront" size={16} color={colors.primary} />
+                    <Text style={[styles.sidebarSupplierText, { color: colors.primary }]}>
+                      Become a Supplier
+                    </Text>
+                  </TouchableOpacity>
                 )}
 
                 {/* Sign Out CTA */}
@@ -438,8 +457,8 @@ export function ProfilePage() {
               onBack={() => router.safeGoBack('/')}
             />
 
-            {/* Mobile Supplier Catalog Shortcut */}
-            {(user?.role?.toLowerCase() === 'supplier' || user?.role?.toLowerCase() === 'admin') && (
+            {/* Mobile Supplier or Become Supplier Shortcut */}
+            {(user?.role?.toLowerCase() === 'supplier' || user?.role?.toLowerCase() === 'admin') ? (
               <TouchableOpacity
                 activeOpacity={0.85}
                 style={[
@@ -455,6 +474,26 @@ export function ProfilePage() {
                   <MaterialIcon name="inventory_2" size={18} color={colors.primary} />
                   <Text style={[styles.mobileSupplierBtnText, { color: colors.primary }]}>
                     Supplier Catalog (Manage Products)
+                  </Text>
+                </View>
+                <MaterialIcon name="chevron_right" size={18} color={colors.primary} />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={[
+                  styles.mobileSupplierBtn,
+                  {
+                    backgroundColor: colors.primary + '18',
+                    borderColor: colors.primary + '40',
+                  },
+                ]}
+                onPress={() => setShowBecomeSupplierModal(true)}
+              >
+                <View style={styles.mobileSupplierBtnLeft}>
+                  <MaterialIcon name="storefront" size={18} color={colors.primary} />
+                  <Text style={[styles.mobileSupplierBtnText, { color: colors.primary }]}>
+                    Apply to Become a Supplier
                   </Text>
                 </View>
                 <MaterialIcon name="chevron_right" size={18} color={colors.primary} />
@@ -527,6 +566,14 @@ export function ProfilePage() {
           </View>
         )}
       </View>
+      {/* Become a Supplier Application Sheet */}
+      <BecomeSupplierSheet
+        visible={showBecomeSupplierModal}
+        onClose={() => setShowBecomeSupplierModal(false)}
+        onSuccess={() => {
+          setShowBecomeSupplierModal(false);
+        }}
+      />
     </SafeAreaView>
   );
 }
