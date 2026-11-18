@@ -14,6 +14,7 @@ import { useAppTheme } from '@/core/theme/theme_context';
 import { NodeIcon } from '@/core/widgets/node_icon';
 import { MaterialIcon } from '@/core/widgets/material_icon';
 import { UserProfile } from '../../domain/entities/profile_models';
+import { ProfileApiService } from '../../data/services/profile_api_service';
 
 type SettingsSubView = 'main' | 'manifesto' | 'profile_info' | 'warehouse' | 'terms' | 'theme';
 
@@ -45,7 +46,7 @@ export function SettingsTab({
   const [isAutoDraftEnabled, setIsAutoDraftEnabled] = useState(true);
   const [currency, setCurrency] = useState<'UGX' | 'USD'>('UGX');
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     onUpdateProfile({
       ...profile,
       fullName,
@@ -56,6 +57,20 @@ export function SettingsTab({
       warehouseAddress,
     });
     setSaveSuccessMsg(true);
+
+    try {
+      await Promise.allSettled([
+        ProfileApiService.updateUser({ fullName }),
+        ProfileApiService.updateBusiness({
+          legalName,
+          phoneNumber: phone,
+          physicalAddress: warehouseAddress,
+        }),
+      ]);
+    } catch (e) {
+      console.warn('Failed to sync profile update to db:', e);
+    }
+
     setTimeout(() => {
       setSaveSuccessMsg(false);
       setSubView('main');

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   Image,
   useWindowDimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { useAppNavigation } from '@/core/utils/use_app_navigation';
 import { AppColors } from '@/core/theme/app_theme';
@@ -40,24 +41,76 @@ import { SentOrdersTab } from '../widgets/sent_orders_tab';
 import { PdfTab } from '../widgets/pdf_tab';
 import { SettingsTab } from '../widgets/settings_tab';
 import { useAuth } from '@/features/auth/context/auth_context';
+import { ProfileApiService } from '../../data/services/profile_api_service';
 
 export function ProfilePage() {
   const router = useAppNavigation();
   const { colors, isDark } = useAppTheme();
   const { width } = useWindowDimensions();
   const isDesktop = width >= 960;
+  const { user, isAuthenticated, signOut, getToken } = useAuth();
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<ProfileTabKey>('saved');
 
   // State collections
-  const [profile, setProfile] = useState<UserProfile>(MOCK_USER_PROFILE);
-  const [savedItems, setSavedItems] = useState<SavedProductItem[]>(MOCK_SAVED_ITEMS);
-  const [drafts, setDrafts] = useState<DraftOrder[]>(MOCK_DRAFT_ORDERS);
-  const [pendingOrders, setPendingOrders] = useState<WholesaleOrderItem[]>(MOCK_PENDING_ORDERS);
-  const [sentOrders, setSentOrders] = useState<WholesaleOrderItem[]>(MOCK_SENT_ORDERS);
-  const [pdfDocuments, setPdfDocuments] = useState<PdfDocumentItem[]>(MOCK_PDF_DOCUMENTS);
+  const [profile, setProfile] = useState<UserProfile>(() => ({
+    ...MOCK_USER_PROFILE,
+    id: user?.id || '',
+    fullName: user?.name || 'Verified Member',
+    legalBusinessName: user?.legalBusinessName || 'Enterprise Account',
+    email: user?.email || '',
+    avatarUrl: user?.avatarUrl,
+  }));
+  const [savedItems, setSavedItems] = useState<SavedProductItem[]>([]);
+  const [drafts, setDrafts] = useState<DraftOrder[]>([]);
+  const [pendingOrders, setPendingOrders] = useState<WholesaleOrderItem[]>([]);
+  const [sentOrders, setSentOrders] = useState<WholesaleOrderItem[]>([]);
+  const [pdfDocuments, setPdfDocuments] = useState<PdfDocumentItem[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
   const { showInfo, showSuccess, showWarning, showToast } = useToast();
+
+  // Load real profile, saved items, drafts, and orders from database
+  useEffect(() => {
+    let isMounted = true;
+    const token = getToken();
+
+    if (!token && !isAuthenticated) {
+      setIsLoadingData(false);
+      return;
+    }
+
+    setIsLoadingData(true);
+
+    Promise.allSettled([
+      ProfileApiService.getProfile(),
+      ProfileApiService.getSavedItems(),
+      ProfileApiService.getDraftOrders(),
+      ProfileApiService.getSentOrders(),
+    ]).then(([profileRes, savedRes, draftsRes, ordersRes]) => {
+      if (!isMounted) return;
+
+      if (profileRes.status === 'fulfilled') {
+        setProfile(profileRes.value);
+      }
+      if (savedRes.status === 'fulfilled') {
+        setSavedItems(savedRes.value);
+      }
+      if (draftsRes.status === 'fulfilled') {
+        setDrafts(draftsRes.value);
+      }
+      if (ordersRes.status === 'fulfilled') {
+        setPendingOrders(ordersRes.value.pending);
+        setSentOrders(ordersRes.value.sent);
+        setPdfDocuments(ordersRes.value.pdfs);
+      }
+      setIsLoadingData(false);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id, isAuthenticated]);
 
   // Tab Handlers
   const handlePlaceOrder = (selected: SavedProductItem[]) => {
@@ -66,23 +119,36 @@ export function ProfilePage() {
     }
   };
 
-  const handleDeleteSaved = (id: string) => {
+  const handleDeleteSaved = async (id: string) => {
     setSavedItems((prev) => prev.filter((item) => item.id !== id));
+    try {
+      await ProfileApiService.removeSavedItem(id);
+      showSuccess('Saved Item Removed', 'Item was removed from your wishlist.');
+    } catch (e) {
+      console.warn('Failed to delete saved item:', e);
+    }
   };
 
-  const handleDeleteDraft = (id: string) => {
+  const handleDeleteDraft = async (id: string) => {
     setDrafts((prev) => prev.filter((d) => d.id !== id));
+    try {
+      await ProfileApiService.deleteDraftOrder(id);
+      showSuccess('Draft Discarded', 'Order draft was removed.');
+    } catch (e) {
+      console.warn('Failed to delete draft:', e);
+    }
   };
 
   const handleContinueDraft = (draft: DraftOrder) => {
-    router.push('/product/order/p1');
+    router.push(`/product/order/${draft.id}`);
   };
 
   const handleOpenPdf = (doc: PdfDocumentItem) => {
     showInfo('Document Downloading', `${doc.title} (${doc.fileSize}) is being downloaded.`);
+    if (doc.downloadUrl && Platform.OS === 'web') {
+      window.open(doc.downloadUrl, '_blank');
+    }
   };
-
-  const { signOut } = useAuth();
 
   const handleLogout = () => {
     showToast({

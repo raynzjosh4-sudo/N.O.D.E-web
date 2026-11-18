@@ -28,26 +28,27 @@ export const API_ENDPOINTS = {
   PROFILE: {
     ME: '/profile',
     UPDATE: '/profile',
-    UPDATE_USER: '/profile/user',
     UPDATE_BUSINESS: '/profile/business',
-    APPLY_SUPPLIER: '/profile/supplier-apply',
+    APPLY_SUPPLIER: '/profile/apply-supplier',
+    TRADING_TERMS: '/profile/trading-terms',
   },
   // Orders
   ORDERS: {
-    LIST: '/orders',
-    CREATE: '/orders',
+    LIST: '/orders/',
+    CREATE: '/orders/',
     DETAIL: (id: string) => `/orders/${id}`,
     UPDATE_STATUS: (id: string) => `/orders/${id}/status`,
-    SUPPLIER_ORDERS: '/orders/supplier',
-    BUYER_SUMMARY: '/orders/buyer/summary',
-    SUPPLIER_SUMMARY: '/orders/supplier/summary',
+    PDF: (orderId: string) => `/orders/${orderId}/pdf`,
+    DRAFTS: '/orders/drafts',
+    DRAFT_BY_ID: (id: string) => `/orders/drafts/${id}`,
+    SUPPLIER_INCOMING: '/orders/supplier/incoming',
   },
   // Saved Items
   SAVED: {
-    LIST: '/saved',
-    ADD: '/saved',
-    REMOVE: (productId: string) => `/saved/${productId}`,
-    CHECK: (productId: string) => `/saved/check/${productId}`,
+    LIST: '/saved-items',
+    ADD: '/saved-items',
+    REMOVE: (savedItemId: string) => `/saved-items/${savedItemId}`,
+    CHECK: (productId: string) => `/saved-items/${productId}/check`,
   },
   // Admin
   ADMIN: {
