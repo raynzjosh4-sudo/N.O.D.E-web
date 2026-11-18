@@ -2,6 +2,7 @@ import { apiClient } from '@/core/api/api_client';
 import { API_ENDPOINTS } from '@/core/api/api_endpoints';
 import { Platform } from 'react-native';
 import { Product } from '../../domain/entities/product';
+import { compressImageWeb } from '@/core/utils/image_utils';
 import {
   CategoryCreatePayloadDto,
   CategoryDto,
@@ -184,12 +185,14 @@ export class ProductApiService {
 
     if (Platform.OS === 'web') {
       if (typeof Blob !== 'undefined' && (data.file instanceof Blob || (typeof File !== 'undefined' && data.file instanceof File))) {
-        formData.append('file', data.file as Blob);
+        const compressed = await compressImageWeb(data.file as Blob);
+        formData.append('file', compressed, (data.file as File).name || 'category.jpg');
       } else {
         const fileObj = data.file as { uri: string; name?: string; type?: string };
         const fetched = await fetch(fileObj.uri);
         const blob = await fetched.blob();
-        formData.append('file', blob, fileObj.name || 'category.jpg');
+        const compressed = await compressImageWeb(blob);
+        formData.append('file', compressed, fileObj.name || 'category.jpg');
       }
     } else {
       const fileObj = data.file as { uri: string; name?: string; type?: string };
@@ -219,12 +222,14 @@ export class ProductApiService {
 
     if (Platform.OS === 'web') {
       if (typeof Blob !== 'undefined' && (file instanceof Blob || (typeof File !== 'undefined' && file instanceof File))) {
-        formData.append('file', file as Blob);
+        const compressed = await compressImageWeb(file as Blob);
+        formData.append('file', compressed, (file as File).name || 'category.jpg');
       } else {
         const fileObj = file as { uri: string; name?: string; type?: string };
         const fetched = await fetch(fileObj.uri);
         const blob = await fetched.blob();
-        formData.append('file', blob, fileObj.name || 'category.jpg');
+        const compressed = await compressImageWeb(blob);
+        formData.append('file', compressed, fileObj.name || 'category.jpg');
       }
     } else {
       const fileObj = file as { uri: string; name?: string; type?: string };
@@ -253,12 +258,14 @@ export class ProductApiService {
 
     if (Platform.OS === 'web') {
       if (typeof Blob !== 'undefined' && (file instanceof Blob || (typeof File !== 'undefined' && file instanceof File))) {
-        formData.append('file', file as Blob);
+        const compressed = await compressImageWeb(file as Blob);
+        formData.append('file', compressed, (file as File).name || 'image.jpg');
       } else {
         const fileObj = file as { uri: string; name?: string; type?: string };
         const fetched = await fetch(fileObj.uri);
         const blob = await fetched.blob();
-        formData.append('file', blob, fileObj.name || 'image.jpg');
+        const compressed = await compressImageWeb(blob);
+        formData.append('file', compressed, fileObj.name || 'image.jpg');
       }
     } else {
       const fileObj = file as { uri: string; name?: string; type?: string };
@@ -288,12 +295,14 @@ export class ProductApiService {
 
     if (Platform.OS === 'web') {
       if (typeof Blob !== 'undefined' && (file instanceof Blob || (typeof File !== 'undefined' && file instanceof File))) {
-        formData.append('file', file as Blob);
+        const compressed = await compressImageWeb(file as Blob);
+        formData.append('file', compressed, (file as File).name || 'image.jpg');
       } else {
         const fileObj = file as { uri: string; name?: string; type?: string };
         const fetched = await fetch(fileObj.uri);
         const blob = await fetched.blob();
-        formData.append('file', blob, fileObj.name || 'image.jpg');
+        const compressed = await compressImageWeb(blob);
+        formData.append('file', compressed, fileObj.name || 'image.jpg');
       }
     } else {
       const fileObj = file as { uri: string; name?: string; type?: string };

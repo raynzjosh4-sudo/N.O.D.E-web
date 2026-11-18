@@ -1,5 +1,6 @@
 import { Product, PriceTier } from '../../domain/entities/product';
 import { Supplier } from '@/features/home/domain/entities/supplier';
+import { resolveImageUrl } from '@/core/utils/image_utils';
 import {
   ProductListItemDto,
   ProductResponseDto,
@@ -67,7 +68,7 @@ export class ProductMapper {
       brand: dto.brand || 'General',
       sku: dto.sku || '',
       srp: dto.srp,
-      imageUrl: dto.image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500',
+      imageUrl: resolveImageUrl(dto.image_url),
       aspectRatio,
       supplierId: dto.supplier_id,
       supplierName: dto.supplier_name || 'Verified Supplier',
@@ -94,7 +95,7 @@ export class ProductMapper {
       sku: dto.sku || '',
       slug: dto.slug,
       srp: dto.srp,
-      imageUrl: dto.image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500',
+      imageUrl: resolveImageUrl(dto.image_url),
       mediaUrls: dto.media_urls || (dto.image_url ? [dto.image_url] : []),
       aspectRatio: dto.aspect_ratio || 0.85,
       supplierId: dto.supplier?.id,

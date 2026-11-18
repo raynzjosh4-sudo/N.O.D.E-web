@@ -21,6 +21,7 @@ import { CategoryItem } from './models/category_model';
 import { ProductApiService } from '@/features/inventory/data/services/product_api_service';
 import { useProducts } from '@/features/inventory/context/products_context';
 import { styles } from './categorystyle';
+import { resolveImageUrl } from '@/core/utils/image_utils';
 
 export function CategoriesPage() {
   const router = useAppNavigation();
@@ -55,9 +56,7 @@ export function CategoriesPage() {
           catMap.set(c.id, {
             id: c.id,
             name: c.name,
-            imageUrl:
-              c.image_url ||
-              'https://images.unsplash.com/photo-1550009158-9ebf69173e03?w=300&auto=format&fit=crop&q=80',
+            imageUrl: resolveImageUrl(c.image_url),
             itemCount: 0,
             subCategories: [],
           });

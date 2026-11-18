@@ -13,6 +13,7 @@ import { AppColors } from '@/core/theme/app_theme';
 import { MaterialIcon } from '@/core/widgets/material_icon';
 import { ProductApiService } from '@/features/inventory/data/services/product_api_service';
 import { CategoryDto } from '@/features/inventory/data/dto/product_dto';
+import { resolveImageUrl } from '@/core/utils/image_utils';
 
 export interface FeaturedCategoryItem {
   id: string;
@@ -55,7 +56,7 @@ export function FeaturedCategoryCard({
           id: c.id,
           name: c.name,
           subtitle: 'Wholesale Collection',
-          imageUrl: c.image_url || 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?w=800&auto=format&fit=crop&q=80',
+          imageUrl: resolveImageUrl(c.image_url),
         }));
         setApiCategories(mapped);
       })
