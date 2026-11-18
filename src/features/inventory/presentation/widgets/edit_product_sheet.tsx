@@ -93,6 +93,8 @@ export function EditProductSheet({
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const [inlineError, setInlineError] = useState<string | null>(null);
+  const [inlineSuccess, setInlineSuccess] = useState<string | null>(null);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [categoryPath, setCategoryPath] = useState('');
   const [isCategoryPickerOpen, setIsCategoryPickerOpen] = useState(false);
@@ -266,6 +268,8 @@ export function EditProductSheet({
     }
     setActiveSection('identity');
     setIsFullScreen(false);
+    setInlineError(null);
+    setInlineSuccess(null);
   }, [product, visible]);
 
   const handleAddCustomColor = () => {
@@ -410,22 +414,25 @@ export function EditProductSheet({
 
   // --- Save / Publish Product ---
   const handleSave = async () => {
+    setInlineError(null);
+    setInlineSuccess(null);
+
     if (!name.trim()) {
-      showError('Required Field', 'Please enter a Product Name before publishing.');
+      setInlineError('Product Name is required before publishing.');
       return;
     }
     if (!brand.trim()) {
-      showError('Required Field', 'Please enter a Brand Name.');
+      setInlineError('Brand Name is required.');
       return;
     }
     if (!categoryId) {
-      showError('Category Required', 'Please choose or create a product category branch.');
+      setInlineError('Please choose or create a product category branch.');
       return;
     }
 
     const numericSrp = parseInt(srp.replace(/[^0-9]/g, ''), 10) || 0;
     if (numericSrp <= 0) {
-      showError('Invalid Price', 'Please enter a valid wholesale unit price (SRP).');
+      setInlineError('Please enter a valid wholesale unit price (SRP).');
       return;
     }
 
@@ -485,6 +492,7 @@ export function EditProductSheet({
 
       if (isEditing && product) {
         await updateProduct(product.id, payload);
+        setInlineSuccess(`"${payload.name}" has been updated successfully.`);
         showSuccess('Product Updated', `"${payload.name}" has been updated successfully.`);
       } else {
         await publishProduct({
@@ -492,13 +500,16 @@ export function EditProductSheet({
           supplierId: activeSupplierId,
           supplierName: activeSupplierName,
         });
+        setInlineSuccess(`"${payload.name}" is now live in your catalog.`);
         showSuccess('Product Published', `"${payload.name}" is now live in your catalog.`);
       }
 
-      onClose();
-      if (onSuccess) onSuccess();
+      setTimeout(() => {
+        onClose();
+        if (onSuccess) onSuccess();
+      }, 800);
     } catch (err: any) {
-      showError('Publish Failed', err.message || 'Could not complete publishing.');
+      setInlineError(err.message || 'Could not complete publishing. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -1629,6 +1640,24 @@ export function EditProductSheet({
 
             <View style={{ height: 24 }} />
 
+            {/* ── Inline error / success feedback (visible inside the Modal) ── */}
+            {inlineError ? (
+              <View style={[styles.inlineBanner, styles.inlineBannerError]}>
+                <MaterialIcon name="error_outline" size={18} color="#FF4D4F" />
+                <Text style={[styles.inlineBannerText, { color: '#FF4D4F' }]}>{inlineError}</Text>
+                <TouchableOpacity onPress={() => setInlineError(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <MaterialIcon name="close" size={16} color="#FF4D4F" />
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
+            {inlineSuccess ? (
+              <View style={[styles.inlineBanner, styles.inlineBannerSuccess]}>
+                <MaterialIcon name="check_circle" size={18} color="#25D366" />
+                <Text style={[styles.inlineBannerText, { color: '#25D366' }]}>{inlineSuccess}</Text>
+              </View>
+            ) : null}
+
             {/* Action Buttons */}
             <TouchableOpacity
               activeOpacity={0.85}
@@ -2069,6 +2098,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     marginTop: 6,
+  },
+
+  // Inline feedback banners (shown inside the Modal where toasts can't reach)
+  inlineBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  inlineBannerError: {
+    backgroundColor: 'rgba(255, 77, 79, 0.08)',
+    borderColor: 'rgba(255, 77, 79, 0.25)',
+  },
+  inlineBannerSuccess: {
+    backgroundColor: 'rgba(37, 211, 102, 0.08)',
+    borderColor: 'rgba(37, 211, 102, 0.25)',
+  },
+  inlineBannerText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+    lineHeight: 18,
   },
 
   // Save / Delete Buttons
