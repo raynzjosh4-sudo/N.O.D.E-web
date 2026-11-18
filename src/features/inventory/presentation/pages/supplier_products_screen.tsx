@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,13 +9,15 @@ import {
   TextInput,
   Image,
   useWindowDimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAppTheme } from '@/core/theme/theme_context';
 import { MaterialIcon } from '@/core/widgets/material_icon';
 import { Product } from '../../domain/entities/product';
-import { useProducts } from '../../context/products_context';
+import { ProductApiService } from '../../data/services/product_api_service';
 import { EditProductSheet } from '../widgets/edit_product_sheet';
+import { useAuth } from '@/features/auth/context/auth_context';
 
 type FilterTab = 'all' | 'active' | 'low_stock';
 
@@ -24,13 +26,33 @@ export function SupplierProductsScreen() {
   const { colors, isDark } = useAppTheme();
   const { width } = useWindowDimensions();
   const isDesktop = width >= 900;
+  const { user } = useAuth();
 
-  const { products } = useProducts();
+  // Own products state — loaded from /my-products, not global catalog
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  const loadMyProducts = useCallback(async () => {
+    setIsLoadingProducts(true);
+    try {
+      const res = await ProductApiService.getMyProducts({ limit: 100 });
+      setProducts(res.products);
+    } catch (err: any) {
+      console.warn('Failed to load my products:', err.message);
+      setProducts([]);
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadMyProducts();
+  }, [loadMyProducts]);
 
   // Filtered Products
   const filteredProducts = useMemo(() => {
@@ -109,7 +131,7 @@ export function SupplierProductsScreen() {
                 ]}
                 numberOfLines={1}
               >
-                Apex Wholesale • Catalog & Prices
+                {user?.legalBusinessName || user?.name || 'My Catalog'} • My Products
               </Text>
             </View>
           </View>
@@ -124,6 +146,14 @@ export function SupplierProductsScreen() {
           </TouchableOpacity>
         </View>
 
+        {isLoadingProducts ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={{ marginTop: 10, color: colors.onSurfaceMuted, fontFamily: 'PlusJakartaSans_500Medium' }}>
+              Loading your products...
+            </Text>
+          </View>
+        ) : (
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -414,6 +444,7 @@ export function SupplierProductsScreen() {
             )}
           </View>
         </ScrollView>
+        )}
       </View>
 
       {/* Edit / Update Product Bottom Modal Sheet */}

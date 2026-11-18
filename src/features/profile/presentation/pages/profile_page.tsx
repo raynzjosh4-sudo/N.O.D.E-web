@@ -305,7 +305,8 @@ export function ProfilePage() {
                   </View>
                 </View>
 
-                {/* Supplier Products Shortcut */}
+                {/* Supplier Products Shortcut — only for suppliers and admins */}
+                {(user?.role === 'supplier' || user?.role === 'admin') && (
                 <TouchableOpacity
                   activeOpacity={0.8}
                   style={[
@@ -322,6 +323,7 @@ export function ProfilePage() {
                     Supplier Catalog (Manage)
                   </Text>
                 </TouchableOpacity>
+                )}
 
                 {/* Sign Out CTA */}
                 <TouchableOpacity

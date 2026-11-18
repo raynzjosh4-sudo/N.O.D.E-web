@@ -24,6 +24,41 @@ export interface ProductFilterParams {
 
 export class ProductApiService {
   /**
+   * Fetch only the current supplier's own posted products (requires auth token)
+   */
+  static async getMyProducts(params: ProductFilterParams = {}): Promise<{
+    products: Product[];
+    total: number;
+    page: number;
+    limit: number;
+    hasMore: boolean;
+  }> {
+    const queryParams: Record<string, string | number | boolean | undefined> = {
+      page: params.page ?? 1,
+      limit: params.limit ?? 50,
+      search: params.search,
+      sort_by: params.sortBy ?? 'created_at',
+      ascending: params.ascending ?? false,
+    };
+
+    const response = await apiClient<PaginatedProductsDto>(API_ENDPOINTS.PRODUCTS.MY_PRODUCTS, {
+      params: queryParams,
+    });
+
+    const products = (response.data || []).map((item, idx) =>
+      ProductMapper.fromListItemDto(item, idx)
+    );
+
+    return {
+      products,
+      total: response.total ?? products.length,
+      page: response.page ?? 1,
+      limit: response.limit ?? 50,
+      hasMore: response.has_more ?? false,
+    };
+  }
+
+  /**
    * Fetch paginated products from live API
    */
   static async getProducts(params: ProductFilterParams = {}): Promise<{
@@ -113,28 +148,17 @@ export class ProductApiService {
     data: CategoryCreatePayloadDto,
     token?: string
   ): Promise<CategoryDto> {
-    try {
-      return await apiClient<CategoryDto>(API_ENDPOINTS.PRODUCTS.CREATE_CATEGORY, {
-        method: 'POST',
-        body: JSON.stringify({
-          name: data.name,
-          parent_id: data.parent_id || null,
-          image_url: data.image_url || null,
-          image_base64: data.image_base64 || null,
-          level: data.level ?? 0,
-        }),
-        token,
-      });
-    } catch (err: any) {
-      console.warn('API createCategory fallback to local:', err.message);
-      return {
-        id: 'cat_' + Date.now().toString(36),
+    return await apiClient<CategoryDto>(API_ENDPOINTS.PRODUCTS.CREATE_CATEGORY, {
+      method: 'POST',
+      body: JSON.stringify({
         name: data.name,
         parent_id: data.parent_id || null,
-        level: data.level ?? 0,
         image_url: data.image_url || null,
-      };
-    }
+        image_base64: data.image_base64 || null,
+        level: data.level ?? 0,
+      }),
+      token,
+    });
   }
 
   /**

@@ -16,6 +16,7 @@ import { useAppTheme } from '@/core/theme/theme_context';
 import { MaterialIcon } from '@/core/widgets/material_icon';
 import { CategoryDto } from '../../data/dto/product_dto';
 import { ProductApiService } from '../../data/services/product_api_service';
+import { useAuth } from '@/features/auth/context/auth_context';
 
 export interface CategorySelectionResult {
   id: string;
@@ -39,6 +40,7 @@ export function CategoryBranchPicker({
   const { colors, isDark } = useAppTheme();
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
+  const { getToken } = useAuth();
 
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -160,32 +162,24 @@ export function CategoryBranchPicker({
       let created: CategoryDto;
 
       if (newCategoryImageUri) {
-        try {
-          created = await ProductApiService.createCategoryWithImage({
-            name: newCategoryName.trim(),
-            parent_id: parent ? parent.id : null,
-            level: parent ? (parent.level || 0) + 1 : 0,
-            file: {
-              uri: newCategoryImageUri,
-              name: 'category.jpg',
-              type: 'image/jpeg',
-            },
-          });
-        } catch (imgErr: any) {
-          console.warn('createCategoryWithImage failed, falling back to JSON createCategory:', imgErr.message);
-          created = await ProductApiService.createCategory({
-            name: newCategoryName.trim(),
-            parent_id: parent ? parent.id : null,
-            level: parent ? (parent.level || 0) + 1 : 0,
-            image_base64: newCategoryImageBase64 || null,
-          });
-        }
+        // Use multipart upload — the picker gives us a file:// URI, not base64
+        created = await ProductApiService.createCategoryWithImage({
+          name: newCategoryName.trim(),
+          parent_id: parent ? parent.id : null,
+          level: parent ? (parent.level || 0) + 1 : 0,
+          file: {
+            uri: newCategoryImageUri,
+            name: 'category.jpg',
+            type: 'image/jpeg',
+          },
+        }, getToken() ?? undefined);
       } else {
+        // No image — JSON payload without image
         created = await ProductApiService.createCategory({
           name: newCategoryName.trim(),
           parent_id: parent ? parent.id : null,
           level: parent ? (parent.level || 0) + 1 : 0,
-        });
+        }, getToken() ?? undefined);
       }
 
       // Update local categories list

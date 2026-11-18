@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Product, MOCK_PRODUCTS } from '../domain/entities/product';
+import { Product } from '../domain/entities/product';
 import { ProductApiService, ProductFilterParams } from '../data/services/product_api_service';
+import { useAuth } from '@/features/auth/context/auth_context';
 
 interface ProductsContextType {
   products: Product[];
@@ -60,6 +61,8 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
   const [hasMore, setHasMore] = useState(false);
   const [totalProducts, setTotalProducts] = useState(0);
   const [activeFilters, setActiveFilters] = useState<ProductFilterParams>({});
+
+  const { getToken } = useAuth();
 
   const fetchPopular = useCallback(async (categoryId?: string) => {
     try {
@@ -167,6 +170,7 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
 
   const updateProduct = async (id: string, updates: Partial<Product>) => {
     // 1. Optimistic local update
+    const prevProducts = products;
     setProducts((prev) =>
       prev.map((p) => {
         if (p.id === id) {
@@ -176,33 +180,23 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
       })
     );
 
-    // 2. Dispatch to live API in background
+    // 2. Dispatch to live API — revert on error
     try {
-      await ProductApiService.updateProduct(id, updates);
+      await ProductApiService.updateProduct(id, updates, getToken() ?? undefined);
     } catch (err: any) {
-      console.warn('API updateProduct failed (stored locally):', err.message);
+      console.warn('API updateProduct failed — reverting:', err.message);
+      setProducts(prevProducts);
+      throw err;
     }
   };
 
   const publishProduct = async (newProd: Omit<Product, 'id'>): Promise<Product> => {
     setIsSubmitting(true);
     try {
-      // Dispatch to live backend
-      const created = await ProductApiService.createProduct(newProd);
+      const created = await ProductApiService.createProduct(newProd, { token: getToken() ?? undefined });
       setProducts((prev) => [created, ...prev]);
       setTotalProducts((prev) => prev + 1);
       return created;
-    } catch (err: any) {
-      console.warn('Live API publish error, storing optimistically:', err.message);
-      // Fallback optimistic local product
-      const fallback: Product = {
-        ...newProd,
-        id: 'p_' + Date.now(),
-        aspectRatio: newProd.aspectRatio || 0.85,
-      };
-      setProducts((prev) => [fallback, ...prev]);
-      setTotalProducts((prev) => prev + 1);
-      return fallback;
     } finally {
       setIsSubmitting(false);
     }
@@ -216,14 +210,15 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
     };
     setProducts((prev) => [created, ...prev]);
 
-    // Asynchronously publish to backend
-    ProductApiService.createProduct(newProd).then((liveCreated) => {
-      // Replace optimistic temp id with live id
+    // Asynchronously publish to backend — replace temp id on success
+    ProductApiService.createProduct(newProd, { token: getToken() ?? undefined }).then((liveCreated) => {
       setProducts((prev) =>
         prev.map((p) => (p.id === created.id ? liveCreated : p))
       );
     }).catch((err) => {
-      console.warn('Async product publish fallback to local:', err.message);
+      console.warn('Async product publish failed:', err.message);
+      // Remove optimistic entry on failure
+      setProducts((prev) => prev.filter((p) => p.id !== created.id));
     });
 
     return created;
@@ -231,14 +226,18 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
 
   const deleteProduct = async (id: string) => {
     // 1. Optimistic remove
+    const prevProducts = products;
     setProducts((prev) => prev.filter((p) => p.id !== id));
     setTotalProducts((prev) => Math.max(0, prev - 1));
 
-    // 2. Backend delete
+    // 2. Backend delete — revert on error
     try {
-      await ProductApiService.deleteProduct(id);
+      await ProductApiService.deleteProduct(id, getToken() ?? undefined);
     } catch (err: any) {
-      console.warn('Live API deleteProduct failed (removed locally):', err.message);
+      console.warn('Live API deleteProduct failed — reverting:', err.message);
+      setProducts(prevProducts);
+      setTotalProducts((prev) => prev + 1);
+      throw err;
     }
   };
 
