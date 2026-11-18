@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useAppTheme } from '@/core/theme/theme_context';
 import { MaterialIcon } from '@/core/widgets/material_icon';
+import { useAuth } from '@/features/auth/context/auth_context';
 
 interface EmailOtpSheetProps {
   visible: boolean;
@@ -31,6 +32,7 @@ export function EmailOtpSheet({
   onResend,
 }: EmailOtpSheetProps) {
   const { colors } = useAppTheme();
+  const { verifyOtp } = useAuth();
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
   const [digits, setDigits] = useState<string[]>(['', '', '', '', '', '']);
@@ -90,8 +92,12 @@ export function EmailOtpSheet({
 
     setIsLoading(true);
     try {
-      await new Promise((r) => setTimeout(r, 600)); // verify code
-      onVerified();
+      const success = await verifyOtp(email, code);
+      if (success) {
+        onVerified();
+      } else {
+        setErrorMsg('Invalid or expired code. Please try again.');
+      }
     } catch (e: any) {
       setErrorMsg(e?.message || 'Invalid or expired code. Please try again.');
     } finally {

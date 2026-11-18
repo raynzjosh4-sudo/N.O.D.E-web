@@ -23,8 +23,6 @@ export function SignupScreen() {
   const router = useRouter();
   const { signUpWithEmail, signInWithGoogle } = useAuth();
 
-  const [name, setName] = useState('');
-  const [businessName, setBusinessName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [obscurePassword, setObscurePassword] = useState(true);
@@ -51,12 +49,7 @@ export function SignupScreen() {
     setIsLoading(true);
 
     try {
-      const result = await signUpWithEmail(
-        email.trim(),
-        password.trim(),
-        name.trim() || undefined,
-        businessName.trim() || undefined
-      );
+      const result = await signUpWithEmail(email.trim(), password.trim());
 
       if (result.success) {
         setCreatedUserId(result.userId);
@@ -156,78 +149,6 @@ export function SignupScreen() {
               <Text style={styles.errorText}>{errorMessage}</Text>
             </View>
           ) : null}
-
-          {/* Full Name Field */}
-          <Text
-            style={[
-              styles.inputLabel,
-              { color: isDark ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)' },
-            ]}
-          >
-            Full Name / Procurement Contact
-          </Text>
-          <View
-            style={[
-              styles.inputContainer,
-              {
-                backgroundColor: isDark ? colors.cardColor : '#F6F8FA',
-                borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)',
-              },
-            ]}
-          >
-            <View style={styles.inputLeadingIcon}>
-              <MaterialIcon
-                name="person_outline"
-                size={18}
-                color={isDark ? 'rgba(255, 255, 255, 0.35)' : 'rgba(0, 0, 0, 0.35)'}
-              />
-            </View>
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              placeholder="e.g. Alex Mugisha"
-              placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
-              style={[styles.textInput, { color: colors.onSurface }]}
-            />
-          </View>
-
-          <View style={{ height: 14 }} />
-
-          {/* Business / Trading Name Field */}
-          <Text
-            style={[
-              styles.inputLabel,
-              { color: isDark ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.7)' },
-            ]}
-          >
-            Business / Registered Company Name
-          </Text>
-          <View
-            style={[
-              styles.inputContainer,
-              {
-                backgroundColor: isDark ? colors.cardColor : '#F6F8FA',
-                borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)',
-              },
-            ]}
-          >
-            <View style={styles.inputLeadingIcon}>
-              <MaterialIcon
-                name="storefront"
-                size={18}
-                color={isDark ? 'rgba(255, 255, 255, 0.35)' : 'rgba(0, 0, 0, 0.35)'}
-              />
-            </View>
-            <TextInput
-              value={businessName}
-              onChangeText={setBusinessName}
-              placeholder="e.g. Apex Commercial Supplies Ltd"
-              placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
-              style={[styles.textInput, { color: colors.onSurface }]}
-            />
-          </View>
-
-          <View style={{ height: 14 }} />
 
           {/* Email Field */}
           <Text

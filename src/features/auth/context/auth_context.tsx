@@ -19,7 +19,7 @@ interface AuthContextType {
   isLoading: boolean;
   getToken: () => string | null;
   signInWithEmail: (email: string, password: string) => Promise<boolean>;
-  signUpWithEmail: (email: string, password: string, name?: string, businessName?: string) => Promise<{ success: boolean; userId: string }>;
+  signUpWithEmail: (email: string, password: string) => Promise<{ success: boolean; userId: string }>;
   signInWithGoogle: () => Promise<boolean>;
   verifyOtp: (email: string, code: string) => Promise<boolean>;
   sendPasswordReset: (email: string) => Promise<boolean>;
@@ -115,7 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         id: u.id,
         email: u.email,
         name: u.full_name || email.split('@')[0],
-        legalBusinessName: 'Wholesale Partner',
+        legalBusinessName: undefined,
         avatarUrl: u.profile_pic_url || undefined,
         role: u.role || 'buyer',
         token,
@@ -137,9 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUpWithEmail = async (
     email: string,
-    password: string,
-    _name?: string,
-    _businessName?: string
+    password: string
   ): Promise<{ success: boolean; userId: string }> => {
     setIsLoading(true);
     try {
