@@ -24,6 +24,7 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<boolean>;
   verifyOtp: (email: string, code: string) => Promise<boolean>;
   sendPasswordReset: (email: string) => Promise<boolean>;
+  resetPasswordWithPin: (email: string, pin: string, newPassword: string) => Promise<boolean>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -44,6 +45,7 @@ const AuthContext = createContext<AuthContextType>({
   signInWithGoogle: async () => false,
   verifyOtp: async () => false,
   sendPasswordReset: async () => false,
+  resetPasswordWithPin: async () => false,
   signOut: async () => {},
   refreshProfile: async () => {},
 });
@@ -245,6 +247,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const resetPasswordWithPin = async (
+    email: string,
+    pin: string,
+    newPassword: string
+  ): Promise<boolean> => {
+    setIsLoading(true);
+    try {
+      await apiClient(API_ENDPOINTS.AUTH.PASSWORD_UPDATE, {
+        method: 'PUT',
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          token: pin.trim(),
+          password: newPassword,
+        }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+      return true;
+    } catch (error) {
+      console.warn('Reset password with PIN failed:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const signInWithGoogle = async (): Promise<boolean> => {
     // If google OAuth is triggered, stub or redirect appropriately
     return false;
@@ -306,6 +333,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signInWithGoogle,
         verifyOtp,
         sendPasswordReset,
+        resetPasswordWithPin,
         signOut,
         refreshProfile: async () => {
           await refreshProfile();
