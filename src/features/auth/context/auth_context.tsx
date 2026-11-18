@@ -17,6 +17,7 @@ interface AuthContextType {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isProfileReady: boolean; // true once role/profile has been confirmed from the API
   getToken: () => string | null;
   signInWithEmail: (email: string, password: string) => Promise<boolean>;
   signUpWithEmail: (email: string, password: string) => Promise<{ success: boolean; userId: string }>;
@@ -36,6 +37,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   isAuthenticated: false,
   isLoading: true,
+  isProfileReady: false,
   getToken: () => null,
   signInWithEmail: async () => false,
   signUpWithEmail: async () => ({ success: false, userId: '' }),
@@ -49,9 +51,11 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isProfileReady, setIsProfileReady] = useState(false);
 
-  // Restore stored session on mount
+  // Restore stored session on mount & fetch fresh profile from DB
   useEffect(() => {
+    let isMounted = true;
     (async () => {
       try {
         const storedUser = await AsyncStorage.getItem(STORAGE_KEYS.USER);
@@ -59,14 +63,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (storedUser && storedToken) {
           const parsedUser = JSON.parse(storedUser);
           parsedUser.token = storedToken;
-          setUser(parsedUser);
+          if (isMounted) setUser(parsedUser);
+
+          // Always fetch newest profile (role, avatar, legal name) from backend
+          try {
+            await refreshProfile(parsedUser, storedToken);
+          } catch (e) {
+            console.warn('Initial profile refresh error:', e);
+          }
         }
       } catch (err) {
         console.warn('Failed to restore auth session:', err);
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+          setIsProfileReady(true);
+        }
       }
     })();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   /** Returns the JWT token for authenticated API calls, or null */
@@ -92,6 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithEmail = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
+    setIsProfileReady(false);
     try {
       const response = await apiClient<{
         access_token: string;
@@ -117,21 +136,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: u.full_name || email.split('@')[0],
         legalBusinessName: undefined,
         avatarUrl: u.profile_pic_url || undefined,
-        role: u.role || 'buyer',
+        role: u.role ? u.role.toLowerCase() : 'buyer',
         token,
       };
 
       setUser(authUser);
       await persistSession(authUser, token);
 
-      // Fetch full business profile in background
-      refreshProfile(authUser, token).catch(() => {});
+      // Await refreshProfile so the true role and avatar are confirmed before completing sign in
+      try {
+        await refreshProfile(authUser, token);
+      } catch (e) {
+        console.warn('Profile refresh during sign in failed:', e);
+      }
       return true;
     } catch (error) {
       console.warn('Sign-in failed:', error);
       throw error;
     } finally {
       setIsLoading(false);
+      setIsProfileReady(true);
     }
   };
 
@@ -157,6 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const verifyOtp = async (email: string, code: string): Promise<boolean> => {
     setIsLoading(true);
+    setIsProfileReady(false);
     try {
       const response = await apiClient<{
         access_token: string;
@@ -181,19 +206,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: u.email,
         name: u.full_name || email.split('@')[0],
         avatarUrl: u.profile_pic_url || undefined,
-        role: u.role || 'buyer',
+        role: u.role ? u.role.toLowerCase() : 'buyer',
         token,
       };
 
       setUser(authUser);
       await persistSession(authUser, token);
-      refreshProfile(authUser, token).catch(() => {});
+
+      try {
+        await refreshProfile(authUser, token);
+      } catch (e) {
+        console.warn('Profile refresh during OTP verify failed:', e);
+      }
       return true;
     } catch (error) {
       console.warn('OTP verify failed:', error);
       throw error;
     } finally {
       setIsLoading(false);
+      setIsProfileReady(true);
     }
   };
 
@@ -219,39 +250,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return false;
   };
 
-  const refreshProfile = async (targetUser?: AuthUser, targetToken?: string) => {
+  const refreshProfile = async (targetUser?: AuthUser, targetToken?: string): Promise<AuthUser | null> => {
     const curToken = targetToken || getToken();
-    if (!curToken) return;
+    if (!curToken) return null;
 
     try {
       const profile = await apiClient<{
         user: { id: string; full_name?: string; email: string; profile_pic_url?: string; role?: string };
-        business?: { legal_name?: string };
+        business?: { legal_name?: string; logo_url?: string };
       }>(API_ENDPOINTS.PROFILE.ME, { token: curToken });
 
       const base = targetUser || user;
-      if (!base) return;
+      if (!base) return null;
+
+      const avatarUrl = profile.user.profile_pic_url || profile.business?.logo_url || base.avatarUrl;
+      const role = (profile.user.role || base.role || 'buyer').toLowerCase();
 
       const updated: AuthUser = {
         ...base,
         id: profile.user.id || base.id,
-        name: profile.user.full_name || base.name,
+        name: profile.user.full_name || profile.business?.legal_name || base.name,
         email: profile.user.email || base.email,
         legalBusinessName: profile.business?.legal_name || base.legalBusinessName,
-        avatarUrl: profile.user.profile_pic_url || base.avatarUrl,
-        role: profile.user.role || base.role,
+        avatarUrl: avatarUrl || undefined,
+        role,
         token: curToken,
       };
 
       setUser(updated);
       await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updated));
+      setIsProfileReady(true);
+      return updated;
     } catch (err) {
       console.warn('Failed to refresh user profile:', err);
+      return null;
     }
   };
 
   const signOut = async () => {
     setUser(null);
+    setIsProfileReady(false);
     await clearSession();
   };
 
@@ -261,6 +299,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         isAuthenticated: !!user,
         isLoading,
+        isProfileReady,
         getToken,
         signInWithEmail,
         signUpWithEmail,
@@ -268,7 +307,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         verifyOtp,
         sendPasswordReset,
         signOut,
-        refreshProfile: () => refreshProfile(),
+        refreshProfile: async () => {
+          await refreshProfile();
+        },
       }}
     >
       {children}

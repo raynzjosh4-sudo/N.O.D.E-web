@@ -23,6 +23,13 @@ export function HomeHeader({
   onNotificationPress,
 }: HomeHeaderProps) {
   const { colors } = useAppTheme();
+  const [imgError, setImgError] = React.useState(false);
+
+  React.useEffect(() => {
+    setImgError(false);
+  }, [profilePicUrl]);
+
+  const showAvatarImage = Boolean(isAuthenticated && profilePicUrl && !imgError);
 
   return (
     <View style={styles.container}>
@@ -33,16 +40,18 @@ export function HomeHeader({
         onPress={onProfilePress}
       >
         <View style={[styles.avatarContainer, { backgroundColor: colors.cardColor, borderColor: colors.borderLight, borderWidth: 1 }]}>
-          {!isAuthenticated || !profilePicUrl ? (
+          {showAvatarImage ? (
+            <Image
+              source={{ uri: profilePicUrl }}
+              style={styles.avatarImage}
+              resizeMode="cover"
+              onError={() => setImgError(true)}
+            />
+          ) : (
             <MaterialIcon
               name="person_outline"
               size={20}
               color={colors.onSurface}
-            />
-          ) : (
-            <Image
-              source={{ uri: profilePicUrl }}
-              style={styles.avatarImage}
             />
           )}
         </View>

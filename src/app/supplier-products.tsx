@@ -5,11 +5,13 @@ import { useAuth } from '@/features/auth/context/auth_context';
 import { SupplierProductsScreen } from '@/features/inventory/presentation/pages/supplier_products_screen';
 
 export default function SupplierProductsRoute() {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading, isProfileReady } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (isLoading) return;
+    // Wait until both session restoration and server profile are ready
+    if (isLoading || !isProfileReady) return;
+
     if (!isAuthenticated || !user) {
       router.replace('/login');
       return;
@@ -18,9 +20,9 @@ export default function SupplierProductsRoute() {
     if (role !== 'supplier' && role !== 'admin') {
       router.replace('/');
     }
-  }, [isLoading, isAuthenticated, user]);
+  }, [isLoading, isProfileReady, isAuthenticated, user]);
 
-  if (isLoading) {
+  if (isLoading || !isProfileReady) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator size="large" />

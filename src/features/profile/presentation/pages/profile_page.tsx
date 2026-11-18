@@ -72,6 +72,19 @@ export function ProfilePage() {
 
   // Load real profile, saved items, drafts, and orders from database
   useEffect(() => {
+    if (user) {
+      setProfile((prev) => ({
+        ...prev,
+        id: user.id || prev.id,
+        fullName: user.name || prev.fullName,
+        legalBusinessName: user.legalBusinessName || prev.legalBusinessName,
+        email: user.email || prev.email,
+        avatarUrl: user.avatarUrl || prev.avatarUrl,
+      }));
+    }
+  }, [user]);
+
+  useEffect(() => {
     let isMounted = true;
     const token = getToken();
 
@@ -91,7 +104,10 @@ export function ProfilePage() {
       if (!isMounted) return;
 
       if (profileRes.status === 'fulfilled') {
-        setProfile(profileRes.value);
+        setProfile((prev) => ({
+          ...profileRes.value,
+          avatarUrl: profileRes.value.avatarUrl || user?.avatarUrl || prev.avatarUrl,
+        }));
       }
       if (savedRes.status === 'fulfilled') {
         setSavedItems(savedRes.value);
@@ -306,7 +322,7 @@ export function ProfilePage() {
                 </View>
 
                 {/* Supplier Products Shortcut — only for suppliers and admins */}
-                {(user?.role === 'supplier' || user?.role === 'admin') && (
+                {(user?.role?.toLowerCase() === 'supplier' || user?.role?.toLowerCase() === 'admin') && (
                 <TouchableOpacity
                   activeOpacity={0.8}
                   style={[
@@ -421,6 +437,29 @@ export function ProfilePage() {
               profile={profile}
               onBack={() => router.safeGoBack('/')}
             />
+
+            {/* Mobile Supplier Catalog Shortcut */}
+            {(user?.role?.toLowerCase() === 'supplier' || user?.role?.toLowerCase() === 'admin') && (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={[
+                  styles.mobileSupplierBtn,
+                  {
+                    backgroundColor: colors.primary + '18',
+                    borderColor: colors.primary + '40',
+                  },
+                ]}
+                onPress={() => router.push('/supplier-products')}
+              >
+                <View style={styles.mobileSupplierBtnLeft}>
+                  <MaterialIcon name="inventory_2" size={18} color={colors.primary} />
+                  <Text style={[styles.mobileSupplierBtnText, { color: colors.primary }]}>
+                    Supplier Catalog (Manage Products)
+                  </Text>
+                </View>
+                <MaterialIcon name="chevron_right" size={18} color={colors.primary} />
+              </TouchableOpacity>
+            )}
 
             {/* Horizontal Tabs */}
             <ProfileTabs
@@ -752,6 +791,28 @@ const styles = StyleSheet.create({
   },
   sidebarSupplierText: {
     fontSize: 12,
+    fontFamily: 'Outfit_700Bold',
+  },
+
+  mobileSupplierBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  mobileSupplierBtnLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  mobileSupplierBtnText: {
+    fontSize: 13,
     fontFamily: 'Outfit_700Bold',
   },
 
