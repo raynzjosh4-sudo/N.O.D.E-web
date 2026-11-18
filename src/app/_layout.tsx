@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { DefaultTheme, DarkTheme, Stack, ThemeProvider } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { MaterialSymbols_400Regular } from '@expo-google-fonts/material-symbols';
@@ -17,9 +17,22 @@ import {
   PlusJakartaSans_700Bold,
 } from '@expo-google-fonts/plus-jakarta-sans';
 import { AppThemeProvider, useAppTheme } from '@/core/theme/theme_context';
-import { AuthProvider } from '@/features/auth/context/auth_context';
+import { AuthProvider, useAuth } from '@/features/auth/context/auth_context';
 import { ProductsProvider } from '@/features/inventory/context/products_context';
 import { ToastProvider } from '@/core/widgets/whatsapp_dialog';
+import { setAuthTokenGetter } from '@/core/api/api_client';
+
+/**
+ * Bridges the AuthContext token into the global API client so that every
+ * protected API call automatically includes the JWT Bearer token.
+ */
+function AuthTokenBridge() {
+  const { getToken } = useAuth();
+  useEffect(() => {
+    setAuthTokenGetter(getToken);
+  }, [getToken]);
+  return null;
+}
 
 function NavigationStack() {
   const { isDark } = useAppTheme();
@@ -66,6 +79,7 @@ export default function RootLayout() {
   return (
     <AppThemeProvider>
       <AuthProvider>
+        <AuthTokenBridge />
         <ProductsProvider>
           <ToastProvider>
             <NavigationStack />

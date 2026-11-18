@@ -6,12 +6,14 @@ export interface AuthUser {
   name: string;
   legalBusinessName?: string;
   avatarUrl?: string;
+  token?: string; // JWT Bearer token from backend
 }
 
 interface AuthContextType {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  getToken: () => string | null;
   signInWithEmail: (email: string, password: string) => Promise<boolean>;
   signUpWithEmail: (email: string, password: string, name?: string, businessName?: string) => Promise<{ success: boolean; userId: string }>;
   signInWithGoogle: () => Promise<boolean>;
@@ -26,12 +28,15 @@ const DEFAULT_DEMO_USER: AuthUser = {
   name: 'Apex Wholesale Importers',
   legalBusinessName: 'Apex Commercial Supplies Ltd',
   avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80',
+  // No token in demo mode — API calls that need auth will fall back gracefully
+  token: undefined,
 };
 
 const AuthContext = createContext<AuthContextType>({
   user: DEFAULT_DEMO_USER,
   isAuthenticated: true,
   isLoading: false,
+  getToken: () => null,
   signInWithEmail: async () => true,
   signUpWithEmail: async () => ({ success: true, userId: 'usr_new' }),
   signInWithGoogle: async () => true,
@@ -44,6 +49,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(DEFAULT_DEMO_USER);
   const [isLoading, setIsLoading] = useState(false);
 
+  /** Returns the JWT token for authenticated API calls, or null in demo/guest mode. */
+  const getToken = (): string | null => user?.token ?? null;
+
   const signInWithEmail = async (email: string, _password: string): Promise<boolean> => {
     setIsLoading(true);
     await new Promise((r) => setTimeout(r, 600)); // simulate auth network
@@ -53,6 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       name: email.split('@')[0],
       legalBusinessName: 'Wholesale Partner Ltd',
       avatarUrl: DEFAULT_DEMO_USER.avatarUrl,
+      // token would come from real backend: response.access_token
     });
     setIsLoading(false);
     return true;
@@ -116,6 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         isAuthenticated: !!user,
         isLoading,
+        getToken,
         signInWithEmail,
         signUpWithEmail,
         signInWithGoogle,

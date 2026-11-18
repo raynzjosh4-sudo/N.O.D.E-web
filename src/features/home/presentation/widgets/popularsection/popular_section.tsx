@@ -4,10 +4,12 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { AppColors } from '@/core/theme/app_theme';
 import { useAppTheme } from '@/core/theme/theme_context';
 import { Product, MOCK_PRODUCTS } from '@/features/inventory/domain/entities/product';
+import { useProducts } from '@/features/inventory/context/products_context';
 import { PopularCard } from './popular_card';
 
 interface PopularSectionProps {
@@ -17,22 +19,30 @@ interface PopularSectionProps {
 }
 
 export function PopularSection({
-  products = MOCK_PRODUCTS.slice(0, 4),
+  products: propProducts,
   onProductPress,
   onCartPress,
 }: PopularSectionProps) {
   const { colors } = useAppTheme();
+  const { popularProducts, isPopularLoading } = useProducts();
+
+  const items = propProducts || (popularProducts.length > 0 ? popularProducts : MOCK_PRODUCTS.slice(0, 4));
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.sectionTitle, { color: colors.onSurface }]}>Popular</Text>
+      <View style={styles.titleRow}>
+        <Text style={[styles.sectionTitle, { color: colors.onSurface }]}>Popular</Text>
+        {isPopularLoading && (
+          <ActivityIndicator size="small" color={colors.primary} style={styles.spinner} />
+        )}
+      </View>
 
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollList}
       >
-        {products.map((product) => (
+        {items.map((product) => (
           <PopularCard
             key={`pop-${product.id}`}
             product={product}
@@ -50,12 +60,19 @@ const styles = StyleSheet.create({
     marginVertical: 12,
     width: '100%',
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
   sectionTitle: {
     fontSize: 16,
     fontFamily: 'Outfit_800ExtraBold',
     color: AppColors.onSurface,
-    paddingHorizontal: 16,
-    marginBottom: 8,
+  },
+  spinner: {
+    marginLeft: 8,
   },
   scrollList: {
     paddingHorizontal: 16,

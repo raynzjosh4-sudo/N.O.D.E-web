@@ -12,6 +12,7 @@ import {
   Alert,
   Platform,
   useWindowDimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { useAppTheme } from '@/core/theme/theme_context';
 import { MaterialIcon } from '@/core/widgets/material_icon';
@@ -19,6 +20,10 @@ import * as ImagePicker from 'expo-image-picker';
 import { useToast } from '@/core/widgets/whatsapp_dialog';
 import { Product, PriceTier, ProductColor, ProductSize, ProductMaterialItem } from '../../domain/entities/product';
 import { useProducts } from '../../context/products_context';
+import { ProductApiService } from '../../data/services/product_api_service';
+import { CategoryDto } from '../../data/dto/product_dto';
+import { useAuth } from '@/features/auth/context/auth_context';
+import { CategoryBranchPicker, CategorySelectionResult } from './category_branch_picker';
 
 interface EditProductSheetProps {
   visible: boolean;
@@ -80,16 +85,24 @@ export function EditProductSheet({
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const { updateProduct, addProduct, deleteProduct } = useProducts();
+  const { user } = useAuth();
+  const { updateProduct, addProduct, publishProduct, deleteProduct } = useProducts();
   const { showSuccess, showError } = useToast();
 
   const isEditing = Boolean(product);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const [categories, setCategories] = useState<CategoryDto[]>([]);
+  const [categoryPath, setCategoryPath] = useState('');
+  const [isCategoryPickerOpen, setIsCategoryPickerOpen] = useState(false);
 
   const [activeSection, setActiveSection] = useState<ActiveSection>('identity');
 
   // --- Section 1: Basic Identity ---
   const [name, setName] = useState('');
   const [brand, setBrand] = useState('');
+  const [categoryId, setCategoryId] = useState('');
   const [categoryName, setCategoryName] = useState('');
   const [sku, setSku] = useState('');
   const [slug, setSlug] = useState('');
@@ -147,10 +160,22 @@ export function EditProductSheet({
   const [seoDescription, setSeoDescription] = useState('');
 
   useEffect(() => {
+    ProductApiService.getCategories().then((cats) => {
+      if (cats && cats.length > 0) {
+        setCategories(cats);
+      }
+    }).catch((err) => {
+      console.warn('Could not load categories:', err.message);
+    });
+  }, []);
+
+  useEffect(() => {
     if (product) {
       setName(product.name || '');
       setBrand(product.brand || '');
-      setCategoryName(product.categoryName || 'General Wholesale');
+      setCategoryId(product.categoryId || '');
+      setCategoryName(product.categoryName || '');
+      setCategoryPath(product.categoryName || '');
       setSku(product.sku || '');
       setSlug(product.slug || product.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || '');
       setImageUrl(product.imageUrl || '');
@@ -190,7 +215,9 @@ export function EditProductSheet({
     } else {
       setName('');
       setBrand('');
-      setCategoryName('Electronics & Gadgets');
+      setCategoryId('');
+      setCategoryName('');
+      setCategoryPath('');
       const genSku = `ND-${Math.floor(10000 + Math.random() * 90000)}`;
       setSku(genSku);
       setSlug(`product-${genSku.toLowerCase()}`);
@@ -303,14 +330,37 @@ export function EditProductSheet({
   const handlePickPrimaryImage = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
+        base64: true,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setImageUrl(result.assets[0].uri);
+        const asset = result.assets[0];
+        setImageUrl(asset.uri);
+        if (asset.base64) {
+          setImageBase64(`data:image/jpeg;base64,${asset.base64}`);
+        }
+
+        // Try standalone upload to Cloudflare R2
+        setIsUploadingImage(true);
+        try {
+          const uploadRes = await ProductApiService.uploadImage({
+            uri: asset.uri,
+            name: asset.fileName || 'product.jpg',
+            type: asset.mimeType || 'image/jpeg',
+          });
+          if (uploadRes?.url) {
+            setImageUrl(uploadRes.url);
+            showSuccess('Image Uploaded', 'Primary image saved to Cloudflare R2.');
+          }
+        } catch (uploadErr: any) {
+          console.warn('R2 direct upload fallback to base64 payload:', uploadErr.message);
+        } finally {
+          setIsUploadingImage(false);
+        }
       }
     } catch (error) {
       console.warn('Image picker error:', error);
@@ -320,14 +370,28 @@ export function EditProductSheet({
   const handlePickGalleryImages = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsMultipleSelection: true,
         quality: 0.8,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const newUris = result.assets.map((a) => a.uri);
-        setMediaUrls((prev) => [...prev, ...newUris]);
+        for (const asset of result.assets) {
+          try {
+            const uploadRes = await ProductApiService.uploadImage({
+              uri: asset.uri,
+              name: asset.fileName || 'gallery.jpg',
+              type: asset.mimeType || 'image/jpeg',
+            });
+            if (uploadRes?.url) {
+              setMediaUrls((prev) => [...prev, uploadRes.url]);
+            } else {
+              setMediaUrls((prev) => [...prev, asset.uri]);
+            }
+          } catch {
+            setMediaUrls((prev) => [...prev, asset.uri]);
+          }
+        }
       }
     } catch (error) {
       console.warn('Gallery image picker error:', error);
@@ -345,68 +409,99 @@ export function EditProductSheet({
   };
 
   // --- Save / Publish Product ---
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim()) {
       showError('Required Field', 'Please enter a Product Name before publishing.');
       return;
     }
-
-    const numericSrp = parseInt(srp.replace(/[^0-9]/g, ''), 10) || 0;
-    const numericStock = parseInt(stockQuantity.replace(/[^0-9]/g, ''), 10) || 0;
-    const numericMoq = parseInt(moq.replace(/[^0-9]/g, ''), 10) || 1;
-    const finalTiers = priceTiers.length > 0 ? priceTiers : [{ minQuantity: 1, price: numericSrp }];
-
-    const payload: Partial<Product> = {
-      name: name.trim(),
-      brand: brand.trim(),
-      categoryName: categoryName.trim(),
-      sku: sku.trim(),
-      slug: slug.trim() || name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-      warehouseLoc: warehouseLoc.trim(),
-      srp: numericSrp,
-      stockQuantity: numericStock,
-      moq: numericMoq,
-      description: description.trim(),
-      imageUrl: imageUrl.trim() || product?.imageUrl || '',
-      status,
-      colors: productColors,
-      sizes: productSizes,
-      materialsList,
-      material: primaryMaterial.trim(),
-      denier: denier.trim(),
-      hsCode: hsCode.trim(),
-      unbsNumber: unbsNumber.trim(),
-      weight: weight.trim(),
-      volumeCbm: volumeCbm.trim(),
-      originCountry: originCountry.trim(),
-      leadTimeDays: leadTimeDays.trim(),
-      packaging: packaging.trim(),
-      warranty: warranty.trim(),
-      compliance: compliance.trim(),
-      paymentTerms: paymentTerms.trim(),
-      deliveryTerms: deliveryTerms.trim(),
-      supportPhone: supportPhone.trim(),
-      supportWhatsapp: supportWhatsapp.trim(),
-      supportEmail: supportEmail.trim(),
-      seoTitle: seoTitle.trim(),
-      seoDescription: seoDescription.trim(),
-      priceTiers: finalTiers,
-      mediaUrls: mediaUrls.length > 0 ? mediaUrls : (imageUrl ? [imageUrl] : []),
-    };
-
-    if (isEditing && product) {
-      updateProduct(product.id, payload);
-      showSuccess('Product Updated', `"${payload.name}" has been updated successfully.`);
-    } else {
-      addProduct({
-        ...payload as any,
-        supplierName: 'Apex Wholesale Importers',
-      });
-      showSuccess('Product Published', `"${payload.name}" is now live in your catalog.`);
+    if (!brand.trim()) {
+      showError('Required Field', 'Please enter a Brand Name.');
+      return;
+    }
+    if (!categoryId) {
+      showError('Category Required', 'Please choose or create a product category branch.');
+      return;
     }
 
-    onClose();
-    if (onSuccess) onSuccess();
+    const numericSrp = parseInt(srp.replace(/[^0-9]/g, ''), 10) || 0;
+    if (numericSrp <= 0) {
+      showError('Invalid Price', 'Please enter a valid wholesale unit price (SRP).');
+      return;
+    }
+
+    // Automatically bind the current supplier from logged-in account (as in Dart project)
+    const activeSupplierId = user?.id || '924fd9e2-25b5-4147-bb45-fbc3e4a8e785';
+    const activeSupplierName = user?.legalBusinessName || user?.name || 'Apex Wholesale Importers';
+
+    const numericStock = parseInt(stockQuantity.replace(/[^0-9]/g, ''), 10) || 50;
+    const numericMoq = parseInt(moq.replace(/[^0-9]/g, ''), 10) || 1;
+    const finalTiers = priceTiers.length > 0 ? priceTiers : [{ minQuantity: 1, price: numericSrp }];
+    const finalImage = imageUrl.trim() || product?.imageUrl || 'https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=800';
+
+    setIsSaving(true);
+    try {
+      const payload: Partial<Product> = {
+        name: name.trim(),
+        brand: brand.trim(),
+        categoryId: categoryId,
+        categoryName: categoryName.trim() || 'General Wholesale',
+        supplierId: activeSupplierId,
+        supplierName: activeSupplierName,
+        sku: sku.trim() || `SKU-${Date.now().toString().slice(-6)}`,
+        slug: slug.trim() || name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        warehouseLoc: warehouseLoc.trim() || 'Kampala Central',
+        srp: numericSrp,
+        stockQuantity: numericStock,
+        moq: numericMoq,
+        moqText: `${numericMoq} units min order`,
+        description: description.trim(),
+        imageUrl: finalImage,
+        status,
+        colors: productColors,
+        sizes: productSizes,
+        materialsList,
+        material: primaryMaterial.trim(),
+        denier: denier.trim(),
+        hsCode: hsCode.trim(),
+        unbsNumber: unbsNumber.trim(),
+        weight: weight.trim(),
+        volumeCbm: volumeCbm.trim(),
+        originCountry: originCountry.trim() || 'Uganda',
+        leadTimeDays: leadTimeDays.trim(),
+        packaging: packaging.trim(),
+        warranty: warranty.trim(),
+        compliance: compliance.trim(),
+        paymentTerms: paymentTerms.trim(),
+        deliveryTerms: deliveryTerms.trim(),
+        supportPhone: supportPhone.trim(),
+        supportWhatsapp: supportWhatsapp.trim(),
+        supportEmail: supportEmail.trim(),
+        seoTitle: seoTitle.trim(),
+        seoDescription: seoDescription.trim(),
+        priceTiers: finalTiers,
+        mediaUrls: mediaUrls.length > 0 ? mediaUrls : [finalImage],
+        imageBase64: imageBase64 || undefined,
+      };
+
+      if (isEditing && product) {
+        await updateProduct(product.id, payload);
+        showSuccess('Product Updated', `"${payload.name}" has been updated successfully.`);
+      } else {
+        await publishProduct({
+          ...payload as any,
+          supplierId: activeSupplierId,
+          supplierName: activeSupplierName,
+        });
+        showSuccess('Product Published', `"${payload.name}" is now live in your catalog.`);
+      }
+
+      onClose();
+      if (onSuccess) onSuccess();
+    } catch (err: any) {
+      showError('Publish Failed', err.message || 'Could not complete publishing.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = () => {
@@ -559,7 +654,16 @@ export function EditProductSheet({
                     ]}
                   >
                     {imageUrl ? (
-                      <Image source={{ uri: imageUrl }} style={styles.previewImage} resizeMode="cover" />
+                      <>
+                        <Image source={{ uri: imageUrl }} style={styles.previewImage} resizeMode="cover" />
+                        {isUploadingImage && (
+                          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
+                            <ActivityIndicator size="small" color="#FFFFFF" />
+                          </View>
+                        )}
+                      </>
+                    ) : isUploadingImage ? (
+                      <ActivityIndicator size="small" color={colors.primary} />
                     ) : (
                       <View style={{ alignItems: 'center', justifyContent: 'center' }}>
                         <MaterialIcon name="add_a_photo" size={28} color={colors.primary} />
@@ -664,16 +768,52 @@ export function EditProductSheet({
                     </View>
                   </View>
                   <View style={styles.halfCol}>
-                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Category</Text>
-                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
-                      <TextInput
-                        value={categoryName}
-                        onChangeText={setCategoryName}
-                        placeholder="e.g. Electronics & Hardware"
-                        placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
-                        style={[styles.inputField, { color: colors.onSurface }]}
-                      />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <Text style={[styles.fieldLabel, { color: colors.onSurface, marginBottom: 0 }]}>Category & Branch *</Text>
+                      <TouchableOpacity onPress={() => setIsCategoryPickerOpen(true)}>
+                        <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '700' }}>Browse Tree</Text>
+                      </TouchableOpacity>
                     </View>
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => setIsCategoryPickerOpen(true)}
+                      style={[
+                        styles.inputWrapper,
+                        {
+                          backgroundColor: isDark ? colors.cardColor : '#F6F8FA',
+                          borderColor: categoryId ? colors.primary : (isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)'),
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          paddingHorizontal: 12,
+                          gap: 8,
+                          height: 44,
+                        },
+                      ]}
+                    >
+                      <MaterialIcon
+                        name={categoryId ? 'folder_open' : 'add_circle_outline'}
+                        size={18}
+                        color={categoryId ? colors.primary : colors.onSurfaceMuted}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          numberOfLines={1}
+                          style={{
+                            fontSize: 13,
+                            fontWeight: categoryId ? '600' : '400',
+                            color: categoryId ? colors.onSurface : (isDark ? 'rgba(255, 255, 255, 0.35)' : 'rgba(0, 0, 0, 0.35)'),
+                          }}
+                        >
+                          {categoryPath || categoryName || 'Choose or Create Category...'}
+                        </Text>
+                      </View>
+                      <MaterialIcon name="chevron_right" size={18} color={colors.onSurfaceMuted} />
+                    </TouchableOpacity>
+                    {categoryPath ? (
+                      <Text style={{ fontSize: 10, color: colors.primary, marginTop: 4, fontWeight: '600' }}>
+                        Branch: {categoryPath}
+                      </Text>
+                    ) : null}
                   </View>
                 </View>
 
@@ -1490,9 +1630,25 @@ export function EditProductSheet({
             <View style={{ height: 24 }} />
 
             {/* Action Buttons */}
-            <TouchableOpacity activeOpacity={0.85} onPress={handleSave} style={[styles.saveButton, { backgroundColor: colors.primary }]}>
-              <MaterialIcon name="check" size={20} color="#FFFFFF" />
-              <Text style={styles.saveButtonText}>{isEditing ? 'Save All Changes' : 'Publish Product to Catalog'}</Text>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={handleSave}
+              disabled={isSaving}
+              style={[
+                styles.saveButton,
+                { backgroundColor: colors.primary, opacity: isSaving ? 0.75 : 1 },
+              ]}
+            >
+              {isSaving ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <MaterialIcon name="check" size={20} color="#FFFFFF" />
+                  <Text style={styles.saveButtonText}>
+                    {isEditing ? 'Save All Changes' : 'Publish Product to Catalog'}
+                  </Text>
+                </>
+              )}
             </TouchableOpacity>
 
             {isEditing && (
@@ -1506,6 +1662,17 @@ export function EditProductSheet({
           </ScrollView>
         </View>
       </View>
+
+      <CategoryBranchPicker
+        visible={isCategoryPickerOpen}
+        selectedCategoryId={categoryId}
+        onSelect={(res: CategorySelectionResult) => {
+          setCategoryId(res.id);
+          setCategoryName(res.name);
+          setCategoryPath(res.fullPath);
+        }}
+        onClose={() => setIsCategoryPickerOpen(false)}
+      />
     </Modal>
   );
 }

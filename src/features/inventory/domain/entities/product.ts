@@ -59,6 +59,7 @@ export interface Product {
   seoTitle?: string;
   seoDescription?: string;
   mediaUrls?: string[];
+  imageBase64?: string;
   priceTiers: PriceTier[];
 }
 

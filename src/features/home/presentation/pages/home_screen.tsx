@@ -8,6 +8,8 @@ import {
   Platform,
   TouchableOpacity,
   useWindowDimensions,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { AppColors } from '@/core/theme/app_theme';
@@ -32,7 +34,7 @@ export default function HomeScreen() {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 960;
   const { colors } = useAppTheme();
-  const { products } = useProducts();
+  const { products, isLoading, isRefreshing, refreshProducts } = useProducts();
 
   // Search States
   const [isSearching, setIsSearching] = useState(false);
@@ -212,6 +214,14 @@ export default function HomeScreen() {
               <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={isRefreshing}
+                    onRefresh={refreshProducts}
+                    tintColor={colors.primary}
+                    colors={[colors.primary]}
+                  />
+                }
               >
                 {/* 3. Promo Banners */}
                 <PromoBanners
@@ -236,6 +246,13 @@ export default function HomeScreen() {
                   onProductPress={handleProductTap}
                   onCartPress={(p) => console.log('Add popular to cart:', p.name)}
                 />
+
+                {/* Loading Indicator for Initial Network Fetch */}
+                {isLoading && (
+                  <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  </View>
+                )}
 
                 {/* 7. Product Masonry Waterfall Grid */}
                 <ProductGridSection
