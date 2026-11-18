@@ -124,13 +124,33 @@ export interface ImageUploadResponseDto {
   content_type?: string;
 }
 
+export interface SupplierBusinessDto {
+  id?: string;
+  user_id?: string;
+  legal_name?: string;
+  phone_number?: string;
+  physical_address?: string;
+  city?: string;
+  region?: string;
+  postal_code?: string;
+  country?: string;
+  logo_url?: string;
+  industry_group?: string;
+  tin_number?: string;
+  business_type?: string;
+  website?: string;
+}
+
 export interface SupplierDto {
   id: string;
   full_name?: string;
+  email?: string;
+  profile_pic_url?: string;
   name?: string;
   imageUrl?: string;
   image_url?: string;
   category?: string;
+  business?: SupplierBusinessDto | SupplierBusinessDto[] | null;
 }
 
 export interface ProductCreateRequestDto {

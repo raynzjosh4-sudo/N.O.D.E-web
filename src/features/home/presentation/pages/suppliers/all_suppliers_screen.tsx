@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,14 +10,17 @@ import {
   TextInput,
   Platform,
   useWindowDimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { useAppNavigation } from '@/core/utils/use_app_navigation';
 import { useAppTheme } from '@/core/theme/theme_context';
 import { AppColors } from '@/core/theme/app_theme';
 import { MaterialIcon } from '@/core/widgets/material_icon';
-import { Supplier, MOCK_SUPPLIERS } from '@/features/home/domain/entities/supplier';
+import { Supplier } from '@/features/home/domain/entities/supplier';
+import { ProductApiService } from '@/features/inventory/data/services/product_api_service';
+import { ProductMapper } from '@/features/inventory/data/mappers/product_mapper';
 
-const CATEGORIES = [
+const DEFAULT_CATEGORIES = [
   'All',
   'Fashion',
   'Electronics',
@@ -33,11 +36,42 @@ export function AllSuppliersScreen() {
   const { colors } = useAppTheme();
   const isDesktop = width >= 960;
 
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
 
+  useEffect(() => {
+    let isMounted = true;
+    ProductApiService.getSuppliers()
+      .then((data) => {
+        if (!isMounted) return;
+        const mapped = data.map((dto) => ProductMapper.fromSupplierDto(dto));
+        setSuppliers(mapped);
+      })
+      .catch((err) => {
+        console.warn('Failed to load suppliers in AllSuppliersScreen:', err);
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const categories = useMemo(() => {
+    const dynamicCats = new Set<string>();
+    suppliers.forEach((s) => {
+      if (s.category) dynamicCats.add(s.category);
+    });
+    if (dynamicCats.size === 0) return DEFAULT_CATEGORIES;
+    return ['All', ...Array.from(dynamicCats)];
+  }, [suppliers]);
+
   const filteredSuppliers = useMemo(() => {
-    return MOCK_SUPPLIERS.filter((s) => {
+    return suppliers.filter((s) => {
       const matchesCategory =
         selectedCategory === 'All' || s.category.toLowerCase() === selectedCategory.toLowerCase();
       const q = searchQuery.trim().toLowerCase();
@@ -48,7 +82,7 @@ export function AllSuppliersScreen() {
         (s.location && s.location.toLowerCase().includes(q));
       return matchesCategory && matchesSearch;
     });
-  }, [selectedCategory, searchQuery]);
+  }, [suppliers, selectedCategory, searchQuery]);
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>
@@ -67,7 +101,7 @@ export function AllSuppliersScreen() {
             <View style={styles.headerTitleBlock}>
               <Text style={[styles.headerTitle, { color: colors.onSurface }]}>All Suppliers</Text>
               <Text style={[styles.headerSubtitle, { color: colors.onSurfaceMuted }]}>
-                {filteredSuppliers.length} Verified East African Distributors
+                {loading ? 'Loading...' : `${filteredSuppliers.length} Verified East African Distributors`}
               </Text>
             </View>
 
@@ -103,7 +137,7 @@ export function AllSuppliersScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.categoryChipsList}
             >
-              {CATEGORIES.map((cat) => {
+              {categories.map((cat) => {
                 const isSelected = selectedCategory === cat;
                 return (
                   <TouchableOpacity
@@ -134,7 +168,14 @@ export function AllSuppliersScreen() {
           </View>
 
           {/* ── Supplier List / Desktop Grid ── */}
-          {filteredSuppliers.length === 0 ? (
+          {loading ? (
+            <View style={[styles.emptyState, { paddingTop: 60 }]}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={[styles.emptySubtitle, { color: colors.onSurfaceMuted, marginTop: 12 }]}>
+                Loading verified suppliers...
+              </Text>
+            </View>
+          ) : filteredSuppliers.length === 0 ? (
             <View style={styles.emptyState}>
               <View style={[styles.emptyIconCircle, { backgroundColor: colors.cardColor }]}>
                 <MaterialIcon name="storefront" size={42} color={colors.onSurfaceMuted} />
@@ -173,8 +214,14 @@ export function AllSuppliersScreen() {
                   onPress={() => router.push(`/explore`)}
                 >
                   {/* Avatar / Brand Logo */}
-                  <View style={[styles.avatarWrapper, { borderColor: colors.borderLight }]}>
-                    <Image source={{ uri: supplier.imageUrl }} style={styles.avatarImage} />
+                  <View style={[styles.avatarWrapper, { borderColor: colors.borderLight, backgroundColor: colors.surfaceContainerHighest }]}>
+                    {supplier.imageUrl ? (
+                      <Image source={{ uri: supplier.imageUrl }} style={styles.avatarImage} />
+                    ) : (
+                      <Text style={[styles.supplierInitial, { color: colors.primary }]}>
+                        {supplier.name.charAt(0).toUpperCase()}
+                      </Text>
+                    )}
                   </View>
 
                   {/* Supplier Info */}
@@ -327,6 +374,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1.5,
     flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  supplierInitial: {
+    fontSize: 22,
+    fontFamily: 'Outfit_700Bold',
   },
   avatarImage: {
     width: '100%',

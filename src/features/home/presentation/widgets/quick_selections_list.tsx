@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,10 +6,13 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { AppColors } from '@/core/theme/app_theme';
 import { useAppTheme } from '@/core/theme/theme_context';
-import { Supplier, MOCK_SUPPLIERS } from '@/features/home/domain/entities/supplier';
+import { Supplier } from '@/features/home/domain/entities/supplier';
+import { ProductApiService } from '@/features/inventory/data/services/product_api_service';
+import { ProductMapper } from '@/features/inventory/data/mappers/product_mapper';
 
 interface QuickSelectionsListProps {
   suppliers?: Supplier[];
@@ -18,11 +21,42 @@ interface QuickSelectionsListProps {
 }
 
 export function QuickSelectionsList({
-  suppliers = MOCK_SUPPLIERS,
+  suppliers: propSuppliers,
   onSeeMorePress,
   onSupplierPress,
 }: QuickSelectionsListProps) {
   const { colors } = useAppTheme();
+  const [suppliers, setSuppliers] = useState<Supplier[]>(propSuppliers || []);
+  const [loading, setLoading] = useState<boolean>(!propSuppliers || propSuppliers.length === 0);
+
+  useEffect(() => {
+    if (propSuppliers && propSuppliers.length > 0) {
+      setSuppliers(propSuppliers);
+      return;
+    }
+
+    let isMounted = true;
+    ProductApiService.getSuppliers()
+      .then((data) => {
+        if (!isMounted) return;
+        const mapped = data.map((dto) => ProductMapper.fromSupplierDto(dto));
+        setSuppliers(mapped);
+      })
+      .catch((err) => {
+        console.warn('Failed to load suppliers:', err);
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [propSuppliers]);
+
+  if (!loading && suppliers.length === 0) {
+    return null;
+  }
 
   return (
     <View style={styles.container}>
@@ -44,22 +78,37 @@ export function QuickSelectionsList({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollList}
       >
-        {suppliers.map((supplier) => (
-          <TouchableOpacity
-            key={supplier.id}
-            style={[styles.pillContainer, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}
-            activeOpacity={0.75}
-            onPress={() => onSupplierPress?.(supplier)}
-          >
-            <View style={[styles.imageWrapper, { backgroundColor: colors.surfaceContainerHighest }]}>
-              <Image
-                source={{ uri: supplier.imageUrl }}
-                style={styles.supplierImage}
-              />
-            </View>
-            <Text style={[styles.supplierName, { color: colors.onSurface }]}>{supplier.name}</Text>
-          </TouchableOpacity>
-        ))}
+        {loading && suppliers.length === 0 ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: 40, gap: 8 }}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={{ color: colors.onSurfaceMuted, fontSize: 13, fontFamily: 'PlusJakartaSans_500Medium' }}>
+              Loading suppliers...
+            </Text>
+          </View>
+        ) : (
+          suppliers.map((supplier) => (
+            <TouchableOpacity
+              key={supplier.id}
+              style={[styles.pillContainer, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}
+              activeOpacity={0.75}
+              onPress={() => onSupplierPress?.(supplier)}
+            >
+              <View style={[styles.imageWrapper, { backgroundColor: colors.surfaceContainerHighest }]}>
+                {supplier.imageUrl ? (
+                  <Image
+                    source={{ uri: supplier.imageUrl }}
+                    style={styles.supplierImage}
+                  />
+                ) : (
+                  <Text style={[styles.supplierInitial, { color: colors.primary }]}>
+                    {supplier.name.charAt(0).toUpperCase()}
+                  </Text>
+                )}
+              </View>
+              <Text style={[styles.supplierName, { color: colors.onSurface }]}>{supplier.name}</Text>
+            </TouchableOpacity>
+          ))
+        )}
       </ScrollView>
     </View>
   );
@@ -108,6 +157,12 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: AppColors.surfaceContainerHighest,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  supplierInitial: {
+    fontSize: 14,
+    fontFamily: 'Outfit_700Bold',
   },
   supplierImage: {
     width: '100%',

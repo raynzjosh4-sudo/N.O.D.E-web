@@ -1,13 +1,49 @@
 import { Product, PriceTier } from '../../domain/entities/product';
+import { Supplier } from '@/features/home/domain/entities/supplier';
 import {
   ProductListItemDto,
   ProductResponseDto,
   PriceTierDto,
   ProductCreateRequestDto,
   ProductUpdateRequestDto,
+  SupplierDto,
+  SupplierBusinessDto,
 } from '../dto/product_dto';
 
 export class ProductMapper {
+  static fromSupplierDto(dto: SupplierDto): Supplier {
+    const bizList = dto.business;
+    const biz: SupplierBusinessDto =
+      Array.isArray(bizList) && bizList.length > 0
+        ? bizList[0]
+        : (bizList && typeof bizList === 'object' && !Array.isArray(bizList)
+            ? bizList
+            : {});
+
+    const name = biz.legal_name?.trim() || dto.full_name?.trim() || dto.name?.trim() || 'Verified Supplier';
+    const imageUrl =
+      biz.logo_url ||
+      dto.imageUrl ||
+      dto.image_url ||
+      dto.profile_pic_url ||
+      undefined;
+    const category = biz.industry_group || dto.category || 'General Wholesale';
+
+    const locationParts = [biz.physical_address, biz.city, biz.region, biz.country].filter(Boolean);
+    const location = locationParts.length > 0 ? locationParts.join(', ') : 'East Africa';
+
+    return {
+      id: dto.id,
+      name,
+      imageUrl,
+      category,
+      location,
+      rating: 4.9,
+      productCount: 50,
+      isVerified: true,
+    };
+  }
+
   static mapPriceTiers(tiersDto?: PriceTierDto[], defaultSrp = 0): PriceTier[] {
     if (tiersDto && tiersDto.length > 0) {
       return tiersDto.map((t) => ({
