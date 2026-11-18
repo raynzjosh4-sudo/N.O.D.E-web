@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Modal,
   View,
@@ -13,17 +13,132 @@ import {
   Platform,
   useWindowDimensions,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { useAppTheme } from '@/core/theme/theme_context';
 import { MaterialIcon } from '@/core/widgets/material_icon';
 import * as ImagePicker from 'expo-image-picker';
-import { useToast } from '@/core/widgets/whatsapp_dialog';
 import { Product, PriceTier, ProductColor, ProductSize, ProductMaterialItem } from '../../domain/entities/product';
 import { useProducts } from '../../context/products_context';
 import { ProductApiService } from '../../data/services/product_api_service';
 import { CategoryDto } from '../../data/dto/product_dto';
 import { useAuth } from '@/features/auth/context/auth_context';
 import { CategoryBranchPicker, CategorySelectionResult } from './category_branch_picker';
+
+/** A self-contained toast that renders INSIDE the Modal so it always appears on top. */
+function SheetToast({
+  title,
+  message,
+  type,
+  onDismiss,
+}: {
+  title: string;
+  message?: string;
+  type: 'success' | 'error' | 'warning' | 'info';
+  onDismiss: () => void;
+}) {
+  const slideY = useRef(new Animated.Value(-80)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(slideY, { toValue: 0, friction: 8, tension: 50, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }),
+    ]).start();
+
+    const t = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(slideY, { toValue: -80, duration: 220, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0, duration: 180, useNativeDriver: true }),
+      ]).start(onDismiss);
+    }, 3200);
+    return () => clearTimeout(t);
+  }, []);
+
+  const color = type === 'success' ? '#25D366' : type === 'error' ? '#EF4444' : type === 'warning' ? '#F59E0B' : '#12BBF0';
+  const icon = type === 'success' ? 'check_circle' : type === 'error' ? 'error' : type === 'warning' ? 'warning' : 'info';
+
+  return (
+    <Animated.View
+      style={[
+        sheetToastStyles.card,
+        { transform: [{ translateY: slideY }], opacity },
+      ]}
+    >
+      <View style={[sheetToastStyles.bar, { backgroundColor: color }]} />
+      <View style={[sheetToastStyles.iconWrap, { borderColor: color }]}>
+        <MaterialIcon name={icon} size={20} color={color} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={sheetToastStyles.title} numberOfLines={1}>{title}</Text>
+        {message ? <Text style={sheetToastStyles.msg} numberOfLines={2}>{message}</Text> : null}
+      </View>
+      <TouchableOpacity onPress={onDismiss} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <MaterialIcon name="close" size={16} color="rgba(255,255,255,0.4)" />
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
+const sheetToastStyles = StyleSheet.create({
+  card: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    right: 16,
+    maxWidth: 540,
+    alignSelf: 'center',
+    zIndex: 999999,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#1C1F26',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 18,
+    elevation: 24,
+  },
+  bar: { width: 4, height: 28, borderRadius: 2 },
+  iconWrap: {
+    width: 32, height: 32, borderRadius: 16,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+  },
+  title: { color: '#FFFFFF', fontSize: 13, fontFamily: 'Outfit_700Bold', letterSpacing: -0.1 },
+  msg: { color: 'rgba(255,255,255,0.6)', fontSize: 11, fontFamily: 'PlusJakartaSans_500Medium', marginTop: 1 },
+});
+
+function resolveCategoryPath(catId?: string | null, cats: CategoryDto[] = []): { name: string; fullPath: string } | null {
+  if (!catId || !cats || cats.length === 0) return null;
+  const target = cats.find((c) => c.id === catId);
+  if (!target) return null;
+
+  const parts = [target.name];
+  let curr = target;
+  let guard = 0;
+  while (curr.parent_id && guard < 10) {
+    guard++;
+    const parent = cats.find((c) => c.id === curr.parent_id);
+    if (parent) {
+      parts.unshift(parent.name);
+      curr = parent;
+    } else {
+      break;
+    }
+  }
+
+  return {
+    name: target.name,
+    fullPath: parts.join(' › '),
+  };
+}
 
 interface EditProductSheetProps {
   visible: boolean;
@@ -87,7 +202,18 @@ export function EditProductSheet({
   const [isFullScreen, setIsFullScreen] = useState(false);
   const { user } = useAuth();
   const { updateProduct, addProduct, publishProduct, deleteProduct } = useProducts();
-  const { showSuccess, showError } = useToast();
+
+  // Local toast — renders INSIDE the Modal so it always appears on top of the sheet
+  const [sheetToast, setSheetToast] = useState<{
+    title: string; message?: string; type: 'success' | 'error' | 'warning' | 'info';
+  } | null>(null);
+
+  const showSheetToast = useCallback(
+    (type: 'success' | 'error' | 'warning' | 'info', title: string, message?: string) => {
+      setSheetToast({ type, title, message });
+    },
+    []
+  );
 
   const isEditing = Boolean(product);
   const [isSaving, setIsSaving] = useState(false);
@@ -161,59 +287,129 @@ export function EditProductSheet({
   const [seoTitle, setSeoTitle] = useState('');
   const [seoDescription, setSeoDescription] = useState('');
 
-  useEffect(() => {
-    ProductApiService.getCategories().then((cats) => {
-      if (cats && cats.length > 0) {
-        setCategories(cats);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+
+  const applyProductData = useCallback(
+    (p: Product, catsList: CategoryDto[] = categories) => {
+      setName(p.name || '');
+      setBrand(p.brand || '');
+      const catId = p.categoryId || '';
+      setCategoryId(catId);
+
+      const resolved = resolveCategoryPath(catId, catsList);
+      if (resolved) {
+        setCategoryName(resolved.name);
+        setCategoryPath(resolved.fullPath);
+      } else {
+        setCategoryName(p.categoryName || '');
+        setCategoryPath(p.categoryName || '');
       }
-    }).catch((err) => {
-      console.warn('Could not load categories:', err.message);
-    });
+
+      setSku(p.sku || '');
+      setSlug(p.slug || (p.name ? p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : ''));
+      setImageUrl(p.imageUrl || '');
+      setDescription(p.description || p.seoDescription || '');
+      setStatus((p.status as any) || 'active');
+
+      if (p.colors && p.colors.length > 0) {
+        setProductColors([...p.colors]);
+      }
+      if (p.sizes && p.sizes.length > 0) {
+        setProductSizes([...p.sizes]);
+      }
+      if (p.materialsList && p.materialsList.length > 0) {
+        setMaterialsList([...p.materialsList]);
+      }
+      if (p.material) setPrimaryMaterial(p.material);
+      if (p.denier) setDenier(p.denier);
+
+      if (p.srp !== undefined && p.srp !== null) setSrp(String(p.srp));
+      if (p.priceTiers && p.priceTiers.length > 0) {
+        setPriceTiers([...p.priceTiers]);
+      }
+      if (p.mediaUrls && p.mediaUrls.length > 0) {
+        setMediaUrls([...p.mediaUrls]);
+      } else if (p.imageUrl) {
+        setMediaUrls([p.imageUrl]);
+      }
+
+      if (p.hsCode) setHsCode(p.hsCode);
+      if (p.unbsNumber) setUnbsNumber(p.unbsNumber);
+      if (p.weight) setWeight(p.weight);
+      if (p.volumeCbm) setVolumeCbm(p.volumeCbm);
+      if (p.originCountry) setOriginCountry(p.originCountry);
+      if (p.stockQuantity !== undefined && p.stockQuantity !== null) {
+        setStockQuantity(String(p.stockQuantity));
+      }
+      if (p.leadTimeDays) setLeadTimeDays(String(p.leadTimeDays).replace(/[^0-9]/g, ''));
+      if (p.warehouseLoc) setWarehouseLoc(p.warehouseLoc);
+      if (p.packaging) setPackaging(p.packaging);
+      if (p.warranty) setWarranty(p.warranty);
+      if (p.compliance) setCompliance(p.compliance);
+
+      if (p.moq !== undefined && p.moq !== null) setMoq(String(p.moq));
+      if (p.paymentTerms) setPaymentTerms(p.paymentTerms);
+      if (p.deliveryTerms) setDeliveryTerms(p.deliveryTerms);
+      if (p.supportWhatsapp) setSupportWhatsapp(p.supportWhatsapp);
+      if (p.supportPhone) setSupportPhone(p.supportPhone);
+      if (p.supportEmail) setSupportEmail(p.supportEmail);
+      if (p.seoTitle) setSeoTitle(p.seoTitle);
+      if (p.seoDescription) setSeoDescription(p.seoDescription || p.description || '');
+    },
+    [categories]
+  );
+
+  useEffect(() => {
+    ProductApiService.getCategories()
+      .then((cats) => {
+        if (cats && cats.length > 0) {
+          setCategories(cats);
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not load categories:', err.message);
+      });
   }, []);
 
+  // Sync category path whenever categories are loaded or categoryId updates
   useEffect(() => {
+    if (categoryId && categories.length > 0) {
+      const resolved = resolveCategoryPath(categoryId, categories);
+      if (resolved) {
+        setCategoryName(resolved.name);
+        setCategoryPath(resolved.fullPath);
+      }
+    }
+  }, [categoryId, categories]);
+
+  useEffect(() => {
+    if (!visible) {
+      setIsLoadingDetails(false);
+      setInlineError(null);
+      setInlineSuccess(null);
+      return;
+    }
+
     if (product) {
-      setName(product.name || '');
-      setBrand(product.brand || '');
-      setCategoryId(product.categoryId || '');
-      setCategoryName(product.categoryName || '');
-      setCategoryPath(product.categoryName || '');
-      setSku(product.sku || '');
-      setSlug(product.slug || product.name?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || '');
-      setImageUrl(product.imageUrl || '');
-      setDescription(product.description || '');
-      setStatus((product.status as any) || 'active');
+      // 1. Immediately apply whatever summary data we already have
+      applyProductData(product, categories);
 
-      setProductColors(product.colors ? [...product.colors] : []);
-      setProductSizes(product.sizes ? [...product.sizes] : []);
-      setMaterialsList(product.materialsList ? [...product.materialsList] : []);
-      setPrimaryMaterial(product.material || '');
-      setDenier(product.denier || '');
-
-      setSrp(product.srp ? product.srp.toString() : '');
-      setPriceTiers(product.priceTiers ? [...product.priceTiers] : []);
-      setMediaUrls(product.mediaUrls ? [...product.mediaUrls] : []);
-
-      setHsCode(product.hsCode || '');
-      setUnbsNumber(product.unbsNumber || '');
-      setWeight(product.weight || '');
-      setVolumeCbm(product.volumeCbm || '');
-      setOriginCountry(product.originCountry || 'Uganda');
-      setStockQuantity(product.stockQuantity !== undefined ? product.stockQuantity.toString() : '50');
-      setLeadTimeDays(product.leadTimeDays || '2');
-      setWarehouseLoc(product.warehouseLoc || 'Kampala Central');
-      setPackaging(product.packaging || '');
-      setWarranty(product.warranty || '');
-      setCompliance(product.compliance || '');
-
-      setMoq(product.moq ? product.moq.toString() : '5');
-      setPaymentTerms(product.paymentTerms || '');
-      setDeliveryTerms(product.deliveryTerms || '');
-      setSupportWhatsapp(product.supportWhatsapp || '');
-      setSupportPhone(product.supportPhone || '');
-      setSupportEmail(product.supportEmail || '');
-      setSeoTitle(product.seoTitle || '');
-      setSeoDescription(product.seoDescription || '');
+      // 2. Concurrently fetch the full detailed product from backend
+      if (product.id) {
+        setIsLoadingDetails(true);
+        ProductApiService.getProductById(product.id)
+          .then((fullProd) => {
+            if (fullProd) {
+              applyProductData(fullProd, categories);
+            }
+          })
+          .catch((err) => {
+            console.warn('Could not load full product specs:', err.message);
+          })
+          .finally(() => {
+            setIsLoadingDetails(false);
+          });
+      }
     } else {
       setName('');
       setBrand('');
@@ -270,7 +466,7 @@ export function EditProductSheet({
     setIsFullScreen(false);
     setInlineError(null);
     setInlineSuccess(null);
-  }, [product, visible]);
+  }, [product, visible, applyProductData]);
 
   const handleAddCustomColor = () => {
     if (!customColorName.trim()) return;
@@ -358,7 +554,7 @@ export function EditProductSheet({
           });
           if (uploadRes?.url) {
             setImageUrl(uploadRes.url);
-            showSuccess('Image Uploaded', 'Primary image saved to Cloudflare R2.');
+            showSheetToast('success', 'Image Uploaded', 'Primary image saved to server.');
           }
         } catch (uploadErr: any) {
           console.warn('R2 direct upload fallback to base64 payload:', uploadErr.message);
@@ -418,20 +614,24 @@ export function EditProductSheet({
     setInlineSuccess(null);
 
     if (!name.trim()) {
+      showSheetToast('error', 'Required Field', 'Please enter a Product Name before publishing.');
       setInlineError('Product Name is required before publishing.');
       return;
     }
     if (!brand.trim()) {
+      showSheetToast('error', 'Required Field', 'Please enter a Brand Name.');
       setInlineError('Brand Name is required.');
       return;
     }
     if (!categoryId) {
+      showSheetToast('error', 'Category Required', 'Please choose or create a product category.');
       setInlineError('Please choose or create a product category branch.');
       return;
     }
 
     const numericSrp = parseInt(srp.replace(/[^0-9]/g, ''), 10) || 0;
     if (numericSrp <= 0) {
+      showSheetToast('error', 'Invalid Price', 'Please enter a valid wholesale unit price (SRP).');
       setInlineError('Please enter a valid wholesale unit price (SRP).');
       return;
     }
@@ -492,23 +692,24 @@ export function EditProductSheet({
 
       if (isEditing && product) {
         await updateProduct(product.id, payload);
+        showSheetToast('success', 'Product Updated', `"${payload.name}" updated successfully.`);
         setInlineSuccess(`"${payload.name}" has been updated successfully.`);
-        showSuccess('Product Updated', `"${payload.name}" has been updated successfully.`);
       } else {
         await publishProduct({
           ...payload as any,
           supplierId: activeSupplierId,
           supplierName: activeSupplierName,
         });
+        showSheetToast('success', 'Product Published', `"${payload.name}" is now live.`);
         setInlineSuccess(`"${payload.name}" is now live in your catalog.`);
-        showSuccess('Product Published', `"${payload.name}" is now live in your catalog.`);
       }
 
       setTimeout(() => {
         onClose();
         if (onSuccess) onSuccess();
-      }, 800);
+      }, 1200);
     } catch (err: any) {
+      showSheetToast('error', 'Publish Failed', err.message || 'Could not complete publishing.');
       setInlineError(err.message || 'Could not complete publishing. Please try again.');
     } finally {
       setIsSaving(false);
@@ -519,9 +720,8 @@ export function EditProductSheet({
     if (!product) return;
     const confirmAction = () => {
       deleteProduct(product.id);
-      showSuccess('Product Removed', `"${product.name}" was removed from your catalog.`);
-      onClose();
-      if (onSuccess) onSuccess();
+      showSheetToast('warning', 'Product Removed', `"${product.name}" was removed.`);
+      setTimeout(() => { onClose(); if (onSuccess) onSuccess(); }, 1000);
     };
 
     if (Platform.OS === 'web') {
@@ -540,6 +740,17 @@ export function EditProductSheet({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={[styles.overlay, isDesktop && styles.overlayDesktop]}>
         <Pressable style={styles.backdrop} onPress={onClose} />
+
+        {/* Local toast — renders inside Modal so it always appears cleanly on top */}
+        {sheetToast && (
+          <SheetToast
+            title={sheetToast.title}
+            message={sheetToast.message}
+            type={sheetToast.type}
+            onDismiss={() => setSheetToast(null)}
+          />
+        )}
+
         <View
           style={[
             styles.sheetContainer,
@@ -567,9 +778,14 @@ export function EditProductSheet({
           {/* Header */}
           <View style={styles.headerRow}>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.title, { color: colors.onSurface }]}>
-                {isEditing ? 'Update Wholesale Product' : 'Post Wholesale Product'}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={[styles.title, { color: colors.onSurface }]}>
+                  {isEditing ? 'Update Wholesale Product' : 'Post Wholesale Product'}
+                </Text>
+                {isLoadingDetails && (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                )}
+              </View>
               <Text style={[styles.subtitle, { color: isDark ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)' }]}>
                 {isEditing ? `Editing SKU: ${sku || product?.id}` : 'Complete multi-spec form matching N.O.D.E wholesale distribution protocol'}
               </Text>
@@ -1699,6 +1915,11 @@ export function EditProductSheet({
           setCategoryId(res.id);
           setCategoryName(res.name);
           setCategoryPath(res.fullPath);
+          ProductApiService.getCategories()
+            .then((cats) => {
+              if (cats && cats.length > 0) setCategories(cats);
+            })
+            .catch(() => {});
         }}
         onClose={() => setIsCategoryPickerOpen(false)}
       />

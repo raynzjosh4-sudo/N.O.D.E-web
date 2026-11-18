@@ -452,6 +452,7 @@ export function SupplierProductsScreen() {
         visible={isEditModalOpen}
         product={selectedProduct}
         onClose={() => setIsEditModalOpen(false)}
+        onSuccess={() => loadMyProducts()}
       />
     </SafeAreaView>
   );

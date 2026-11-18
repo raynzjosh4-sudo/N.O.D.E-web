@@ -86,6 +86,8 @@ export interface ProductResponseDto {
   denier?: string;
   material?: string;
   category_id?: string;
+  category_name?: string;
+  description?: string;
   current_stock?: number;
   lead_time_days?: number;
   warehouse_loc?: string;
@@ -194,6 +196,7 @@ export interface ProductUpdateRequestDto {
   brand?: string;
   srp?: number;
   category_id?: string;
+  new_category?: CategoryCreatePayloadDto | null;
   supplier_id?: string;
   image_url?: string;
   image_base64?: string | null;
