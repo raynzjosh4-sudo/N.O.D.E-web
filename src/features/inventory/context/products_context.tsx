@@ -26,31 +26,31 @@ interface ProductsContextType {
 }
 
 const ProductsContext = createContext<ProductsContextType>({
-  products: MOCK_PRODUCTS,
-  popularProducts: MOCK_PRODUCTS.slice(0, 4),
+  products: [],
+  popularProducts: [],
   isLoading: false,
   isPopularLoading: false,
   isRefreshing: false,
   isSubmitting: false,
   error: null,
   hasMore: false,
-  totalProducts: MOCK_PRODUCTS.length,
+  totalProducts: 0,
   refreshProducts: async () => {},
   refreshPopularProducts: async () => {},
   loadMore: async () => {},
   searchProducts: async () => {},
   filterByCategory: async () => {},
   updateProduct: async () => {},
-  addProduct: () => MOCK_PRODUCTS[0],
-  publishProduct: async () => MOCK_PRODUCTS[0],
+  addProduct: () => ({} as Product),
+  publishProduct: async () => ({} as Product),
   deleteProduct: async () => {},
   getProductById: () => undefined,
   fetchProductDetail: async () => undefined,
 });
 
 export function ProductsProvider({ children }: { children: React.ReactNode }) {
-  const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
-  const [popularProducts, setPopularProducts] = useState<Product[]>(MOCK_PRODUCTS.slice(0, 4));
+  const [products, setProducts] = useState<Product[]>([]);
+  const [popularProducts, setPopularProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isPopularLoading, setIsPopularLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -65,11 +65,10 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
     try {
       setIsPopularLoading(true);
       const res = await ProductApiService.getPopularProducts({ categoryId, limit: 15 });
-      if (res && res.length > 0) {
-        setPopularProducts(res);
-      }
+      setPopularProducts(res || []);
     } catch (err: any) {
-      console.warn('API getPopularProducts error, fallback to mock:', err.message);
+      console.warn('API getPopularProducts error:', err.message);
+      setPopularProducts([]);
     } finally {
       setIsPopularLoading(false);
     }
@@ -101,15 +100,14 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
           setHasMore(res.hasMore);
           setPage(1);
         } else {
-          // If empty live products, fallback to mock products
-          setProducts(MOCK_PRODUCTS);
-          setTotalProducts(MOCK_PRODUCTS.length);
+          setProducts([]);
+          setTotalProducts(0);
           setHasMore(false);
         }
       } catch (err: any) {
-        console.warn('API getProducts error, using cached/mock fallback:', err.message);
+        console.warn('API getProducts error:', err.message);
         setError(err.message || 'Unable to connect to live backend');
-        setProducts((prev) => (prev.length > 0 ? prev : MOCK_PRODUCTS));
+        setProducts([]);
       } finally {
         setIsLoading(false);
         setIsRefreshing(false);

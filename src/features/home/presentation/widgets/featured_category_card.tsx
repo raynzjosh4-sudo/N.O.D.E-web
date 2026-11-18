@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,22 +7,29 @@ import {
   TouchableOpacity,
   Image,
   useWindowDimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { AppColors } from '@/core/theme/app_theme';
 import { MaterialIcon } from '@/core/widgets/material_icon';
-import {
-  FeaturedCategory,
-  MOCK_FEATURED_CATEGORIES,
-} from '@/features/home/domain/entities/featured_category';
+import { ProductApiService } from '@/features/inventory/data/services/product_api_service';
+import { CategoryDto } from '@/features/inventory/data/dto/product_dto';
+
+export interface FeaturedCategoryItem {
+  id: string;
+  name: string;
+  subtitle?: string;
+  imageUrl?: string;
+  localImage?: any;
+}
 
 interface FeaturedCategoryCardProps {
-  categories?: FeaturedCategory[];
-  onCategoryPress?: (category: FeaturedCategory) => void;
-  onExplorePress?: (category: FeaturedCategory) => void;
+  categories?: FeaturedCategoryItem[];
+  onCategoryPress?: (category: FeaturedCategoryItem) => void;
+  onExplorePress?: (category: FeaturedCategoryItem) => void;
 }
 
 export function FeaturedCategoryCard({
-  categories = MOCK_FEATURED_CATEGORIES,
+  categories: propCategories,
   onCategoryPress,
   onExplorePress,
 }: FeaturedCategoryCardProps) {
@@ -30,9 +37,56 @@ export function FeaturedCategoryCard({
   const isDesktop = width >= 1024;
   const isTablet = width >= 650;
 
-  // Responsive card sizing: full/generous on desktop, mobile proportioned on phone
+  const [apiCategories, setApiCategories] = useState<FeaturedCategoryItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (propCategories && propCategories.length > 0) return;
+
+    let isMounted = true;
+    setIsLoading(true);
+
+    ProductApiService.getCategories()
+      .then((cats) => {
+        if (!isMounted) return;
+        // Filter root categories (level === 0 or no parent_id)
+        const rootCats = (cats || []).filter((c) => !c.parent_id || c.level === 0);
+        const mapped: FeaturedCategoryItem[] = rootCats.map((c) => ({
+          id: c.id,
+          name: c.name,
+          subtitle: 'Wholesale Collection',
+          imageUrl: c.image_url || 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?w=800&auto=format&fit=crop&q=80',
+        }));
+        setApiCategories(mapped);
+      })
+      .catch((err) => {
+        console.warn('Failed to fetch categories for FeaturedCategoryCard:', err.message);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [propCategories]);
+
+  const items = propCategories && propCategories.length > 0 ? propCategories : apiCategories;
+
+  // Responsive card sizing
   const cardWidth = isDesktop ? 460 : isTablet ? 380 : Math.min(width * 0.85, 340);
   const cardHeight = isDesktop ? 320 : 280;
+
+  if (items.length === 0) {
+    if (isLoading) {
+      return (
+        <View style={[styles.container, { height: cardHeight, justifyContent: 'center', alignItems: 'center' }]}>
+          <ActivityIndicator size="small" color={AppColors.accentCyan} />
+        </View>
+      );
+    }
+    return null;
+  }
 
   return (
     <View style={styles.container}>
@@ -43,7 +97,7 @@ export function FeaturedCategoryCard({
         snapToInterval={cardWidth + 14}
         decelerationRate="fast"
       >
-        {categories.map((category) => (
+        {items.map((category) => (
           <TouchableOpacity
             key={category.id}
             activeOpacity={0.9}

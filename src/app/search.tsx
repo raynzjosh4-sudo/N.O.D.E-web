@@ -17,13 +17,15 @@ import { HomeSearchBar } from '@/features/home/presentation/widgets/home_search_
 import { SearchHistoryView } from '@/features/home/presentation/widgets/search_history_view';
 import { ProductGridSection } from '@/features/home/presentation/widgets/product_grid_section';
 import { ProductDetailSidePanel } from '@/features/home/presentation/widgets/product_detail_side_panel';
-import { Product, MOCK_PRODUCTS } from '@/features/inventory/domain/entities/product';
+import { Product } from '@/features/inventory/domain/entities/product';
+import { useProducts } from '@/features/inventory/context/products_context';
 
 export default function SearchPage() {
   const router = useAppNavigation();
   const { width } = useWindowDimensions();
   const isDesktop = width >= 960;
   const { colors } = useAppTheme();
+  const { products } = useProducts();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isHistoryVisible, setIsHistoryVisible] = useState(true);
@@ -51,7 +53,7 @@ export default function SearchPage() {
   };
 
   const filteredProducts = searchQuery
-    ? MOCK_PRODUCTS.filter((p) => {
+    ? products.filter((p) => {
         const q = searchQuery.toLowerCase();
         return (
           p.name?.toLowerCase().includes(q) ||

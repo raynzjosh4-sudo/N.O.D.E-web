@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { AppColors } from '@/core/theme/app_theme';
 import { useAppTheme } from '@/core/theme/theme_context';
-import { Product, MOCK_PRODUCTS } from '@/features/inventory/domain/entities/product';
+import { Product } from '@/features/inventory/domain/entities/product';
 import { useProducts } from '@/features/inventory/context/products_context';
 import { PopularCard } from './popular_card';
 
@@ -26,7 +26,21 @@ export function PopularSection({
   const { colors } = useAppTheme();
   const { popularProducts, isPopularLoading } = useProducts();
 
-  const items = propProducts || (popularProducts.length > 0 ? popularProducts : MOCK_PRODUCTS.slice(0, 4));
+  const items = propProducts || popularProducts;
+
+  if (!items || items.length === 0) {
+    if (isPopularLoading) {
+      return (
+        <View style={styles.container}>
+          <View style={styles.titleRow}>
+            <Text style={[styles.sectionTitle, { color: colors.onSurface }]}>Popular</Text>
+            <ActivityIndicator size="small" color={colors.primary} style={styles.spinner} />
+          </View>
+        </View>
+      );
+    }
+    return null;
+  }
 
   return (
     <View style={styles.container}>

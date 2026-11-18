@@ -16,7 +16,8 @@ import { useAppNavigation } from '@/core/utils/use_app_navigation';
 import { AppColors } from '@/core/theme/app_theme';
 import { useAppTheme } from '@/core/theme/theme_context';
 import { MaterialIcon } from '@/core/widgets/material_icon';
-import { MOCK_PRODUCTS, Product } from '@/features/inventory/domain/entities/product';
+import { Product } from '@/features/inventory/domain/entities/product';
+import { useProducts } from '@/features/inventory/context/products_context';
 import {
   ColorVariant,
   ColorGroup,
@@ -30,9 +31,9 @@ export default function SpecsOrderPage() {
   const { width } = useWindowDimensions();
   const { colors } = useAppTheme();
   const isDesktop = width >= 960;
+  const { getProductById } = useProducts();
 
-  const product: Product =
-    MOCK_PRODUCTS.find((p) => p.id === id) || MOCK_PRODUCTS[0];
+  const product: Product | undefined = id ? getProductById(id) : undefined;
 
   // Confirmed color/size groupings
   const [confirmedGroups, setConfirmedGroups] = useState<ColorGroup[]>([]);
@@ -94,7 +95,23 @@ export default function SpecsOrderPage() {
     0
   );
 
-  const subtotal = totalUnits * product.srp;
+  const subtotal = totalUnits * (product?.srp || 0);
+
+  if (!product) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>
+        <View style={[styles.container, { backgroundColor: colors.scaffoldBackground, justifyContent: 'center', alignItems: 'center' }]}>
+          <Text style={{ color: colors.onSurface, fontSize: 16 }}>Product not found</Text>
+          <TouchableOpacity
+            style={[styles.backButton, { backgroundColor: colors.cardColor, marginTop: 16 }]}
+            onPress={() => router.safeGoBack()}
+          >
+            <Text style={{ color: colors.primary }}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>

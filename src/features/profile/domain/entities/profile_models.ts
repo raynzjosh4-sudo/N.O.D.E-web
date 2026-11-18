@@ -1,4 +1,4 @@
-import { MOCK_PRODUCTS, Product } from '@/features/inventory/domain/entities/product';
+import { Product } from '@/features/inventory/domain/entities/product';
 
 export interface UserProfile {
   id: string;
@@ -68,32 +68,7 @@ export const MOCK_USER_PROFILE: UserProfile = {
   isVerified: true,
 };
 
-export const MOCK_SAVED_ITEMS: SavedProductItem[] = [
-  {
-    id: 'save-1',
-    product: MOCK_PRODUCTS[0], // Logitech MX Master 3S
-    quantity: 10,
-    selectedColor: { label: 'Space Gray', color: '#4B4846' },
-    selectedSize: 'Standard',
-    addedAt: '2026-11-15T14:20:00Z',
-  },
-  {
-    id: 'save-2',
-    product: MOCK_PRODUCTS[1], // Sony WH-1000XM5
-    quantity: 5,
-    selectedColor: { label: 'Silver White', color: '#E5E4E2' },
-    selectedSize: 'Standard',
-    addedAt: '2026-11-16T08:15:00Z',
-  },
-  {
-    id: 'save-3',
-    product: MOCK_PRODUCTS[2] || MOCK_PRODUCTS[0], // iPad Air M2
-    quantity: 12,
-    selectedColor: { label: 'Space Black', color: '#1C1B1F' },
-    selectedSize: '256GB WiFi',
-    addedAt: '2026-11-16T18:40:00Z',
-  },
-];
+export const MOCK_SAVED_ITEMS: SavedProductItem[] = [];
 
 export const MOCK_DRAFT_ORDERS: DraftOrder[] = [
   {

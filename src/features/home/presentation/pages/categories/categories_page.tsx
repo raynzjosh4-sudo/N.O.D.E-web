@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Platform,
   useWindowDimensions,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { useAppNavigation } from '@/core/utils/use_app_navigation';
 import { AppColors } from '@/core/theme/app_theme';
@@ -17,26 +18,86 @@ import { useAppTheme } from '@/core/theme/theme_context';
 import { MaterialIcon } from '@/core/widgets/material_icon';
 import { ProductGridCard } from '@/features/home/presentation/widgets/product_grid_card';
 import { ProductDetailSidePanel } from '@/features/home/presentation/widgets/product_detail_side_panel';
-import { MOCK_PRODUCTS, Product } from '@/features/inventory/domain/entities/product';
-import {
-  CategoryItem,
-  MOCK_CATEGORIES,
-} from './models/category_model';
+import { Product } from '@/features/inventory/domain/entities/product';
+import { CategoryItem } from './models/category_model';
+import { ProductApiService } from '@/features/inventory/data/services/product_api_service';
+import { useProducts } from '@/features/inventory/context/products_context';
 
 export function CategoriesPage() {
   const router = useAppNavigation();
   const { width } = useWindowDimensions();
   const { colors } = useAppTheme();
   const isDesktop = width >= 960;
+  const { products } = useProducts();
+
+  const [categoriesTree, setCategoriesTree] = useState<CategoryItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Desktop active path: [MainCategory, SubCategory?, ChildCategory?]
-  const [activePath, setActivePath] = useState<CategoryItem[]>([MOCK_CATEGORIES[0]]);
+  const [activePath, setActivePath] = useState<CategoryItem[]>([]);
 
   // Selected product for desktop Pinterest-style side panel
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   // Mobile navigation stack
   const [mobileStack, setMobileStack] = useState<CategoryItem[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoading(true);
+
+    ProductApiService.getCategories()
+      .then((cats) => {
+        if (!isMounted) return;
+
+        // Build hierarchical tree from flat CategoryDto list
+        const catMap = new Map<string, CategoryItem>();
+        (cats || []).forEach((c) => {
+          catMap.set(c.id, {
+            id: c.id,
+            name: c.name,
+            imageUrl:
+              c.image_url ||
+              'https://images.unsplash.com/photo-1550009158-9ebf69173e03?w=300&auto=format&fit=crop&q=80',
+            itemCount: 0,
+            subCategories: [],
+          });
+        });
+
+        const roots: CategoryItem[] = [];
+        (cats || []).forEach((c) => {
+          const item = catMap.get(c.id);
+          if (!item) return;
+
+          if (!c.parent_id || c.level === 0 || !catMap.has(c.parent_id)) {
+            roots.push(item);
+          } else {
+            const parent = catMap.get(c.parent_id);
+            if (parent) {
+              parent.subCategories = parent.subCategories || [];
+              parent.subCategories.push(item);
+            } else {
+              roots.push(item);
+            }
+          }
+        });
+
+        setCategoriesTree(roots);
+        if (roots.length > 0) {
+          setActivePath([roots[0]]);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to fetch categories:', err.message);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Product tap handler (Adaptive desktop vs mobile)
   const handleProductTap = (product: Product) => {
@@ -51,13 +112,40 @@ export function CategoriesPage() {
   // DESKTOP DRILLDOWN & PRODUCT PREVIEW
   // -------------------------------------------------------------
   if (isDesktop) {
-    const currentCategory = activePath[activePath.length - 1];
-    const subCategories = currentCategory.subCategories || [];
+    if (isLoading) {
+      return (
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>
+          <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={{ marginTop: 12, color: colors.onSurfaceMuted }}>Loading wholesale categories...</Text>
+          </View>
+        </SafeAreaView>
+      );
+    }
+
+    if (categoriesTree.length === 0) {
+      return (
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>
+          <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+            <Text style={{ color: colors.onSurface, fontSize: 16 }}>No categories available</Text>
+          </View>
+        </SafeAreaView>
+      );
+    }
+
+    const currentCategory = activePath.length > 0 ? activePath[activePath.length - 1] : categoriesTree[0];
+    const subCategories = currentCategory?.subCategories || [];
     const isLeaf = subCategories.length === 0;
+
+    // Filter products matching current category leaf
+    const categoryProducts = products.filter(
+      (p) => p.categoryId === currentCategory.id || p.categoryName === currentCategory.name
+    );
+    const displayProducts = categoryProducts.length > 0 ? categoryProducts : products;
 
     const handleDesktopDrillIn = (cat: CategoryItem) => {
       setActivePath((prev) => [...prev, cat]);
-      setSelectedProduct(null); // Reset side panel when changing category level
+      setSelectedProduct(null);
     };
 
     const handleBreadcrumbClick = (index: number) => {
@@ -125,8 +213,8 @@ export function CategoriesPage() {
                 <View style={[styles.leftSidebar, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}>
                   <Text style={[styles.sidebarHeader, { color: colors.onSurfaceMuted }]}>ALL DEPARTMENTS</Text>
                   <ScrollView showsVerticalScrollIndicator={false}>
-                    {MOCK_CATEGORIES.map((cat) => {
-                      const isSelected = activePath[0].id === cat.id;
+                    {categoriesTree.map((cat) => {
+                      const isSelected = activePath[0]?.id === cat.id;
                       return (
                         <TouchableOpacity
                           key={cat.id}
@@ -172,7 +260,7 @@ export function CategoriesPage() {
                       <Text style={[styles.heroCategorySubtitle, { color: colors.onSurfaceMuted }]}>
                         {!isLeaf
                           ? `${subCategories.length} Sub-Categories available • Click any to explore deeper`
-                          : `${currentCategory.itemCount} Verified wholesale products available in this section`}
+                          : `${displayProducts.length} Verified wholesale products available in this section`}
                       </Text>
                     </View>
 
@@ -214,7 +302,7 @@ export function CategoriesPage() {
                               <Text style={[styles.subCardCount, { color: colors.onSurfaceMuted }]}>
                                 {hasDeeper
                                   ? `${sub.subCategories?.length} Nested Categories`
-                                  : `${sub.itemCount} Products Available`}
+                                  : 'Tap to view products'}
                               </Text>
                               <View style={styles.viewProductsRow}>
                                 <Text style={[styles.viewProductsText, { color: colors.primary }]}>
@@ -232,28 +320,37 @@ export function CategoriesPage() {
                       })}
                     </ScrollView>
                   ) : (
-                    /* 2. Exact Product Cards from Home Page (Tap opens side panel) */
+                    /* 2. Exact Product Cards from Catalog */
                     <ScrollView
                       contentContainerStyle={styles.productGridContainer}
                       showsVerticalScrollIndicator={false}
                     >
-                      <View style={styles.productCardsGrid}>
-                        {MOCK_PRODUCTS.map((prod) => (
-                          <View
-                            key={prod.id}
-                            style={[
-                              styles.productCardCell,
-                              selectedProduct ? styles.productCardCellNarrow : null,
-                            ]}
-                          >
-                            <ProductGridCard
-                              product={prod}
-                              aspectRatio={0.85}
-                              onPress={() => handleProductTap(prod)}
-                            />
-                          </View>
-                        ))}
-                      </View>
+                      {displayProducts.length > 0 ? (
+                        <View style={styles.productCardsGrid}>
+                          {displayProducts.map((prod) => (
+                            <View
+                              key={prod.id}
+                              style={[
+                                styles.productCardCell,
+                                selectedProduct ? styles.productCardCellNarrow : null,
+                              ]}
+                            >
+                              <ProductGridCard
+                                product={prod}
+                                aspectRatio={0.85}
+                                onPress={() => handleProductTap(prod)}
+                              />
+                            </View>
+                          ))}
+                        </View>
+                      ) : (
+                        <View style={{ padding: 40, alignItems: 'center' }}>
+                          <MaterialIcon name="inventory_2" size={48} color={colors.onSurfaceMuted} />
+                          <Text style={{ marginTop: 12, color: colors.onSurface, fontSize: 16, fontWeight: '600' }}>
+                            No products in this category yet
+                          </Text>
+                        </View>
+                      )}
                     </ScrollView>
                   )}
                 </View>
@@ -279,7 +376,7 @@ export function CategoriesPage() {
   // -------------------------------------------------------------
   const currentCategories: CategoryItem[] =
     mobileStack.length === 0
-      ? MOCK_CATEGORIES
+      ? categoriesTree
       : mobileStack[mobileStack.length - 1].subCategories || [];
 
   const handleMobileCategoryTap = (category: CategoryItem) => {
@@ -297,6 +394,17 @@ export function CategoriesPage() {
       router.safeGoBack();
     }
   };
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>
+        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={{ marginTop: 12, color: colors.onSurfaceMuted }}>Loading categories...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>

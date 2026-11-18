@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, useWindowDimensions } from 'react-native';
-import { Product, MOCK_PRODUCTS } from '@/features/inventory/domain/entities/product';
+import { Product } from '@/features/inventory/domain/entities/product';
 import { ProductGridCard } from '@/features/home/presentation/widgets/product_grid_card';
 
 interface ProductGridSectionProps {
@@ -9,7 +9,7 @@ interface ProductGridSectionProps {
 }
 
 export function ProductGridSection({
-  products = MOCK_PRODUCTS,
+  products = [],
   onProductPress,
 }: ProductGridSectionProps) {
   const { width } = useWindowDimensions();
