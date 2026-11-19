@@ -303,4 +303,23 @@ export class ProfileApiService {
 
     return { pending, sent, pdfs };
   }
+
+  /**
+   * Place a new wholesale order
+   */
+  static async createOrder(order: {
+    order_id: string;
+    supplier_id: string;
+    business_name: string;
+    business_phone: string;
+    business_city: string;
+    business_address: string;
+    total_amount: number;
+    entries_json: any[];
+  }): Promise<any> {
+    return await apiClient(API_ENDPOINTS.ORDERS.CREATE, {
+      method: 'POST',
+      body: JSON.stringify(order),
+    });
+  }
 }

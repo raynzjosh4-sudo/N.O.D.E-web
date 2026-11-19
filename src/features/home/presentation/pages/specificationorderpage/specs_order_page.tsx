@@ -16,6 +16,8 @@ import { useAppNavigation } from '@/core/utils/use_app_navigation';
 import { AppColors } from '@/core/theme/app_theme';
 import { useAppTheme } from '@/core/theme/theme_context';
 import { MaterialIcon } from '@/core/widgets/material_icon';
+import { useToast } from '@/core/widgets/whatsapp_dialog';
+import { ProfileApiService } from '@/features/profile/data/services/profile_api_service';
 import { Product } from '@/features/inventory/domain/entities/product';
 import { useProducts } from '@/features/inventory/context/products_context';
 import {
@@ -27,6 +29,7 @@ import {
 
 export default function SpecsOrderPage() {
   const router = useAppNavigation();
+  const { showSuccess, showError } = useToast();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { width } = useWindowDimensions();
   const { colors } = useAppTheme();
@@ -37,6 +40,7 @@ export default function SpecsOrderPage() {
 
   // Confirmed color/size groupings
   const [confirmedGroups, setConfirmedGroups] = useState<ColorGroup[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Current builder selections
   const [selectedColor, setSelectedColor] = useState<ColorVariant>(DEFAULT_COLOR_VARIANTS[0]);
@@ -96,6 +100,57 @@ export default function SpecsOrderPage() {
   );
 
   const subtotal = totalUnits * (product?.srp || 0);
+
+  const handleConfirmOrder = async () => {
+    if (confirmedGroups.length === 0 || !product || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      let profile: { legalBusinessName?: string; fullName?: string; phone?: string; warehouseAddress?: string } = {};
+      try {
+        profile = await ProfileApiService.getProfile();
+      } catch {
+        profile = {
+          legalBusinessName: 'Wholesale Buyer',
+          phone: '',
+          warehouseAddress: 'Kampala Logistics Hub',
+        };
+      }
+
+      const orderId =
+        'ORD-' +
+        Date.now().toString(36).toUpperCase() +
+        '-' +
+        Math.random().toString(36).substring(2, 6).toUpperCase();
+
+      const orderPayload = {
+        order_id: orderId,
+        supplier_id: product.supplierId || 'supplier-main',
+        business_name: profile.legalBusinessName || profile.fullName || 'Wholesale Buyer',
+        business_phone: profile.phone || '0700000000',
+        business_city: 'Kampala',
+        business_address: profile.warehouseAddress || 'Kampala Logistics Hub',
+        total_amount: subtotal,
+        entries_json: confirmedGroups.map((g) => ({
+          name: product.name,
+          product_id: product.id,
+          color: g.color.label,
+          size_quantities: g.sizeQtys,
+          unit_price: product.srp,
+          total_units: Object.values(g.sizeQtys).reduce((s, q) => s + q, 0),
+        })),
+      };
+
+      await ProfileApiService.createOrder(orderPayload);
+      showSuccess('Order Created', `Order for ${product.name} placed successfully!`);
+      setTimeout(() => {
+        router.push('/profile');
+      }, 1200);
+    } catch (err: any) {
+      showError('Order Failed', err?.message || 'Could not place wholesale order.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   if (!product) {
     return (
@@ -312,15 +367,13 @@ export default function SpecsOrderPage() {
                 {/* Confirm Order Button */}
                 <TouchableOpacity
                   activeOpacity={0.88}
-                  style={styles.confirmOrderBtn}
-                  onPress={() => {
-                    console.log('Confirmed Order:', confirmedGroups);
-                    router.safeGoBack();
-                  }}
+                  style={[styles.confirmOrderBtn, isSubmitting && { opacity: 0.6 }]}
+                  disabled={isSubmitting}
+                  onPress={handleConfirmOrder}
                 >
-                  <MaterialIcon name="check_circle" size={18} color="#FFFFFF" />
+                  <MaterialIcon name={isSubmitting ? 'hourglass_empty' : 'check_circle'} size={18} color="#FFFFFF" />
                   <Text style={styles.confirmOrderText}>
-                    Confirm & Proceed to Checkout
+                    {isSubmitting ? 'Submitting Order...' : 'Confirm & Proceed to Checkout'}
                   </Text>
                 </TouchableOpacity>
               </View>
