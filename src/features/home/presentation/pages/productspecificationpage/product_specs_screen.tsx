@@ -437,11 +437,11 @@ export default function ProductSpecsScreen() {
               {product.supportPhone && (
                 <TouchableOpacity
                   activeOpacity={0.8}
-                  style={[styles.gitContactBtn, { borderColor: gitBorder, backgroundColor: gitHeaderBg }]}
+                  style={[styles.gitContactBtn, { backgroundColor: colors.primary, borderColor: colors.primary }]}
                   onPress={() => Linking.openURL(`tel:${product.supportPhone}`)}
                 >
-                  <MaterialIcon name="call" size={16} color={colors.primary} />
-                  <Text style={[styles.gitContactBtnText, { color: colors.onSurface }]}>{product.supportPhone}</Text>
+                  <MaterialIcon name="call" size={16} color="#FFFFFF" />
+                  <Text style={[styles.gitContactBtnText, { color: '#FFFFFF', fontWeight: '700' }]}>{product.supportPhone}</Text>
                 </TouchableOpacity>
               )}
               {product.supportWhatsapp && (
