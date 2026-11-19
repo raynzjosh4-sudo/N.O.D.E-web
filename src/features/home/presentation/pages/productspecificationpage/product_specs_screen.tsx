@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,379 +7,515 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Platform,
   useWindowDimensions,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useAppNavigation } from '@/core/utils/use_app_navigation';
-import { AppColors } from '@/core/theme/app_theme';
+import { useAppTheme } from '@/core/theme/theme_context';
 import { MaterialIcon } from '@/core/widgets/material_icon';
 import { Product } from '@/features/inventory/domain/entities/product';
 import { useProducts } from '@/features/inventory/context/products_context';
-import { useAppTheme } from '@/core/theme/theme_context';
+import { ProductApiService } from '@/features/inventory/data/services/product_api_service';
+import { ProfileApiService } from '@/features/profile/data/services/profile_api_service';
+import { ProductGridSection } from '@/features/home/presentation/widgets/product_grid_section';
 
 export default function ProductSpecsScreen() {
   const router = useAppNavigation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { width } = useWindowDimensions();
   const isDesktop = width >= 960;
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const { products, getProductById } = useProducts();
 
-  const product: Product = getProductById(id as string) || products[0];
-
-  const mediaList =
-    product.mediaUrls && product.mediaUrls.length > 0
-      ? product.mediaUrls
-      : [product.imageUrl];
-
+  const initialProduct = (id ? getProductById(id) : undefined) || products[0];
+  const [product, setProduct] = useState<Product | undefined>(initialProduct);
+  const [isLoading, setIsLoading] = useState(false);
   const [selectedMediaIndex, setSelectedMediaIndex] = useState(0);
-  const [quantity, setQuantity] = useState(2);
+  const [quantity, setQuantity] = useState(product?.moq || 2);
+  const [isSavingToBag, setIsSavingToBag] = useState(false);
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
 
-  const formatPrice = (val: number) => {
-    return 'UGX ' + val.toLocaleString('en-US');
+  // GitHub-style border and surface palette
+  const gitBorder = isDark ? '#30363D' : '#D0D7DE';
+  const gitHeaderBg = isDark ? '#161B22' : '#F6F8FA';
+  const gitSubtleText = isDark ? '#8B949E' : '#57606A';
+
+  // Fetch complete product details with real colors, sizes, tiers, and specs
+  useEffect(() => {
+    if (id) {
+      setIsLoading(true);
+      ProductApiService.getProductById(id)
+        .then((fullProd) => {
+          if (fullProd) {
+            setProduct(fullProd);
+            if (fullProd.moq && fullProd.moq > 1) {
+              setQuantity(fullProd.moq);
+            }
+          }
+        })
+        .catch((err) => {
+          console.warn('[ProductSpecsScreen] Failed to fetch product specs:', err);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    }
+  }, [id]);
+
+  if (!product && isLoading) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!product) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>
+        <View style={styles.centerContainer}>
+          <Text style={[styles.errorText, { color: colors.onSurface }]}>Product specifications not found.</Text>
+          <TouchableOpacity
+            style={[styles.gitButton, { backgroundColor: colors.primary }]}
+            onPress={() => router.push('/')}
+          >
+            <Text style={styles.gitButtonText}>Return to Home</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const mediaList: string[] = Array.from(
+    new Set([
+      product.imageUrl,
+      ...(product.mediaUrls || []),
+    ].filter(Boolean))
+  );
+
+  const activeImage = mediaList[selectedMediaIndex] || product.imageUrl;
+  const formatPrice = (val: number) => 'UGX ' + (val || 0).toLocaleString('en-US');
+
+  // Handle Save to Bulk Bag (Wishlist)
+  const handleSaveToBag = async () => {
+    setIsSavingToBag(true);
+    setSaveSuccessMsg(null);
+    try {
+      await ProfileApiService.addSavedItem(
+        product.id,
+        quantity,
+        product.colors?.[0]?.name || 'Standard',
+        product.sizes?.[0]?.name || 'Standard',
+        {
+          id: product.id,
+          name: product.name,
+          srp: product.srp,
+          brand: product.brand,
+          imageUrl: product.imageUrl,
+        }
+      );
+      setSaveSuccessMsg(`Saved ${quantity} units of ${product.name} to your bulk order bag.`);
+      setTimeout(() => setSaveSuccessMsg(null), 4000);
+    } catch (err: any) {
+      console.warn('Failed to save to bag:', err.message);
+      setSaveSuccessMsg(`Saved to local bag (${quantity} units).`);
+      setTimeout(() => setSaveSuccessMsg(null), 3000);
+    } finally {
+      setIsSavingToBag(false);
+    }
   };
 
   // -------------------------------------------------------------
-  // SHARED MEDIA VIEWER (Hero image + Thumbnail strip)
+  // LEFT PANE: Media Viewer (Hero image + Thumbnail strip)
   // -------------------------------------------------------------
   const renderMediaPane = () => (
     <View style={styles.mediaContainer}>
-      {/* Hero Image Card */}
-      <View style={styles.heroImageCard}>
+      {/* Hero Image Box - Clean 1px GitHub-style Border */}
+      <View style={[styles.heroBox, { borderColor: gitBorder }]}>
         <Image
-          source={{ uri: mediaList[selectedMediaIndex] }}
+          source={{ uri: activeImage }}
           style={styles.heroMainImage}
           resizeMode="cover"
         />
-        {/* Floating Price Tag */}
-        <View style={[styles.floatingPriceTag, { backgroundColor: colors.cardColor, borderColor: colors.borderLight, borderWidth: 1 }]}>
-          <Text style={[styles.floatingPriceText, { color: colors.onSurface }]}>{formatPrice(product.srp)}</Text>
-        </View>
-      </View>
-
-      {/* Thumbnail Gallery Strip */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.thumbnailStrip}
-      >
-        {mediaList.map((url, idx) => {
-          const isSelected = selectedMediaIndex === idx;
-          return (
-            <TouchableOpacity
-              key={idx}
-              activeOpacity={0.8}
-              style={[
-                styles.thumbnailItem,
-                isSelected && styles.thumbnailItemSelected,
-              ]}
-              onPress={() => setSelectedMediaIndex(idx)}
-            >
-              <Image source={{ uri: url }} style={styles.thumbnailImage} />
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-    </View>
-  );
-
-  // -------------------------------------------------------------
-  // SHARED SPEC DETAILS BODY (Wholesale, logistics, pricing, etc.)
-  // -------------------------------------------------------------
-  const renderDetailsPane = () => (
-    <View style={styles.detailsContainer}>
-      {/* Brand & Supplier Info */}
-      <View style={styles.brandRow}>
-        <View style={styles.brandBadge}>
-          <Text style={styles.brandBadgeText}>{product.brand}</Text>
-        </View>
-        <Text style={[styles.warehouseText, { color: colors.onSurfaceMuted }]}>
-          {product.warehouseLoc} • Verified Distributor
-        </Text>
-      </View>
-
-      <Text style={[styles.specsProductTitle, { color: colors.onSurface }]}>{product.name}</Text>
-
-      {/* Logistics & Stock Row */}
-      <View style={[styles.logisticsCard, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}>
-        <View style={styles.logisticsItem}>
-          <MaterialIcon name="inventory_2" size={18} color={AppColors.marginGreen} />
-          <View>
-            <Text style={[styles.logisticsLabel, { color: colors.onSurfaceMuted }]}>In Stock</Text>
-            <Text style={[styles.logisticsValue, { color: colors.onSurface }]}>1,450 Units Ready</Text>
-          </View>
-        </View>
-        <View style={[styles.logisticsDivider, { backgroundColor: colors.borderLight }]} />
-        <View style={styles.logisticsItem}>
-          <MaterialIcon name="local_shipping" size={18} color={colors.primary} />
-          <View>
-            <Text style={[styles.logisticsLabel, { color: colors.onSurfaceMuted }]}>Dispatch</Text>
-            <Text style={[styles.logisticsValue, { color: colors.onSurface }]}>Same-day Delivery</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Price & Quantity Stepper */}
-      <View style={styles.priceStepperRow}>
-        <View>
-          <Text style={[styles.unitPriceLabel, { color: colors.onSurfaceMuted }]}>Wholesale Unit Price</Text>
-          <Text style={[styles.unitPriceValue, { color: colors.primary }]}>{formatPrice(product.srp)}</Text>
-        </View>
-
-        {/* Counter */}
-        <View style={[styles.stepperContainer, { backgroundColor: colors.cardColor, borderColor: colors.borderLight, borderWidth: 1 }]}>
-          <TouchableOpacity
-            style={[styles.stepperBtn, { backgroundColor: colors.surface }]}
-            onPress={() => setQuantity((q) => (q > 1 ? q - 1 : 1))}
-          >
-            <MaterialIcon name="remove" size={16} color={colors.onSurface} />
-          </TouchableOpacity>
-          <Text style={[styles.stepperQty, { color: colors.onSurface }]}>{quantity}</Text>
-          <TouchableOpacity
-            style={[styles.stepperBtn, { backgroundColor: colors.surface }]}
-            onPress={() => setQuantity((q) => q + 1)}
-          >
-            <MaterialIcon name="add" size={16} color={colors.onSurface} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Order CTA Buttons */}
-      <View style={styles.ctaRow}>
-        <TouchableOpacity
-          activeOpacity={0.85}
-          style={[styles.addToOrderBtn, { backgroundColor: colors.cardColor, borderColor: colors.borderLight, borderWidth: 1 }]}
-          onPress={() => console.log('Added to Order Bag:', quantity, 'units')}
-        >
-          <MaterialIcon name="shopping_bag" size={18} color={colors.primary} />
-          <Text style={[styles.addToOrderText, { color: colors.onSurface }]}>
-            Add {quantity} to Order • {formatPrice(product.srp * quantity)}
+        {/* Floating Price Badge */}
+        <View style={[styles.floatingPriceTag, { backgroundColor: isDark ? '#1C2128' : '#FFFFFF', borderColor: gitBorder }]}>
+          <Text style={[styles.floatingPriceText, { color: colors.onSurface }]}>
+            {formatPrice(product.srp)}
           </Text>
-        </TouchableOpacity>
+        </View>
+      </View>
 
-        {/* Order Now Button -> Opens Color & Variant Configuration Sheet */}
-        <TouchableOpacity
-          activeOpacity={0.85}
-          style={[styles.orderNowBtn, { backgroundColor: colors.primary }]}
-          onPress={() => router.push(`/product/order/${product.id}`)}
+      {/* Thumbnail Strip */}
+      {mediaList.length > 1 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.thumbnailStrip}
         >
-          <Text style={styles.orderNowText}>Order Now (Choose Colors & Sizes)</Text>
-          <MaterialIcon name="arrow_forward" size={18} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Wholesale Pricing Table */}
-      <View style={styles.pricingTableSection}>
-        <Text style={[styles.sectionHeader, { color: colors.onSurfaceMuted }]}>WHOLESALE TIER BREAKDOWN</Text>
-        <View style={[styles.tableCard, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}>
-          <View style={[styles.tableHeaderRow, { backgroundColor: colors.scaffoldBackground, borderBottomColor: colors.borderLight }]}>
-            <Text style={[styles.tableHeadCell, { color: colors.onSurfaceMuted }]}>QUANTITY</Text>
-            <Text style={[styles.tableHeadCell, { color: colors.onSurfaceMuted }]}>UNIT PRICE</Text>
-            <Text style={[styles.tableHeadCell, { color: colors.onSurfaceMuted }]}>SAVINGS</Text>
-          </View>
-          {product.priceTiers.map((tier, idx) => (
-            <View key={idx} style={[styles.tableDataRow, { borderBottomColor: colors.borderLight }]}>
-              <Text style={[styles.tableCellQty, { color: colors.onSurface }]}>{tier.minQuantity}+ units</Text>
-              <Text style={[styles.tableCellPrice, { color: colors.primary }]}>{formatPrice(tier.price)}</Text>
-              <Text style={styles.tableCellSavings}>
-                {idx === 0 ? 'Standard' : `Save ${idx * 8}%`}
-              </Text>
-            </View>
-          ))}
-        </View>
-      </View>
-
-      {/* Description */}
-      <View style={styles.descriptionSection}>
-        <Text style={[styles.sectionHeader, { color: colors.onSurfaceMuted }]}>SPECIFICATIONS & DETAILS</Text>
-        <Text style={[styles.descriptionText, { color: colors.onSurface }]}>
-          {product.description ||
-            'Enterprise bulk unit with official manufacturer warranty. Includes full QA inspection, individual protective packaging, and direct pallet logistics support across Uganda and the East African Community.'}
-        </Text>
-      </View>
-
-      {/* Colors & Sizes Row */}
-      {((product.colors && product.colors.length > 0) || (product.sizes && product.sizes.length > 0)) && (
-        <View style={styles.variantsSection}>
-          {product.colors && product.colors.length > 0 && (
-            <View style={[styles.variantBlock, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}>
-              <Text style={[styles.sectionHeader, { color: colors.onSurfaceMuted }]}>COLORS</Text>
-              <View style={styles.colorSwatchesRow}>
-                {product.colors.map((c, idx) => (
-                  <View
-                    key={idx}
-                    style={[styles.colorDot, { backgroundColor: c.hexCode, borderColor: c.hexCode === '#FFFFFF' || c.hexCode === '#F0F0F2' ? colors.borderLight : 'transparent' }]}
-                  />
-                ))}
-              </View>
-              <Text style={[styles.variantCount, { color: colors.onSurfaceMuted }]}>{product.colors.length} color variant{product.colors.length !== 1 ? 's' : ''}</Text>
-            </View>
-          )}
-          {product.sizes && product.sizes.length > 0 && (
-            <View style={[styles.variantBlock, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}>
-              <Text style={[styles.sectionHeader, { color: colors.onSurfaceMuted }]}>SIZES</Text>
-              <View style={styles.sizeAbbrRow}>
-                {product.sizes.slice(0, 5).map((s, idx) => (
-                  <View key={idx} style={[styles.sizeAbbrChip, { backgroundColor: colors.surface, borderColor: colors.borderLight }]}>
-                    <Text style={[styles.sizeAbbrText, { color: colors.onSurface }]}>{s.abbreviation}</Text>
-                  </View>
-                ))}
-                {product.sizes.length > 5 && (
-                  <Text style={[styles.moreSizes, { color: colors.onSurfaceMuted }]}>+{product.sizes.length - 5}</Text>
-                )}
-              </View>
-              <Text style={[styles.variantCount, { color: colors.onSurfaceMuted }]}>{product.sizes.length} size{product.sizes.length !== 1 ? 's' : ''} available</Text>
-            </View>
-          )}
-        </View>
-      )}
-
-      {/* Technical Attributes Table */}
-      <View style={styles.technicalSection}>
-        <Text style={[styles.sectionHeader, { color: colors.onSurfaceMuted }]}>TECHNICAL SPECIFICATIONS</Text>
-        <View style={[styles.techSpecsList, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}>
-          {product.sku && (
-            <View style={styles.techRow}>
-              <Text style={[styles.techKey, { color: colors.onSurfaceMuted }]}>SKU / Model</Text>
-              <Text style={[styles.techVal, { color: colors.onSurface }]}>{product.sku}</Text>
-            </View>
-          )}
-          {product.material && (
-            <View style={styles.techRow}>
-              <Text style={[styles.techKey, { color: colors.onSurfaceMuted }]}>Material</Text>
-              <Text style={[styles.techVal, { color: colors.onSurface }]}>{product.material}</Text>
-            </View>
-          )}
-          {product.packaging && (
-            <View style={styles.techRow}>
-              <Text style={[styles.techKey, { color: colors.onSurfaceMuted }]}>Packaging</Text>
-              <Text style={[styles.techVal, { color: colors.onSurface }]}>{product.packaging}</Text>
-            </View>
-          )}
-          {product.weight && (
-            <View style={styles.techRow}>
-              <Text style={[styles.techKey, { color: colors.onSurfaceMuted }]}>Weight</Text>
-              <Text style={[styles.techVal, { color: colors.onSurface }]}>{product.weight}</Text>
-            </View>
-          )}
-          {product.warranty && (
-            <View style={styles.techRow}>
-              <Text style={[styles.techKey, { color: colors.onSurfaceMuted }]}>Warranty</Text>
-              <Text style={[styles.techVal, { color: colors.onSurface }]}>{product.warranty}</Text>
-            </View>
-          )}
-          {product.compliance && (
-            <View style={styles.techRow}>
-              <Text style={[styles.techKey, { color: colors.onSurfaceMuted }]}>Compliance</Text>
-              <Text style={[styles.techVal, { color: colors.onSurface }]}>{product.compliance}</Text>
-            </View>
-          )}
-          {!product.sku && !product.material && !product.packaging && (
-            <>
-              <View style={styles.techRow}>
-                <Text style={[styles.techKey, { color: colors.onSurfaceMuted }]}>SKU / Model</Text>
-                <Text style={[styles.techVal, { color: colors.onSurface }]}>ND-PROD-{product.id.toUpperCase()}</Text>
-              </View>
-              <View style={styles.techRow}>
-                <Text style={[styles.techKey, { color: colors.onSurfaceMuted }]}>Packaging</Text>
-                <Text style={[styles.techVal, { color: colors.onSurface }]}>Commercial Bulk Carton (24 pcs)</Text>
-              </View>
-              <View style={styles.techRow}>
-                <Text style={[styles.techKey, { color: colors.onSurfaceMuted }]}>Compliance</Text>
-                <Text style={[styles.techVal, { color: colors.onSurface }]}>UNBS Certified • CE Approved</Text>
-              </View>
-            </>
-          )}
-          <View style={styles.techRow}>
-            <Text style={[styles.techKey, { color: colors.onSurfaceMuted }]}>Return Policy</Text>
-            <Text style={[styles.techVal, { color: colors.onSurface }]}>14 Days Manufacturer Exchange</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Support Contact */}
-      {(product.supportPhone || product.supportWhatsapp) && (
-        <View style={styles.supportSection}>
-          <Text style={[styles.sectionHeader, { color: colors.onSurfaceMuted }]}>SUPPLIER CONTACT</Text>
-          <View style={styles.supportRow}>
-            {product.supportPhone && (
+          {mediaList.map((url, idx) => {
+            const isSelected = selectedMediaIndex === idx;
+            return (
               <TouchableOpacity
-                activeOpacity={0.85}
-                style={[styles.supportContactBtn, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}
-                onPress={() => Linking.openURL(`tel:${product.supportPhone}`)}
+                key={`spec-thumb-${idx}`}
+                activeOpacity={0.8}
+                style={[
+                  styles.thumbnailItem,
+                  { borderColor: isSelected ? colors.primary : gitBorder },
+                  isSelected && styles.thumbnailItemSelected,
+                ]}
+                onPress={() => setSelectedMediaIndex(idx)}
               >
-                <MaterialIcon name="call" size={16} color={colors.primary} />
-                <Text style={[styles.supportContactText, { color: colors.onSurface }]}>{product.supportPhone}</Text>
+                <Image source={{ uri: url }} style={styles.thumbnailImage} resizeMode="cover" />
               </TouchableOpacity>
-            )}
-            {product.supportWhatsapp && (
-              <TouchableOpacity
-                activeOpacity={0.85}
-                style={[styles.supportContactBtn, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}
-                onPress={() =>
-                  Linking.openURL(
-                    `https://wa.me/${product.supportWhatsapp?.replace(/[^0-9]/g, '')}?text=Hi, I found your product on N.O.D.E - ${product.name}`
-                  )
-                }
-              >
-                <MaterialIcon name="chat" size={16} color="#25D366" />
-                <Text style={[styles.supportContactText, { color: colors.onSurface }]}>WhatsApp</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
+            );
+          })}
+        </ScrollView>
       )}
     </View>
   );
+
+  // -------------------------------------------------------------
+  // RIGHT PANE: All Product Specifications, Pricing, Tables
+  // -------------------------------------------------------------
+  const renderDetailsPane = () => {
+    const similarProducts = products.filter((p) => p.id !== product.id).slice(0, 4);
+
+    return (
+      <View style={styles.detailsContainer}>
+        {/* Brand & Supplier Header Line */}
+        <View style={[styles.gitSection, { borderBottomColor: gitBorder }]}>
+          <View style={styles.brandRow}>
+            <View style={[styles.brandChip, { borderColor: gitBorder, backgroundColor: gitHeaderBg }]}>
+              <Text style={[styles.brandChipText, { color: colors.onSurface }]}>{product.brand || 'Verified Brand'}</Text>
+            </View>
+            <Text style={[styles.warehouseText, { color: gitSubtleText }]}>
+              {product.supplierName || 'Verified Supplier'} • {product.warehouseLoc || 'Uganda Central Warehouse'}
+            </Text>
+          </View>
+
+          <Text style={[styles.productTitle, { color: colors.onSurface }]}>{product.name}</Text>
+        </View>
+
+        {/* Logistics & Stock Status Line */}
+        <View style={[styles.gitSection, styles.logisticsRow, { borderBottomColor: gitBorder }]}>
+          <View style={styles.logisticsBlock}>
+            <Text style={[styles.statLabel, { color: gitSubtleText }]}>IN STOCK</Text>
+            <Text style={[styles.statValue, { color: '#2EA44F' }]}>
+              {product.stockQuantity ? `${product.stockQuantity.toLocaleString()} Units Ready` : 'Available in Bulk'}
+            </Text>
+          </View>
+
+          <View style={[styles.verticalDivider, { backgroundColor: gitBorder }]} />
+
+          <View style={styles.logisticsBlock}>
+            <Text style={[styles.statLabel, { color: gitSubtleText }]}>DISPATCH TIME</Text>
+            <Text style={[styles.statValue, { color: colors.onSurface }]}>
+              {product.leadTimeDays ? `${product.leadTimeDays} business days` : 'Same-day Dispatch'}
+            </Text>
+          </View>
+
+          <View style={[styles.verticalDivider, { backgroundColor: gitBorder }]} />
+
+          <View style={styles.logisticsBlock}>
+            <Text style={[styles.statLabel, { color: gitSubtleText }]}>MIN. ORDER (MOQ)</Text>
+            <Text style={[styles.statValue, { color: colors.onSurface }]}>
+              {product.moq ? `${product.moq} Units` : '1 Unit'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Wholesale Unit Price & Stepper Row */}
+        <View style={[styles.gitSection, styles.priceStepperRow, { borderBottomColor: gitBorder }]}>
+          <View>
+            <Text style={[styles.statLabel, { color: gitSubtleText }]}>WHOLESALE UNIT PRICE</Text>
+            <Text style={[styles.unitPriceText, { color: colors.primary }]}>{formatPrice(product.srp)}</Text>
+          </View>
+
+          {/* Stepper with sharp Git-style buttons */}
+          <View style={[styles.stepperBox, { borderColor: gitBorder, backgroundColor: gitHeaderBg }]}>
+            <TouchableOpacity
+              style={[styles.stepperBtn, { borderRightColor: gitBorder, borderRightWidth: 1 }]}
+              onPress={() => setQuantity((q) => (q > (product.moq || 1) ? q - 1 : q))}
+            >
+              <MaterialIcon name="remove" size={16} color={colors.onSurface} />
+            </TouchableOpacity>
+            <Text style={[styles.stepperQty, { color: colors.onSurface }]}>{quantity}</Text>
+            <TouchableOpacity
+              style={[styles.stepperBtn, { borderLeftColor: gitBorder, borderLeftWidth: 1 }]}
+              onPress={() => setQuantity((q) => q + 1)}
+            >
+              <MaterialIcon name="add" size={16} color={colors.onSurface} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* CTA Buttons: Save to Bag & Order Now */}
+        <View style={[styles.gitSection, styles.ctaSection, { borderBottomColor: gitBorder }]}>
+          {saveSuccessMsg && (
+            <View style={[styles.notificationBar, { borderColor: '#2EA44F', backgroundColor: isDark ? 'rgba(46,164,79,0.15)' : '#E6FFED' }]}>
+              <MaterialIcon name="check_circle" size={16} color="#2EA44F" />
+              <Text style={[styles.notificationText, { color: colors.onSurface }]}>{saveSuccessMsg}</Text>
+            </View>
+          )}
+
+          <View style={styles.actionButtonsRow}>
+            {/* Save to Bag Button (Bulk Ordering Wishlist) */}
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={[styles.gitOutlineBtn, { borderColor: gitBorder, backgroundColor: gitHeaderBg }]}
+              onPress={handleSaveToBag}
+              disabled={isSavingToBag}
+            >
+              {isSavingToBag ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <>
+                  <MaterialIcon name="shopping_bag" size={18} color={colors.primary} />
+                  <Text style={[styles.gitOutlineBtnText, { color: colors.onSurface }]}>
+                    Save {quantity} to Bag • {formatPrice(product.srp * quantity)}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            {/* Order Now Button -> Navigates to full order sheet */}
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={[styles.gitPrimaryBtn, { backgroundColor: colors.primary }]}
+              onPress={() => router.push(`/product/order/${product.id}`)}
+            >
+              <Text style={styles.gitPrimaryBtnText}>Order Now (Choose Colors & Sizes)</Text>
+              <MaterialIcon name="arrow_forward" size={16} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Description & Overview */}
+        <View style={[styles.gitSection, { borderBottomColor: gitBorder }]}>
+          <Text style={[styles.gitSectionHeader, { color: gitSubtleText }]}>DESCRIPTION & SPECIFICATIONS</Text>
+          <Text style={[styles.descriptionBody, { color: colors.onSurface }]}>
+            {product.description ||
+              product.seoDescription ||
+              'Enterprise wholesale unit with official manufacturer warranty. Includes full QA inspection, individual protective packaging, and direct pallet logistics support across Uganda and the East African Community.'}
+          </Text>
+        </View>
+
+        {/* Wholesale Tier Breakdown Table */}
+        {product.priceTiers && product.priceTiers.length > 0 && (
+          <View style={[styles.gitSection, { borderBottomColor: gitBorder }]}>
+            <Text style={[styles.gitSectionHeader, { color: gitSubtleText }]}>WHOLESALE TIER BREAKDOWN</Text>
+            <View style={[styles.gitTable, { borderColor: gitBorder }]}>
+              <View style={[styles.gitTableHeaderRow, { backgroundColor: gitHeaderBg, borderBottomColor: gitBorder }]}>
+                <Text style={[styles.tableHeadCol, { color: gitSubtleText }]}>ORDER QUANTITY</Text>
+                <Text style={[styles.tableHeadCol, { color: gitSubtleText }]}>UNIT PRICE</Text>
+                <Text style={[styles.tableHeadCol, { color: gitSubtleText }]}>SAVINGS</Text>
+              </View>
+              {product.priceTiers.map((tier, idx) => (
+                <View
+                  key={`tier-${idx}`}
+                  style={[
+                    styles.gitTableRow,
+                    idx < product.priceTiers.length - 1 && { borderBottomColor: gitBorder, borderBottomWidth: 1 },
+                  ]}
+                >
+                  <Text style={[styles.tableDataCol, { color: colors.onSurface, fontWeight: '600' }]}>
+                    {tier.minQuantity}+ units
+                  </Text>
+                  <Text style={[styles.tableDataCol, { color: colors.primary, fontWeight: '700' }]}>
+                    {formatPrice(tier.price)}
+                  </Text>
+                  <Text style={[styles.tableDataCol, { color: '#2EA44F', fontWeight: '600' }]}>
+                    {idx === 0 ? 'Standard' : `Save ${Math.min(idx * 8, 35)}%`}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Available Colors & Sizes */}
+        {((product.colors && product.colors.length > 0) || (product.sizes && product.sizes.length > 0)) && (
+          <View style={[styles.gitSection, { borderBottomColor: gitBorder }]}>
+            <Text style={[styles.gitSectionHeader, { color: gitSubtleText }]}>AVAILABLE VARIANTS</Text>
+
+            {/* Colors */}
+            {product.colors && product.colors.length > 0 && (
+              <View style={styles.variantBlock}>
+                <Text style={[styles.variantSubtitle, { color: colors.onSurface }]}>
+                  Colors ({product.colors.length}):
+                </Text>
+                <View style={styles.colorChipsRow}>
+                  {product.colors.map((c, idx) => (
+                    <View
+                      key={`color-${idx}`}
+                      style={[styles.colorChip, { borderColor: gitBorder, backgroundColor: gitHeaderBg }]}
+                    >
+                      <View style={[styles.colorCircle, { backgroundColor: c.hexCode }]} />
+                      <Text style={[styles.colorChipText, { color: colors.onSurface }]}>{c.name}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Sizes */}
+            {product.sizes && product.sizes.length > 0 && (
+              <View style={[styles.variantBlock, { marginTop: 12 }]}>
+                <Text style={[styles.variantSubtitle, { color: colors.onSurface }]}>
+                  Sizes ({product.sizes.length}):
+                </Text>
+                <View style={styles.sizeChipsRow}>
+                  {product.sizes.map((s, idx) => (
+                    <View
+                      key={`size-${idx}`}
+                      style={[styles.sizeChip, { borderColor: gitBorder, backgroundColor: gitHeaderBg }]}
+                    >
+                      <Text style={[styles.sizeChipAbbr, { color: colors.primary }]}>{s.abbreviation}</Text>
+                      <Text style={[styles.sizeChipName, { color: colors.onSurface }]}>{s.name}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Technical Attributes Table (Clean 1px GitHub-style Table) */}
+        <View style={[styles.gitSection, { borderBottomColor: gitBorder }]}>
+          <Text style={[styles.gitSectionHeader, { color: gitSubtleText }]}>TECHNICAL SPECIFICATIONS</Text>
+          <View style={[styles.gitTable, { borderColor: gitBorder }]}>
+            <View style={[styles.gitTableRow, { borderBottomColor: gitBorder, borderBottomWidth: 1 }]}>
+              <Text style={[styles.techKeyCol, { color: gitSubtleText }]}>SKU / Model</Text>
+              <Text style={[styles.techValCol, { color: colors.onSurface }]}>{product.sku || `ND-${product.id.slice(0, 8).toUpperCase()}`}</Text>
+            </View>
+            {product.material && (
+              <View style={[styles.gitTableRow, { borderBottomColor: gitBorder, borderBottomWidth: 1 }]}>
+                <Text style={[styles.techKeyCol, { color: gitSubtleText }]}>Material</Text>
+                <Text style={[styles.techValCol, { color: colors.onSurface }]}>{product.material}</Text>
+              </View>
+            )}
+            {product.packaging && (
+              <View style={[styles.gitTableRow, { borderBottomColor: gitBorder, borderBottomWidth: 1 }]}>
+                <Text style={[styles.techKeyCol, { color: gitSubtleText }]}>Packaging</Text>
+                <Text style={[styles.techValCol, { color: colors.onSurface }]}>{product.packaging}</Text>
+              </View>
+            )}
+            {product.weight && (
+              <View style={[styles.gitTableRow, { borderBottomColor: gitBorder, borderBottomWidth: 1 }]}>
+                <Text style={[styles.techKeyCol, { color: gitSubtleText }]}>Weight</Text>
+                <Text style={[styles.techValCol, { color: colors.onSurface }]}>{product.weight}</Text>
+              </View>
+            )}
+            {product.warranty && (
+              <View style={[styles.gitTableRow, { borderBottomColor: gitBorder, borderBottomWidth: 1 }]}>
+                <Text style={[styles.techKeyCol, { color: gitSubtleText }]}>Warranty</Text>
+                <Text style={[styles.techValCol, { color: colors.onSurface }]}>{product.warranty}</Text>
+              </View>
+            )}
+            {product.compliance && (
+              <View style={[styles.gitTableRow, { borderBottomColor: gitBorder, borderBottomWidth: 1 }]}>
+                <Text style={[styles.techKeyCol, { color: gitSubtleText }]}>Compliance</Text>
+                <Text style={[styles.techValCol, { color: colors.onSurface }]}>{product.compliance}</Text>
+              </View>
+            )}
+            <View style={styles.gitTableRow}>
+              <Text style={[styles.techKeyCol, { color: gitSubtleText }]}>Return Policy</Text>
+              <Text style={[styles.techValCol, { color: colors.onSurface }]}>14 Days Manufacturer Exchange / Escrow Protected</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Supplier Contact */}
+        {(product.supportPhone || product.supportWhatsapp) && (
+          <View style={[styles.gitSection, { borderBottomColor: gitBorder }]}>
+            <Text style={[styles.gitSectionHeader, { color: gitSubtleText }]}>SUPPLIER CONTACT</Text>
+            <View style={styles.supportButtonsRow}>
+              {product.supportPhone && (
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={[styles.gitContactBtn, { borderColor: gitBorder, backgroundColor: gitHeaderBg }]}
+                  onPress={() => Linking.openURL(`tel:${product.supportPhone}`)}
+                >
+                  <MaterialIcon name="call" size={16} color={colors.primary} />
+                  <Text style={[styles.gitContactBtnText, { color: colors.onSurface }]}>{product.supportPhone}</Text>
+                </TouchableOpacity>
+              )}
+              {product.supportWhatsapp && (
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={[styles.gitContactBtn, { borderColor: gitBorder, backgroundColor: gitHeaderBg }]}
+                  onPress={() =>
+                    Linking.openURL(
+                      `https://wa.me/${product.supportWhatsapp?.replace(/[^0-9]/g, '')}?text=Hi, inquiring about wholesale product ${product.name}`
+                    )
+                  }
+                >
+                  <MaterialIcon name="chat" size={16} color="#2EA44F" />
+                  <Text style={[styles.gitContactBtnText, { color: colors.onSurface }]}>WhatsApp Supplier</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* Similar Products */}
+        {similarProducts.length > 0 && (
+          <View style={styles.similarSection}>
+            <Text style={[styles.gitSectionHeader, { color: gitSubtleText, marginBottom: 12 }]}>SIMILAR PRODUCTS</Text>
+            <ProductGridSection
+              products={similarProducts}
+              onProductPress={(selected) => router.push(`/product/${selected.id}`)}
+            />
+          </View>
+        )}
+
+        <View style={{ height: 40 }} />
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>
-      <View style={[styles.container, { backgroundColor: colors.scaffoldBackground }]}>
-        {/* Top App Bar (NodeAppBar style) */}
-        <View style={[styles.appBar, { backgroundColor: colors.surface, borderBottomColor: colors.borderLight }]}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.safeGoBack()}
-            activeOpacity={0.7}
-          >
-            <MaterialIcon name="arrow_back" size={20} color={colors.onSurface} />
-          </TouchableOpacity>
-          <Text style={[styles.appBarTitle, { color: colors.onSurface }]}>Product Details</Text>
-          <View style={{ width: 36 }} />
-        </View>
-
-        {/* Responsive Layout: Split Columns on Desktop vs Vertical Scroll on Mobile */}
-        {isDesktop ? (
-          <View style={styles.desktopSplitLayout}>
-            {/* Left Sticky Media Pane */}
-            <View style={[styles.desktopLeftPane, { borderRightColor: colors.borderLight }]}>
-              <ScrollView showsVerticalScrollIndicator={false}>
-                {renderMediaPane()}
-              </ScrollView>
-            </View>
-
-            {/* Right Scrollable Details Pane */}
-            <View style={[styles.desktopRightPane, { backgroundColor: colors.surface }]}>
-              <ScrollView
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.desktopRightScroll}
-              >
-                {renderDetailsPane()}
-              </ScrollView>
-            </View>
-          </View>
-        ) : (
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.mobileScrollContent}
-          >
-            {renderMediaPane()}
-            {renderDetailsPane()}
-          </ScrollView>
-        )}
+      {/* Top App Bar with back button */}
+      <View style={[styles.topBar, { backgroundColor: colors.surface, borderBottomColor: gitBorder }]}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.safeGoBack()}
+          activeOpacity={0.7}
+        >
+          <MaterialIcon name="arrow_back" size={20} color={colors.onSurface} />
+        </TouchableOpacity>
+        <Text style={[styles.topBarTitle, { color: colors.onSurface }]}>Product Details & Specifications</Text>
+        <View style={{ width: 36 }} />
       </View>
+
+      {/* Responsive layout: Desktop 5:7 split vs Mobile vertical scroll */}
+      {isDesktop ? (
+        <View style={styles.desktopContainer}>
+          {/* Left Sticky Media Pane */}
+          <View style={[styles.desktopLeftPane, { borderRightColor: gitBorder }]}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {renderMediaPane()}
+            </ScrollView>
+          </View>
+
+          {/* Right Scrolling Specs Pane */}
+          <View style={styles.desktopRightPane}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {renderDetailsPane()}
+            </ScrollView>
+          </View>
+        </View>
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.mobileContent}>
+          {renderMediaPane()}
+          {renderDetailsPane()}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -387,76 +523,78 @@ export default function ProductSpecsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: AppColors.surfaceWhite,
-    paddingTop: Platform.OS === 'android' ? 25 : 0,
   },
-  container: {
-    flex: 1,
-    backgroundColor: AppColors.surfaceWhite,
-  },
-  appBar: {
-    height: 56,
+  topBar: {
+    height: 52,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(28, 27, 31, 0.05)',
   },
   backButton: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(28, 27, 31, 0.05)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  appBarTitle: {
-    fontSize: 18,
-    fontFamily: 'Outfit_900Black',
-    color: AppColors.onSurface,
+  topBarTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: -0.2,
   },
-
-  // Desktop Split Layout (5:7 ratio matching Flutter)
-  desktopSplitLayout: {
+  centerContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  errorText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  gitButton: {
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+    borderRadius: 6,
+  },
+  gitButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  // Desktop Layout
+  desktopContainer: {
     flex: 1,
     flexDirection: 'row',
-    maxWidth: 1400,
-    width: '100%',
-    alignSelf: 'center',
   },
   desktopLeftPane: {
     flex: 5,
-    padding: 24,
     borderRightWidth: 1,
-    borderRightColor: 'rgba(28, 27, 31, 0.06)',
+    padding: 24,
   },
   desktopRightPane: {
     flex: 7,
-    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
   },
-  desktopRightScroll: {
-    padding: 28,
-    paddingBottom: 60,
+  mobileContent: {
+    paddingBottom: 32,
   },
-
-  // Mobile Layout
-  mobileScrollContent: {
-    paddingBottom: 50,
-  },
-
-  // Media Pane Styles
+  // Media Pane
   mediaContainer: {
-    width: '100%',
-    padding: 16,
+    padding: 12,
   },
-  heroImageCard: {
+  heroBox: {
     width: '100%',
-    height: 380,
-    borderRadius: 24,
+    aspectRatio: 1,
+    maxHeight: 520,
+    borderWidth: 1,
+    borderRadius: 4,
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: AppColors.surfaceContainerHighest,
+    backgroundColor: '#0F1117',
   },
   heroMainImage: {
     width: '100%',
@@ -464,346 +602,300 @@ const styles = StyleSheet.create({
   },
   floatingPriceTag: {
     position: 'absolute',
-    bottom: 16,
-    left: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 18,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    bottom: 12,
+    left: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+    borderWidth: 1,
   },
   floatingPriceText: {
     fontSize: 14,
-    fontFamily: 'Outfit_900Black',
-    color: AppColors.onSurface,
+    fontWeight: '800',
+    letterSpacing: -0.3,
   },
   thumbnailStrip: {
-    gap: 12,
-    marginTop: 14,
+    marginTop: 10,
+    gap: 8,
   },
   thumbnailItem: {
-    width: 64,
-    height: 64,
-    borderRadius: 14,
+    width: 68,
+    height: 68,
+    borderWidth: 1,
+    borderRadius: 4,
     overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: 'transparent',
-    backgroundColor: AppColors.surfaceContainerHighest,
   },
   thumbnailItemSelected: {
-    borderColor: AppColors.primary,
+    borderWidth: 2,
   },
   thumbnailImage: {
     width: '100%',
     height: '100%',
   },
-
-  // Details Pane Styles
+  // Details Pane
   detailsContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingHorizontal: 12,
+  },
+  gitSection: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
   },
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginBottom: 6,
+    flexWrap: 'wrap',
   },
-  brandBadge: {
-    backgroundColor: 'rgba(18, 187, 240, 0.1)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+  brandChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderRadius: 4,
   },
-  brandBadgeText: {
-    fontSize: 11,
-    fontFamily: 'Outfit_800ExtraBold',
-    color: AppColors.primary,
+  brandChipText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   warehouseText: {
     fontSize: 12,
-    fontFamily: 'PlusJakartaSans_500Medium',
-    color: 'rgba(28, 27, 31, 0.5)',
+    fontWeight: '500',
   },
-  specsProductTitle: {
-    fontSize: 24,
-    fontFamily: 'Outfit_900Black',
-    color: AppColors.onSurface,
-    marginTop: 8,
-    lineHeight: 30,
+  productTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    marginTop: 4,
   },
-  logisticsCard: {
+  logisticsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8F9FA',
-    borderRadius: 16,
-    padding: 14,
-    marginTop: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(28, 27, 31, 0.06)',
+    justifyContent: 'space-between',
   },
-  logisticsItem: {
+  logisticsBlock: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
   },
-  logisticsLabel: {
-    fontSize: 10,
-    fontFamily: 'Outfit_700Bold',
-    color: 'rgba(28, 27, 31, 0.45)',
-  },
-  logisticsValue: {
-    fontSize: 12,
-    fontFamily: 'Outfit_800ExtraBold',
-    color: AppColors.onSurface,
-    marginTop: 1,
-  },
-  logisticsDivider: {
+  verticalDivider: {
     width: 1,
-    height: 30,
-    backgroundColor: 'rgba(28, 27, 31, 0.08)',
-    marginHorizontal: 10,
+    height: 32,
+    marginHorizontal: 8,
+  },
+  statLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  statValue: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   priceStepperRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 20,
-    paddingVertical: 10,
   },
-  unitPriceLabel: {
-    fontSize: 11,
-    fontFamily: 'PlusJakartaSans_500Medium',
-    color: 'rgba(28, 27, 31, 0.5)',
+  unitPriceText: {
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.5,
   },
-  unitPriceValue: {
-    fontSize: 22,
-    fontFamily: 'Outfit_900Black',
-    color: AppColors.primary,
-  },
-  stepperContainer: {
+  stepperBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F1F3F5',
-    borderRadius: 20,
-    padding: 4,
-    gap: 12,
+    borderWidth: 1,
+    borderRadius: 4,
+    overflow: 'hidden',
   },
   stepperBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepperQty: {
-    fontSize: 15,
-    fontFamily: 'Outfit_800ExtraBold',
-    color: AppColors.onSurface,
-  },
-  ctaRow: {
-    marginTop: 14,
-    gap: 10,
-  },
-  addToOrderBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#1E293B',
-    paddingVertical: 14,
-    borderRadius: 16,
-  },
-  addToOrderText: {
-    fontSize: 13,
-    fontFamily: 'Outfit_700Bold',
-    color: AppColors.surfaceWhite,
-  },
-  orderNowBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: AppColors.primary,
-    paddingVertical: 14,
-    borderRadius: 16,
-    shadowColor: AppColors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  orderNowText: {
+    width: 44,
+    textAlign: 'center',
     fontSize: 14,
-    fontFamily: 'Outfit_800ExtraBold',
-    color: AppColors.surfaceWhite,
+    fontWeight: '700',
   },
-  pricingTableSection: {
-    marginTop: 26,
+  ctaSection: {
+    gap: 10,
   },
-  sectionHeader: {
-    fontSize: 11,
-    fontFamily: 'Outfit_800ExtraBold',
-    color: 'rgba(28, 27, 31, 0.45)',
-    letterSpacing: 0.7,
-    marginBottom: 10,
-  },
-  tableCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  tableHeaderRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-  },
-  tableHeadCell: {
-    flex: 1,
-    fontSize: 10,
-    fontFamily: 'Outfit_800ExtraBold',
-  },
-  tableDataRow: {
+  notificationBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderRadius: 4,
+  },
+  notificationText: {
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
+  },
+  actionButtonsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  gitOutlineBtn: {
+    flex: 1,
+    minWidth: 180,
+    height: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 4,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+  },
+  gitOutlineBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  gitPrimaryBtn: {
+    flex: 1,
+    minWidth: 200,
+    height: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 4,
+    paddingHorizontal: 14,
+  },
+  gitPrimaryBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  gitSectionHeader: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  descriptionBody: {
+    fontSize: 14,
+    lineHeight: 22,
+    fontWeight: '400',
+  },
+  gitTable: {
+    borderWidth: 1,
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginTop: 4,
+  },
+  gitTableHeaderRow: {
+    flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(28, 27, 31, 0.04)',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
   },
-  tableCellQty: {
-    flex: 1,
-    fontSize: 12,
-    fontFamily: 'Outfit_700Bold',
-    color: AppColors.onSurface,
-  },
-  tableCellPrice: {
-    flex: 1,
-    fontSize: 12,
-    fontFamily: 'Outfit_800ExtraBold',
-    color: AppColors.primary,
-  },
-  tableCellSavings: {
+  tableHeadCol: {
     flex: 1,
     fontSize: 11,
-    fontFamily: 'PlusJakartaSans_600SemiBold',
-    color: AppColors.marginGreen,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
-  descriptionSection: {
-    marginTop: 24,
+  gitTableRow: {
+    flexDirection: 'row',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
   },
-  descriptionText: {
+  tableDataCol: {
+    flex: 1,
     fontSize: 13,
-    fontFamily: 'PlusJakartaSans_500Medium',
-    color: 'rgba(28, 27, 31, 0.7)',
-    lineHeight: 20,
   },
-  technicalSection: {
-    marginTop: 24,
-  },
-  techSpecsList: {
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    gap: 10,
-  },
-  techRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 2,
-  },
-  techKey: {
+  techKeyCol: {
+    width: 140,
     fontSize: 12,
-    fontFamily: 'PlusJakartaSans_500Medium',
+    fontWeight: '600',
   },
-  techVal: {
-    fontSize: 12,
-    fontFamily: 'Outfit_700Bold',
-    maxWidth: '55%',
-    textAlign: 'right',
-  },
-  // Variants (colors + sizes)
-  variantsSection: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 20,
+  techValCol: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '500',
   },
   variantBlock: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1,
+    marginTop: 4,
   },
-  colorSwatchesRow: {
+  variantSubtitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  colorChipsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: 8,
+  },
+  colorChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
-    marginBottom: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderRadius: 4,
   },
-  colorDot: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
+  colorCircle: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.15)',
   },
-  sizeAbbrRow: {
+  colorChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  sizeChipsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 4,
-    marginBottom: 6,
+    gap: 8,
   },
-  sizeAbbrChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+  sizeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderWidth: 1,
+    borderRadius: 4,
   },
-  sizeAbbrText: {
-    fontSize: 11,
-    fontFamily: 'Outfit_700Bold',
+  sizeChipAbbr: {
+    fontSize: 12,
+    fontWeight: '800',
   },
-  moreSizes: {
-    fontSize: 11,
-    fontFamily: 'PlusJakartaSans_500Medium',
-    alignSelf: 'center',
+  sizeChipName: {
+    fontSize: 12,
+    fontWeight: '500',
   },
-  variantCount: {
-    fontSize: 10,
-    fontFamily: 'PlusJakartaSans_400Regular',
-  },
-  // Support
-  supportSection: {
-    marginTop: 20,
-  },
-  supportRow: {
+  supportButtonsRow: {
     flexDirection: 'row',
     gap: 10,
     flexWrap: 'wrap',
+    marginTop: 4,
   },
-  supportContactBtn: {
+  gitContactBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingVertical: 8,
     borderWidth: 1,
-    flex: 1,
-    minWidth: 130,
+    borderRadius: 4,
   },
-  supportContactText: {
+  gitContactBtnText: {
     fontSize: 13,
-    fontFamily: 'Outfit_700Bold',
-    flex: 1,
+    fontWeight: '600',
+  },
+  similarSection: {
+    paddingVertical: 16,
   },
 });

@@ -514,10 +514,10 @@ const styles = StyleSheet.create({
   },
   builderCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: 4,
+    padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(28, 27, 31, 0.06)',
+    borderColor: 'rgba(28, 27, 31, 0.12)',
   },
   desktopBuilderCard: {
     flex: 6,
@@ -526,14 +526,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    paddingBottom: 16,
+    paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(28, 27, 31, 0.06)',
+    borderBottomColor: 'rgba(28, 27, 31, 0.08)',
   },
   productThumb: {
-    width: 60,
-    height: 60,
-    borderRadius: 14,
+    width: 56,
+    height: 56,
+    borderRadius: 4,
     backgroundColor: AppColors.surfaceContainerHighest,
   },
   productInfo: {
@@ -563,13 +563,13 @@ const styles = StyleSheet.create({
     color: 'rgba(28, 27, 31, 0.5)',
   },
   sectionBlock: {
-    marginTop: 20,
+    marginTop: 16,
   },
   sectionLabelRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   sectionCountBadge: {
     fontSize: 11,
@@ -578,23 +578,23 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 11,
     fontFamily: 'Outfit_800ExtraBold',
-    color: 'rgba(28, 27, 31, 0.45)',
-    letterSpacing: 0.6,
+    color: 'rgba(28, 27, 31, 0.55)',
+    letterSpacing: 0.5,
   },
   colorVariantsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 8,
   },
   colorChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 14,
+    paddingVertical: 7,
+    borderRadius: 4,
     borderWidth: 1,
-    borderColor: 'rgba(28, 27, 31, 0.1)',
+    borderColor: 'rgba(28, 27, 31, 0.15)',
     backgroundColor: '#FFFFFF',
   },
   colorChipSelected: {
@@ -602,9 +602,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(18, 187, 240, 0.06)',
   },
   colorCircle: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
   },
   colorLabel: {
     fontSize: 12,
@@ -620,11 +620,11 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   sizeChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 4,
     borderWidth: 1,
-    borderColor: 'rgba(28, 27, 31, 0.1)',
+    borderColor: 'rgba(28, 27, 31, 0.15)',
     backgroundColor: '#FFFFFF',
   },
   sizeChipSelected: {
@@ -645,12 +645,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   stepperBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 4,
     backgroundColor: '#F1F3F5',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(28, 27, 31, 0.12)',
   },
   stepperNumber: {
     fontSize: 16,
@@ -666,8 +668,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     backgroundColor: AppColors.primary,
-    paddingVertical: 10,
-    borderRadius: 18,
+    paddingVertical: 9,
+    borderRadius: 4,
     marginLeft: 6,
   },
   addBatchText: {
@@ -676,18 +678,18 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   summaryCard: {
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: 4,
+    padding: 16,
     borderWidth: 1,
   },
   desktopSummaryCard: {
     flex: 5,
   },
   summaryTitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: 'Outfit_800ExtraBold',
     letterSpacing: 0.6,
-    marginBottom: 14,
+    marginBottom: 12,
   },
   emptyBreakdown: {
     alignItems: 'center',
@@ -706,11 +708,13 @@ const styles = StyleSheet.create({
     maxWidth: 240,
   },
   groupsList: {
-    gap: 12,
+    gap: 10,
   },
   groupCard: {
-    borderRadius: 14,
-    padding: 12,
+    borderRadius: 4,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(28, 27, 31, 0.08)',
   },
   groupHeader: {
     flexDirection: 'row',
@@ -738,7 +742,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 4,
     borderWidth: 1,
   },
   sizePillName: {
@@ -755,7 +759,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(28, 27, 31, 0.06)',
+    borderTopColor: 'rgba(28, 27, 31, 0.08)',
     gap: 6,
   },
   calcRow: {
@@ -766,7 +770,7 @@ const styles = StyleSheet.create({
   calcLabel: {
     fontSize: 12,
     fontFamily: 'PlusJakartaSans_500Medium',
-    color: 'rgba(28, 27, 31, 0.5)',
+    color: 'rgba(28, 27, 31, 0.55)',
   },
   calcValue: {
     fontSize: 13,
@@ -784,14 +788,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     backgroundColor: AppColors.primary,
-    paddingVertical: 14,
-    borderRadius: 20,
+    paddingVertical: 12,
+    borderRadius: 4,
     marginTop: 10,
-    shadowColor: AppColors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 3,
   },
   confirmOrderText: {
     fontSize: 13.5,

@@ -70,6 +70,7 @@ export function CategoryBranchPicker({
   const [newCategoryImageUri, setNewCategoryImageUri] = useState<string | null>(null);
   const [newCategoryImageBase64, setNewCategoryImageBase64] = useState<string | null>(null);
   const [isSavingCategory, setIsSavingCategory] = useState(false);
+  const [createCategoryError, setCreateCategoryError] = useState<string | null>(null);
 
   const handlePickCategoryImage = async () => {
     try {
@@ -172,24 +173,35 @@ export function CategoryBranchPicker({
     if (!newCategoryName.trim()) return;
 
     setIsSavingCategory(true);
+    setCreateCategoryError(null);
     try {
       const parent = currentParent;
       let created: CategoryDto;
 
       if (newCategoryImageUri) {
-        // Use multipart upload — the picker gives us a file:// URI, not base64
-        created = await ProductApiService.createCategoryWithImage({
-          name: newCategoryName.trim(),
-          parent_id: parent ? parent.id : null,
-          level: parent ? (parent.level || 0) + 1 : 0,
-          file: {
-            uri: newCategoryImageUri,
-            name: 'category.jpg',
-            type: 'image/jpeg',
-          },
-        }, getToken() ?? undefined);
+        try {
+          // Use multipart upload with image
+          created = await ProductApiService.createCategoryWithImage({
+            name: newCategoryName.trim(),
+            parent_id: parent ? parent.id : null,
+            level: parent ? (parent.level || 0) + 1 : 0,
+            file: {
+              uri: newCategoryImageUri,
+              name: 'category.jpg',
+              type: 'image/jpeg',
+            },
+          }, getToken() ?? undefined);
+        } catch (imgErr: any) {
+          console.warn('Category creation with image failed, falling back to text-only:', imgErr.message);
+          // Fallback: create category without image so process is not blocked
+          created = await ProductApiService.createCategory({
+            name: newCategoryName.trim(),
+            parent_id: parent ? parent.id : null,
+            level: parent ? (parent.level || 0) + 1 : 0,
+          }, getToken() ?? undefined);
+        }
       } else {
-        // No image — JSON payload without image
+        // No image — JSON payload
         created = await ProductApiService.createCategory({
           name: newCategoryName.trim(),
           parent_id: parent ? parent.id : null,
@@ -208,6 +220,7 @@ export function CategoryBranchPicker({
       handleSelectFinal(created);
     } catch (err: any) {
       console.warn('Create category error:', err.message);
+      setCreateCategoryError(err.message || 'Failed to create category.');
     } finally {
       setIsSavingCategory(false);
     }
@@ -338,7 +351,8 @@ export function CategoryBranchPicker({
           ) : (
             <ScrollView style={styles.listContent} showsVerticalScrollIndicator={false}>
               {displayedCategories.map((item) => {
-                const hasSub = categories.some((c) => c.parent_id === item.id);
+                const subCats = categories.filter((c) => c.parent_id === item.id);
+                const hasSub = subCats.length > 0;
                 const isSelected = selectedCategoryId === item.id;
                 const pathDesc = searchQuery ? buildBreadcrumb(item) : null;
                 const categoryImage = getCategoryImageSource(
@@ -357,10 +371,10 @@ export function CategoryBranchPicker({
                       },
                     ]}
                   >
-                    {/* Left tap area: selects this category directly */}
+                    {/* Main tap area: If it has subcategories, tapping navigates INTO subcategories; if leaf, selects it */}
                     <TouchableOpacity
                       activeOpacity={0.7}
-                      onPress={() => handleSelectFinal(item)}
+                      onPress={() => (hasSub && !searchQuery ? handleDrillIn(item) : handleSelectFinal(item))}
                       style={styles.categoryRowLeft}
                     >
                       {categoryImage ? (
@@ -386,7 +400,7 @@ export function CategoryBranchPicker({
                           ]}
                         >
                           <MaterialIcon
-                            name={hasSub ? 'folder' : 'label'}
+                            name={hasSub ? 'folder_open' : 'label'}
                             size={18}
                             color={isSelected ? '#FFFFFF' : colors.primary}
                           />
@@ -410,26 +424,58 @@ export function CategoryBranchPicker({
                           </Text>
                         )}
                         {!searchQuery && (
-                          <Text style={[styles.categoryPath, { color: colors.onSurfaceMuted }]}>
-                            {hasSub ? 'Has subcategories · tap → to drill in' : 'Tap → to add subcategories'}
+                          <Text
+                            style={[
+                              styles.categoryPath,
+                              { color: hasSub ? colors.primary : colors.onSurfaceMuted, fontWeight: hasSub ? '600' : '400' },
+                            ]}
+                          >
+                            {hasSub
+                              ? `› ${subCats.length} sub-categor${subCats.length === 1 ? 'y' : 'ies'} · Tap to explore`
+                              : '✓ Leaf category · Tap to select'}
                           </Text>
                         )}
                       </View>
-                      {isSelected && <MaterialIcon name="check" size={18} color={colors.primary} />}
                     </TouchableOpacity>
 
-                    {/* Right tap area: drills into this category to browse/create subcategories */}
-                    {!searchQuery && (
+                    {/* Right action button: If has subcategories, provides dedicated "Select" button to pick this parent directly */}
+                    {!searchQuery && hasSub && (
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => handleSelectFinal(item)}
+                        style={[
+                          styles.directSelectBtn,
+                          {
+                            borderColor: isSelected ? colors.primary : isDark ? colors.borderLight : '#D1D5DB',
+                            backgroundColor: isSelected ? colors.primary : 'transparent',
+                          },
+                        ]}
+                      >
+                        <MaterialIcon
+                          name={isSelected ? 'check' : 'check_circle_outline'}
+                          size={14}
+                          color={isSelected ? '#FFFFFF' : colors.primary}
+                        />
+                        <Text
+                          style={[
+                            styles.directSelectBtnText,
+                            { color: isSelected ? '#FFFFFF' : colors.onSurface },
+                          ]}
+                        >
+                          Select
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+
+                    {!searchQuery && !hasSub && (
                       <TouchableOpacity
                         activeOpacity={0.5}
                         onPress={() => handleDrillIn(item)}
                         style={styles.drillAction}
                         hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }}
                       >
-                        <Text style={[styles.subCountText, { color: colors.onSurfaceMuted }]}>
-                          {hasSub ? 'Branch' : 'Enter'}
-                        </Text>
-                        <MaterialIcon name="chevron_right" size={20} color={colors.onSurfaceMuted} />
+                        <Text style={[styles.subCountText, { color: colors.onSurfaceMuted }]}>+ Sub</Text>
+                        <MaterialIcon name="chevron_right" size={18} color={colors.onSurfaceMuted} />
                       </TouchableOpacity>
                     )}
                   </View>
@@ -505,12 +551,16 @@ export function CategoryBranchPicker({
                       setIsCreatingModal(false);
                       setNewCategoryImageUri(null);
                       setNewCategoryImageBase64(null);
+                      setCreateCategoryError(null);
                     }}
                     style={styles.createBtnCancel}
                   >
                     <MaterialIcon name="close" size={20} color={colors.onSurfaceMuted} />
                   </TouchableOpacity>
                 </View>
+                {createCategoryError && (
+                  <Text style={styles.createErrorText}>{createCategoryError}</Text>
+                )}
               </View>
             ) : (
               <TouchableOpacity
@@ -679,6 +729,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  directSelectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 4,
+    borderWidth: 1,
+  },
+  directSelectBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  createErrorText: {
+    color: '#EF4444',
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 4,
   },
   subCountText: {
     fontSize: 12,

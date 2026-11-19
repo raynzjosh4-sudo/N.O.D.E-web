@@ -197,6 +197,28 @@ export class ProfileApiService {
   }
 
   /**
+   * Add / save product to user's saved wishlist / bulk bag
+   */
+  static async addSavedItem(
+    productId: string,
+    quantity = 1,
+    color?: string,
+    size?: string,
+    productSnapshot?: Record<string, any>
+  ): Promise<any> {
+    return apiClient(API_ENDPOINTS.SAVED.ADD, {
+      method: 'POST',
+      body: JSON.stringify({
+        product_id: productId,
+        quantity,
+        selected_color: color,
+        selected_size: size,
+        product_snapshot: productSnapshot,
+      }),
+    });
+  }
+
+  /**
    * Remove item from saved wishlist
    */
   static async removeSavedItem(savedItemId: string): Promise<void> {

@@ -389,13 +389,29 @@ export function EditProductSheet({
     }
   }, [categoryId, categories]);
 
+  const prevVisibleRef = useRef(false);
+  const prevProductIdRef = useRef<string | undefined>(undefined);
+
   useEffect(() => {
     if (!visible) {
+      prevVisibleRef.current = false;
+      prevProductIdRef.current = undefined;
       setIsLoadingDetails(false);
       setInlineError(null);
       setInlineSuccess(null);
       return;
     }
+
+    const isNewlyOpening = !prevVisibleRef.current;
+    const isDifferentProduct = (product?.id ?? null) !== (prevProductIdRef.current ?? null);
+
+    if (!isNewlyOpening && !isDifferentProduct) {
+      // Sheet is already open and on the same session — do not reset user inputs!
+      return;
+    }
+
+    prevVisibleRef.current = true;
+    prevProductIdRef.current = product?.id;
 
     if (product) {
       // 1. Immediately apply whatever summary data we already have
@@ -418,8 +434,12 @@ export function EditProductSheet({
           });
       }
     } else {
+      // New product: prefill user's brand from business profile so they don't have to retype
+      const defaultBrand = user?.legalBusinessName || user?.name || '';
       setName('');
-      setBrand('');
+      setBrand(defaultBrand);
+      setPendingPrimaryImage(null);
+      setPendingGalleryImages([]);
       setCategoryId('');
       setCategoryName('');
       setCategoryPath('');
@@ -473,7 +493,7 @@ export function EditProductSheet({
     setIsFullScreen(false);
     setInlineError(null);
     setInlineSuccess(null);
-  }, [product, visible, applyProductData]);
+  }, [product, visible, applyProductData, user?.legalBusinessName, user?.name]);
 
   const handleAddCustomColor = () => {
     if (!customColorName.trim()) return;
