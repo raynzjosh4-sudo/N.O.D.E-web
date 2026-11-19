@@ -315,7 +315,7 @@ export function EditProductSheet({
       setSku(p.sku || '');
       setSlug(p.slug || (p.name ? p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : ''));
       setImageUrl(p.imageUrl || '');
-      setDescription(p.description || p.seoDescription || '');
+      setDescription(p.description || '');
       setStatus((p.status as any) || 'active');
 
       if (p.colors && p.colors.length > 0) {
@@ -361,7 +361,7 @@ export function EditProductSheet({
       if (p.supportPhone) setSupportPhone(p.supportPhone);
       if (p.supportEmail) setSupportEmail(p.supportEmail);
       if (p.seoTitle) setSeoTitle(p.seoTitle);
-      if (p.seoDescription) setSeoDescription(p.seoDescription || p.description || '');
+      if (p.seoDescription) setSeoDescription(p.seoDescription);
     },
     [categories]
   );
@@ -2045,13 +2045,15 @@ const styles = StyleSheet.create({
     transitionDuration: '280ms',
   } as any,
   sheetContainerDesktop: {
-    borderRadius: 24,
-    maxHeight: '88%',
+    borderRadius: 6,
+    maxHeight: '90%',
     maxWidth: 780,
-    paddingTop: 22,
+    paddingTop: 18,
     paddingBottom: 16,
-    shadowOffset: { width: 0, height: 12 },
-    shadowRadius: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(28, 27, 31, 0.12)',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   sheetContainerFullScreen: {
     maxHeight: '100%',
@@ -2067,21 +2069,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   handlebar: {
-    width: 36,
-    height: 4,
+    width: 32,
+    height: 3,
     borderRadius: 2,
     alignSelf: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 12,
     paddingHorizontal: 4,
   },
   title: {
-    fontSize: 20,
+    fontSize: 18,
     fontFamily: 'Outfit_800ExtraBold',
   },
   subtitle: {
@@ -2105,7 +2107,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingVertical: 10,
+    paddingVertical: 9,
     paddingHorizontal: 12,
   },
   sectionTabText: {
@@ -2127,7 +2129,7 @@ const styles = StyleSheet.create({
   imageThumbnailBox: {
     width: 68,
     height: 68,
-    borderRadius: 14,
+    borderRadius: 6,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -2173,8 +2175,8 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 44,
-    borderRadius: 12,
+    height: 42,
+    borderRadius: 6,
     borderWidth: 1,
     paddingHorizontal: 12,
     gap: 8,
@@ -2187,7 +2189,7 @@ const styles = StyleSheet.create({
     outlineStyle: 'none' as any,
   },
   textAreaWrapper: {
-    borderRadius: 12,
+    borderRadius: 6,
     borderWidth: 1,
     padding: 12,
   },
@@ -2213,7 +2215,7 @@ const styles = StyleSheet.create({
   statusBtn: {
     flex: 1,
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: 6,
     borderWidth: 1,
     alignItems: 'center',
   },
@@ -2235,13 +2237,13 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 12,
+    borderRadius: 6,
     borderWidth: 1,
   },
   colorSwatchCircle: {
     width: 16,
     height: 16,
-    borderRadius: 8,
+    borderRadius: 3,
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.1)',
   },
@@ -2262,9 +2264,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   colorPreviewBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 42,
+    height: 42,
+    borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2280,9 +2282,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
     borderWidth: 1,
   },
   presetName: {
@@ -2303,9 +2305,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    height: 44,
+    height: 42,
     paddingHorizontal: 14,
-    borderRadius: 12,
+    borderRadius: 6,
     justifyContent: 'center',
   },
   addBtnSmallText: {
@@ -2318,7 +2320,7 @@ const styles = StyleSheet.create({
   sizeAbbrBadge: {
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: 4,
   },
   sizeAbbrText: {
     fontSize: 11,
@@ -2330,8 +2332,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 12,
+    padding: 10,
+    borderRadius: 6,
     borderWidth: 1,
     marginBottom: 8,
   },
@@ -2342,8 +2344,8 @@ const styles = StyleSheet.create({
   },
   tierBadge: {
     paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
   },
   tierQty: {
     fontSize: 11,
@@ -2360,8 +2362,8 @@ const styles = StyleSheet.create({
   },
   addTierInputBox: {
     flex: 1,
-    height: 44,
-    borderRadius: 12,
+    height: 42,
+    borderRadius: 6,
     borderWidth: 1,
     paddingHorizontal: 12,
     justifyContent: 'center',
@@ -2371,8 +2373,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 14,
-    height: 44,
-    borderRadius: 12,
+    height: 42,
+    borderRadius: 6,
     justifyContent: 'center',
   },
   addTierBtnText: {
@@ -2387,13 +2389,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     padding: 8,
-    borderRadius: 10,
+    borderRadius: 6,
     marginBottom: 6,
   },
   miniMediaThumb: {
     width: 36,
     height: 36,
-    borderRadius: 6,
+    borderRadius: 4,
   },
   miniMediaUrlText: {
     flex: 1,
@@ -2412,7 +2414,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     padding: 12,
-    borderRadius: 12,
+    borderRadius: 6,
     borderWidth: 1,
     marginBottom: 12,
   },
@@ -2437,8 +2439,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    height: 48,
-    borderRadius: 14,
+    height: 44,
+    borderRadius: 6,
   },
   saveButtonText: {
     color: '#FFFFFF',
@@ -2450,8 +2452,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    height: 44,
-    borderRadius: 14,
+    height: 42,
+    borderRadius: 6,
     marginTop: 8,
     backgroundColor: 'rgba(255, 77, 79, 0.08)',
   },

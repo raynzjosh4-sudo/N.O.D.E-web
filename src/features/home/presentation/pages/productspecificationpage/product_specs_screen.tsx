@@ -299,7 +299,6 @@ export default function ProductSpecsScreen() {
           <Text style={[styles.gitSectionHeader, { color: gitSubtleText }]}>DESCRIPTION & SPECIFICATIONS</Text>
           <Text style={[styles.descriptionBody, { color: colors.onSurface }]}>
             {product.description ||
-              product.seoDescription ||
               'Enterprise wholesale unit with official manufacturer warranty. Includes full QA inspection, individual protective packaging, and direct pallet logistics support across Uganda and the East African Community.'}
           </Text>
         </View>

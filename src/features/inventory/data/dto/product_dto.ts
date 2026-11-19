@@ -50,6 +50,7 @@ export interface ProductSupportDto {
 export interface TradingTermsDto {
   id?: string;
   content?: string;
+  description?: string;
   moq?: string;
   warranty?: string;
   paymentTerms?: string;
@@ -179,6 +180,7 @@ export interface ProductCreateRequestDto {
   current_stock?: number;
   lead_time_days?: number;
   warehouse_loc?: string | null;
+  description?: string | null;
   seo_title?: string | null;
   seo_description?: string | null;
   search_keywords?: string[];
@@ -214,6 +216,7 @@ export interface ProductUpdateRequestDto {
   current_stock?: number;
   lead_time_days?: number;
   warehouse_loc?: string | null;
+  description?: string | null;
   seo_title?: string | null;
   seo_description?: string | null;
   search_keywords?: string[];

@@ -114,15 +114,15 @@ export class ProductMapper {
       volumeCbm: dto.volume_cbm ? `${dto.volume_cbm} CBM` : undefined,
       originCountry: dto.origin_country,
       leadTimeDays: dto.lead_time_days ? String(dto.lead_time_days) : undefined,
-      description: dto.description || dto.seo_description || '',
+      description: dto.description || (dto.trading_terms as any)?.description || '',
       warranty: dto.trading_terms?.warranty,
       paymentTerms: dto.trading_terms?.paymentTerms,
       deliveryTerms: dto.trading_terms?.deliveryTerms,
       supportWhatsapp: dto.support?.whatsapp,
       supportPhone: dto.support?.phone,
       supportEmail: dto.support?.email,
-      seoTitle: dto.seo_title,
-      seoDescription: dto.seo_description,
+      seoTitle: dto.seo_title || '',
+      seoDescription: dto.seo_description || '',
       colors: dto.available_colors?.map((c) => ({ name: c.name, hexCode: c.hexCode })) || [],
       sizes: dto.available_sizes?.map((s) => ({ name: s.name, abbreviation: s.abbreviation })) || [],
       materialsList: dto.available_materials?.map((m) => ({ name: m.name, imageUrl: m.imageUrl })) || [],
@@ -174,8 +174,9 @@ export class ProductMapper {
       hs_code: product.hsCode,
       unbs_number: product.unbsNumber,
       origin_country: product.originCountry || 'Uganda',
-      seo_title: product.seoTitle,
-      seo_description: product.seoDescription,
+      seo_title: product.seoTitle || '',
+      seo_description: product.seoDescription || '',
+      description: product.description || '',
       available_colors: product.colors?.map((c) => ({ name: c.name, hexCode: c.hexCode })),
       available_sizes: product.sizes?.map((s) => ({ name: s.name, abbreviation: s.abbreviation })),
       available_materials: product.materialsList?.map((m) => ({ name: m.name, imageUrl: m.imageUrl })),
@@ -186,7 +187,8 @@ export class ProductMapper {
       },
       trading_terms: {
         id: 'tt_default',
-        content: 'Standard wholesale trade terms apply.',
+        content: product.description || 'Standard wholesale trade terms apply.',
+        description: product.description || '',
         moq: product.moqText || (product.moq ? `${product.moq} units` : '1 unit'),
         warranty: product.warranty,
         paymentTerms: product.paymentTerms || 'Bank transfer / Mobile Money on invoice',
@@ -218,9 +220,8 @@ export class ProductMapper {
     if (updates.unbsNumber !== undefined) payload.unbs_number = updates.unbsNumber;
     if (updates.originCountry !== undefined) payload.origin_country = updates.originCountry;
     if (updates.seoTitle !== undefined) payload.seo_title = updates.seoTitle;
-    if (updates.seoDescription !== undefined || updates.description !== undefined) {
-      payload.seo_description = updates.seoDescription || updates.description;
-    }
+    if (updates.seoDescription !== undefined) payload.seo_description = updates.seoDescription;
+    if (updates.description !== undefined) payload.description = updates.description;
 
     if (updates.weight !== undefined) {
       const weightNum = parseFloat(String(updates.weight).replace(/[^0-9.]/g, ''));
@@ -266,6 +267,7 @@ export class ProductMapper {
     }
 
     if (
+      updates.description !== undefined ||
       updates.moq !== undefined ||
       updates.moqText !== undefined ||
       updates.warranty !== undefined ||
@@ -274,7 +276,8 @@ export class ProductMapper {
     ) {
       payload.trading_terms = {
         id: 'tt_default',
-        content: 'Standard wholesale trade terms apply.',
+        content: updates.description || 'Standard wholesale trade terms apply.',
+        description: updates.description || '',
         moq: updates.moqText || (updates.moq ? `${updates.moq} units` : '1 unit'),
         warranty: updates.warranty,
         paymentTerms: updates.paymentTerms || 'Bank transfer / Mobile Money on invoice',
