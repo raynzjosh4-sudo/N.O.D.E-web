@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { useAppTheme } from '@/core/theme/theme_context';
 import { MaterialIcon } from '@/core/widgets/material_icon';
 import { useProducts } from '@/features/inventory/context/products_context';
 import { Product } from '@/features/inventory/domain/entities/product';
+import { ProductApiService } from '@/features/inventory/data/services/product_api_service';
 import { ProductGridSection } from '@/features/home/presentation/widgets/product_grid_section';
 import { useToast } from '@/core/widgets/whatsapp_dialog';
 
@@ -29,7 +30,21 @@ export default function ProductDetailScreen() {
   const { showSuccess } = useToast();
   const { products, getProductById } = useProducts();
 
-  const product: Product | undefined = (id ? getProductById(id) : undefined) || products[0];
+  const initialProduct = (id ? getProductById(id) : undefined) || products[0];
+  const [product, setProduct] = useState<Product | undefined>(initialProduct);
+
+  // Fetch complete product details from backend API to guarantee real colors and sizes
+  useEffect(() => {
+    if (id) {
+      ProductApiService.getProductById(id)
+        .then((fullProd) => {
+          if (fullProd) setProduct(fullProd);
+        })
+        .catch((err) => {
+          console.log('[ProductDetailScreen] Fresh product fetch error:', err);
+        });
+    }
+  }, [id]);
 
   const [selectedMediaIdx, setSelectedMediaIdx] = useState(0);
   const [selectedColorIdx, setSelectedColorIdx] = useState(0);
@@ -74,19 +89,13 @@ export default function ProductDetailScreen() {
   const activeUnitPrice = matchedTier ? matchedTier.price : product.srp;
   const subtotal = activeUnitPrice * quantity;
 
-  // Fallback defaults for rich rendering
+  // Use the product's actual colors and sizes from the database
   const colorsList = product.colors && product.colors.length > 0 ? product.colors : [
-    { name: 'Standard Black', hexCode: '#1C1B1F' },
-    { name: 'Pure White', hexCode: '#FFFFFF' },
-    { name: 'Navy Blue', hexCode: '#1E3A8A' },
-    { name: 'Slate Gray', hexCode: '#64748B' },
+    { name: 'Standard / As Shown', hexCode: '#1C1B1F' },
   ];
 
   const sizesList = product.sizes && product.sizes.length > 0 ? product.sizes : [
-    { name: 'Medium Unit', abbreviation: 'M' },
-    { name: 'Large Unit', abbreviation: 'L' },
-    { name: 'Extra Large', abbreviation: 'XL' },
-    { name: 'Commercial Carton', abbreviation: 'CTN' },
+    { name: 'Standard Unit', abbreviation: 'STD' },
   ];
 
   /* ──────────────────────────────────────────────────────────

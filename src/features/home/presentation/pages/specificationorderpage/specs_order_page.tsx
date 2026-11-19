@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { useAppTheme } from '@/core/theme/theme_context';
 import { MaterialIcon } from '@/core/widgets/material_icon';
 import { useToast } from '@/core/widgets/whatsapp_dialog';
 import { ProfileApiService } from '@/features/profile/data/services/profile_api_service';
+import { ProductApiService } from '@/features/inventory/data/services/product_api_service';
 import { Product } from '@/features/inventory/domain/entities/product';
 import { useProducts } from '@/features/inventory/context/products_context';
 import {
@@ -36,16 +37,70 @@ export default function SpecsOrderPage() {
   const isDesktop = width >= 960;
   const { getProductById } = useProducts();
 
-  const product: Product | undefined = id ? getProductById(id) : undefined;
+  const initialProduct = id ? getProductById(id) : undefined;
+  const [product, setProduct] = useState<Product | undefined>(initialProduct);
+
+  // Fetch full product detail to ensure real colors, sizes, and attributes from DB
+  useEffect(() => {
+    if (id) {
+      ProductApiService.getProductById(id)
+        .then((fullProd) => {
+          if (fullProd) setProduct(fullProd);
+        })
+        .catch((err) => {
+          console.log('[SpecsOrderPage] Could not fetch fresh product details:', err);
+        });
+    }
+  }, [id]);
+
+  // Dynamically derive the product's actual colors from database
+  const availableColors: ColorVariant[] = useMemo(() => {
+    if (product?.colors && product.colors.length > 0) {
+      return product.colors.map((c) => ({
+        label: c.name,
+        color: c.hexCode || '#1C1B1F',
+      }));
+    }
+    return [
+      { label: 'Standard / As Shown', color: '#1C1B1F' },
+    ];
+  }, [product?.colors]);
+
+  // Dynamically derive the product's actual sizes from database
+  const availableSizes: string[] = useMemo(() => {
+    if (product?.sizes && product.sizes.length > 0) {
+      return product.sizes.map((s) => s.abbreviation || s.name);
+    }
+    return ['Standard Unit'];
+  }, [product?.sizes]);
 
   // Confirmed color/size groupings
   const [confirmedGroups, setConfirmedGroups] = useState<ColorGroup[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Current builder selections
-  const [selectedColor, setSelectedColor] = useState<ColorVariant>(DEFAULT_COLOR_VARIANTS[0]);
-  const [selectedSize, setSelectedSize] = useState<string>(DEFAULT_SIZES[0]);
-  const [currentQty, setCurrentQty] = useState<number>(5);
+  const [selectedColor, setSelectedColor] = useState<ColorVariant>(availableColors[0]);
+  const [selectedSize, setSelectedSize] = useState<string>(availableSizes[0]);
+  const [currentQty, setCurrentQty] = useState<number>(product?.moq || 2);
+
+  // Keep selectedColor and selectedSize in sync with dynamic product data
+  useEffect(() => {
+    if (availableColors.length > 0) {
+      const stillValid = availableColors.some((c) => c.label === selectedColor?.label);
+      if (!stillValid) {
+        setSelectedColor(availableColors[0]);
+      }
+    }
+  }, [availableColors]);
+
+  useEffect(() => {
+    if (availableSizes.length > 0) {
+      const stillValid = availableSizes.includes(selectedSize);
+      if (!stillValid) {
+        setSelectedSize(availableSizes[0]);
+      }
+    }
+  }, [availableSizes]);
 
   const formatPrice = (val: number) => {
     return 'UGX ' + val.toLocaleString('en-US');
@@ -211,10 +266,16 @@ export default function SpecsOrderPage() {
 
             {/* 1. SELECT COLOR */}
             <View style={styles.sectionBlock}>
-              <Text style={[styles.sectionLabel, { color: colors.onSurfaceMuted }]}>1. SELECT COLOR</Text>
+              <View style={styles.sectionLabelRow}>
+                <Text style={[styles.sectionLabel, { color: colors.onSurfaceMuted }]}>1. SELECT COLOR</Text>
+                <Text style={[styles.sectionCountBadge, { color: colors.primary }]}>
+                  {availableColors.length} Option{availableColors.length !== 1 ? 's' : ''}
+                </Text>
+              </View>
               <View style={styles.colorVariantsGrid}>
-                {DEFAULT_COLOR_VARIANTS.map((variant) => {
-                  const isSelected = selectedColor.label === variant.label;
+                {availableColors.map((variant) => {
+                  const isSelected = selectedColor?.label === variant.label;
+                  const isLight = variant.color.toUpperCase() === '#FFFFFF' || variant.color.toUpperCase() === '#F0F0F2';
                   return (
                     <TouchableOpacity
                       key={variant.label}
@@ -229,7 +290,11 @@ export default function SpecsOrderPage() {
                       <View
                         style={[
                           styles.colorCircle,
-                          { backgroundColor: variant.color },
+                          {
+                            backgroundColor: variant.color,
+                            borderColor: isLight ? colors.borderLight : 'transparent',
+                            borderWidth: isLight ? 1 : 0,
+                          },
                         ]}
                       />
                       <Text
@@ -241,6 +306,9 @@ export default function SpecsOrderPage() {
                       >
                         {variant.label}
                       </Text>
+                      {isSelected && (
+                        <MaterialIcon name="check" size={14} color={colors.primary} />
+                      )}
                     </TouchableOpacity>
                   );
                 })}
@@ -249,9 +317,14 @@ export default function SpecsOrderPage() {
 
             {/* 2. SELECT SIZE / PACK */}
             <View style={styles.sectionBlock}>
-              <Text style={[styles.sectionLabel, { color: colors.onSurfaceMuted }]}>2. SELECT SIZE / CARTON</Text>
+              <View style={styles.sectionLabelRow}>
+                <Text style={[styles.sectionLabel, { color: colors.onSurfaceMuted }]}>2. SELECT SIZE / CARTON</Text>
+                <Text style={[styles.sectionCountBadge, { color: colors.primary }]}>
+                  {availableSizes.length} Option{availableSizes.length !== 1 ? 's' : ''}
+                </Text>
+              </View>
               <View style={styles.sizesRow}>
-                {DEFAULT_SIZES.map((size) => {
+                {availableSizes.map((size) => {
                   const isSelected = selectedSize === size;
                   return (
                     <TouchableOpacity
@@ -492,12 +565,21 @@ const styles = StyleSheet.create({
   sectionBlock: {
     marginTop: 20,
   },
+  sectionLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  sectionCountBadge: {
+    fontSize: 11,
+    fontFamily: 'Outfit_700Bold',
+  },
   sectionLabel: {
     fontSize: 11,
     fontFamily: 'Outfit_800ExtraBold',
     color: 'rgba(28, 27, 31, 0.45)',
     letterSpacing: 0.6,
-    marginBottom: 10,
   },
   colorVariantsGrid: {
     flexDirection: 'row',
