@@ -77,6 +77,7 @@ export default function SpecsOrderPage() {
   // Confirmed color/size groupings
   const [confirmedGroups, setConfirmedGroups] = useState<ColorGroup[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
 
   // Current builder selections
   const [selectedColor, setSelectedColor] = useState<ColorVariant>(availableColors[0]);
@@ -204,6 +205,58 @@ export default function SpecsOrderPage() {
       showError('Order Failed', err?.message || 'Could not place wholesale order.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    if (confirmedGroups.length === 0 || !product || isSavingDraft) return;
+    setIsSavingDraft(true);
+    try {
+      let profile: { legalBusinessName?: string; fullName?: string; phone?: string; warehouseAddress?: string } = {};
+      try {
+        profile = await ProfileApiService.getProfile();
+      } catch {
+        profile = {
+          legalBusinessName: 'Wholesale Buyer',
+          phone: '',
+          warehouseAddress: 'Kampala Logistics Hub',
+        };
+      }
+
+      const draftId =
+        'DRAFT-' +
+        Date.now().toString(36).toUpperCase() +
+        '-' +
+        Math.random().toString(36).substring(2, 6).toUpperCase();
+
+      const draftPayload = {
+        order_id: draftId,
+        supplier_id: product.supplierId || 'supplier-main',
+        business_name: profile.legalBusinessName || profile.fullName || 'Wholesale Buyer',
+        business_phone: profile.phone || '0700000000',
+        business_city: 'Kampala',
+        business_address: profile.warehouseAddress || 'Kampala Logistics Hub',
+        total_amount: subtotal,
+        status: 'draft',
+        entries_json: confirmedGroups.map((g) => ({
+          name: product.name,
+          product_id: product.id,
+          color: g.color.label,
+          size_quantities: g.sizeQtys,
+          unit_price: product.srp,
+          total_units: Object.values(g.sizeQtys).reduce((s, q) => s + q, 0),
+        })),
+      };
+
+      await ProfileApiService.saveDraftOrder(draftPayload);
+      showSuccess('Draft Saved', `Draft order for ${product.name} saved to your drafts.`);
+      setTimeout(() => {
+        router.push('/profile');
+      }, 1200);
+    } catch (err: any) {
+      showError('Save Draft Failed', err?.message || 'Could not save draft order.');
+    } finally {
+      setIsSavingDraft(false);
     }
   };
 
@@ -437,18 +490,40 @@ export default function SpecsOrderPage() {
                   </View>
                 </View>
 
-                {/* Confirm Order Button */}
-                <TouchableOpacity
-                  activeOpacity={0.88}
-                  style={[styles.confirmOrderBtn, isSubmitting && { opacity: 0.6 }]}
-                  disabled={isSubmitting}
-                  onPress={handleConfirmOrder}
-                >
-                  <MaterialIcon name={isSubmitting ? 'hourglass_empty' : 'check_circle'} size={18} color="#FFFFFF" />
-                  <Text style={styles.confirmOrderText}>
-                    {isSubmitting ? 'Submitting Order...' : 'Confirm & Proceed to Checkout'}
-                  </Text>
-                </TouchableOpacity>
+                {/* Actions: Save Draft & Confirm Order */}
+                <View style={styles.orderActionsRow}>
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    style={[
+                      styles.saveDraftBtn,
+                      { borderColor: colors.borderLight, backgroundColor: colors.cardColor },
+                      isSavingDraft && { opacity: 0.6 },
+                    ]}
+                    disabled={isSavingDraft || isSubmitting}
+                    onPress={handleSaveDraft}
+                  >
+                    <MaterialIcon name={isSavingDraft ? 'hourglass_empty' : 'edit_note'} size={18} color={colors.primary} />
+                    <Text style={[styles.saveDraftText, { color: colors.onSurface }]}>
+                      {isSavingDraft ? 'Saving Draft...' : 'Save Draft'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    activeOpacity={0.88}
+                    style={[
+                      styles.confirmOrderBtn,
+                      { backgroundColor: colors.primary, flex: 2 },
+                      isSubmitting && { opacity: 0.6 },
+                    ]}
+                    disabled={isSubmitting || isSavingDraft}
+                    onPress={handleConfirmOrder}
+                  >
+                    <MaterialIcon name={isSubmitting ? 'hourglass_empty' : 'check_circle'} size={18} color="#FFFFFF" />
+                    <Text style={styles.confirmOrderText}>
+                      {isSubmitting ? 'Submitting Order...' : 'Confirm & Place Order'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
           </View>
@@ -782,6 +857,26 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_900Black',
     color: AppColors.primary,
   },
+  orderActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 10,
+  },
+  saveDraftBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 4,
+    borderWidth: 1,
+  },
+  saveDraftText: {
+    fontSize: 13,
+    fontFamily: 'Outfit_700Bold',
+  },
   confirmOrderBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -790,7 +885,6 @@ const styles = StyleSheet.create({
     backgroundColor: AppColors.primary,
     paddingVertical: 12,
     borderRadius: 4,
-    marginTop: 10,
   },
   confirmOrderText: {
     fontSize: 13.5,

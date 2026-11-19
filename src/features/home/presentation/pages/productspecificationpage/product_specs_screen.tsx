@@ -20,9 +20,11 @@ import { useProducts } from '@/features/inventory/context/products_context';
 import { ProductApiService } from '@/features/inventory/data/services/product_api_service';
 import { ProfileApiService } from '@/features/profile/data/services/profile_api_service';
 import { ProductGridSection } from '@/features/home/presentation/widgets/product_grid_section';
+import { useToast } from '@/core/widgets/whatsapp_dialog';
 
 export default function ProductSpecsScreen() {
   const router = useAppNavigation();
+  const { showSuccess, showError } = useToast();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { width } = useWindowDimensions();
   const isDesktop = width >= 960;
@@ -116,12 +118,20 @@ export default function ProductSpecsScreen() {
           srp: product.srp,
           brand: product.brand,
           imageUrl: product.imageUrl,
+          warehouseLoc: product.warehouseLoc,
+          priceTiers: product.priceTiers,
+          colors: product.colors,
+          sizes: product.sizes,
+          moq: product.moq,
         }
       );
-      setSaveSuccessMsg(`Saved ${quantity} units of ${product.name} to your bulk order bag.`);
+      const msg = `Saved ${quantity} units of ${product.name} to your bulk order bag.`;
+      setSaveSuccessMsg(msg);
+      showSuccess('Saved to Bag', `${quantity} units of ${product.name} synced to your cloud bag.`);
       setTimeout(() => setSaveSuccessMsg(null), 4000);
     } catch (err: any) {
       console.warn('Failed to save to bag:', err.message);
+      showError('Save Failed', err?.message || 'Could not sync item to cloud bag.');
       setSaveSuccessMsg(`Saved to local bag (${quantity} units).`);
       setTimeout(() => setSaveSuccessMsg(null), 3000);
     } finally {

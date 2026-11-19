@@ -153,7 +153,7 @@ export class ProfileApiService {
     const data = await apiClient<BackendSavedItem[]>(API_ENDPOINTS.SAVED.LIST);
     return data.map((item) => {
       const snap = item.product_snapshot || {};
-      const product = snap.id
+      const baseProduct = snap.id
         ? ProductMapper.fromListItemDto({
             id: snap.id || item.product_id,
             name: snap.name || 'Saved Product',
@@ -164,22 +164,37 @@ export class ProfileApiService {
             supplier_id: snap.supplierId,
             supplier_name: snap.supplierName,
           })
+        : null;
+
+      const product = baseProduct
+        ? {
+            ...baseProduct,
+            srp: snap.srp || baseProduct.srp || 0,
+            imageUrl: snap.imageUrl || snap.image_url || baseProduct.imageUrl || '',
+            warehouseLoc: snap.warehouseLoc || baseProduct.warehouseLoc || 'Uganda',
+            priceTiers: snap.priceTiers && snap.priceTiers.length > 0 ? snap.priceTiers : baseProduct.priceTiers,
+            colors: snap.colors && snap.colors.length > 0 ? snap.colors : baseProduct.colors,
+            sizes: snap.sizes && snap.sizes.length > 0 ? snap.sizes : baseProduct.sizes,
+            moq: snap.moq || baseProduct.moq || 1,
+          }
         : {
             id: item.product_id,
-            name: 'Wholesale Product',
-            brand: 'Verified',
-            sku: '',
-            srp: 0,
-            imageUrl: '',
+            name: snap.name || 'Wholesale Product',
+            brand: snap.brand || 'Verified',
+            sku: snap.sku || '',
+            srp: snap.srp || 0,
+            imageUrl: snap.imageUrl || snap.image_url || '',
             aspectRatio: 1,
-            supplierId: '',
-            supplierName: 'Direct Supplier',
-            warehouseLoc: 'Uganda',
-            priceTiers: [{ minQuantity: 1, price: 0 }],
+            supplierId: snap.supplierId || '',
+            supplierName: snap.supplierName || 'Direct Supplier',
+            warehouseLoc: snap.warehouseLoc || 'Uganda',
+            priceTiers: snap.priceTiers || [{ minQuantity: 1, price: snap.srp || 0 }],
+            colors: snap.colors || [],
+            sizes: snap.sizes || [],
             status: 'active' as const,
             stockQuantity: 100,
-            moq: 1,
-            moqText: '1 min order',
+            moq: snap.moq || 1,
+            moqText: `${snap.moq || 1} min order`,
           };
 
       return {
@@ -248,6 +263,16 @@ export class ProfileApiService {
         updatedAt: d.updated_at || d.created_at || new Date().toISOString(),
         supplierName: d.business_name || 'Verified Supplier',
       };
+    });
+  }
+
+  /**
+   * Save or upsert draft order to cloud
+   */
+  static async saveDraftOrder(orderData: Record<string, any>): Promise<any> {
+    return apiClient(API_ENDPOINTS.ORDERS.DRAFTS, {
+      method: 'POST',
+      body: JSON.stringify(orderData),
     });
   }
 
