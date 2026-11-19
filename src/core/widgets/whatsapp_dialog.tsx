@@ -151,6 +151,90 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   const statusConfig = getStatusConfig(toast?.status);
 
+  const toastContent = toast ? (
+    <View
+      pointerEvents="box-none"
+      style={[
+        styles.overlayContainer,
+        isDesktop && styles.overlayDesktop,
+      ]}
+    >
+      <Animated.View
+        style={[
+          styles.toastCard,
+          {
+            transform: [{ translateY: slideAnim }],
+            opacity: opacityAnim,
+          },
+        ]}
+      >
+        {/* Status Indicator Bar */}
+        <View
+          style={[
+            styles.statusBar,
+            { backgroundColor: statusConfig.barColor },
+          ]}
+        />
+
+        {/* Icon */}
+        <View style={styles.iconWrapper}>
+          <MaterialIcon
+            name={statusConfig.icon}
+            size={22}
+            color={statusConfig.iconColor}
+          />
+        </View>
+
+        {/* Content */}
+        <View style={styles.textContainer}>
+          <Text style={styles.title} numberOfLines={1}>
+            {toast.title}
+          </Text>
+          {toast.message ? (
+            <Text style={styles.message} numberOfLines={2}>
+              {toast.message}
+            </Text>
+          ) : null}
+        </View>
+
+        {/* Action Button if specified */}
+        {toast.actionLabel && toast.onAction ? (
+          <TouchableOpacity
+            onPress={() => {
+              toast.onAction?.();
+              hideToast();
+            }}
+            style={styles.actionBtn}
+          >
+            <Text style={styles.actionBtnText}>{toast.actionLabel}</Text>
+          </TouchableOpacity>
+        ) : null}
+
+        {/* Close Button */}
+        <TouchableOpacity onPress={hideToast} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <MaterialIcon name="close" size={16} color="rgba(255, 255, 255, 0.45)" />
+        </TouchableOpacity>
+      </Animated.View>
+    </View>
+  ) : null;
+
+  // On Web, portal the toast directly into document.body so it is never trapped
+  // behind React Native Web's Modal portals (which attach directly to the DOM body).
+  const renderedToast =
+    Platform.OS === 'web' && typeof document !== 'undefined'
+      ? (() => {
+          try {
+            const ReactDOM = require('react-dom');
+            if (ReactDOM && typeof ReactDOM.createPortal === 'function' && document.body) {
+              return ReactDOM.createPortal(toastContent, document.body);
+            }
+          } catch {
+            // fallback to standard in-tree rendering
+          }
+          return toastContent;
+        })()
+      : toastContent;
+
   return (
     <ToastContext.Provider
       value={{
@@ -163,72 +247,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       }}
     >
       {children}
-      {toast && (
-        <View
-          pointerEvents="box-none"
-          style={[
-            styles.overlayContainer,
-            isDesktop && styles.overlayDesktop,
-          ]}
-        >
-          <Animated.View
-            style={[
-              styles.toastCard,
-              {
-                transform: [{ translateY: slideAnim }],
-                opacity: opacityAnim,
-              },
-            ]}
-          >
-            {/* Status Indicator Bar */}
-            <View
-              style={[
-                styles.statusBar,
-                { backgroundColor: statusConfig.barColor },
-              ]}
-            />
-
-            {/* Icon */}
-            <View style={styles.iconWrapper}>
-              <MaterialIcon
-                name={statusConfig.icon}
-                size={22}
-                color={statusConfig.iconColor}
-              />
-            </View>
-
-            {/* Content */}
-            <View style={styles.textContainer}>
-              <Text style={styles.title} numberOfLines={1}>
-                {toast.title}
-              </Text>
-              {toast.message ? (
-                <Text style={styles.message} numberOfLines={2}>
-                  {toast.message}
-                </Text>
-              ) : null}
-            </View>
-
-            {/* Action Button if specified */}
-            {toast.actionLabel && toast.onAction ? (
-              <TouchableOpacity
-                onPress={() => {
-                  toast.onAction?.();
-                  hideToast();
-                }}
-                style={styles.actionBtn}
-              >
-                <Text style={styles.actionBtnText}>{toast.actionLabel}</Text>
-              </TouchableOpacity>
-            ) : null}
-
-            {/* Close Button */}
-            <TouchableOpacity onPress={hideToast} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <MaterialIcon name="close" size={16} color="rgba(255, 255, 255, 0.45)" />
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
-      )}
+      {renderedToast}
     </ToastContext.Provider>
   );
 }
@@ -243,11 +262,11 @@ export function useToast() {
 
 const styles = StyleSheet.create({
   overlayContainer: {
-    position: 'absolute',
+    position: Platform.OS === 'web' ? ('fixed' as any) : 'absolute',
     top: Platform.OS === 'web' ? 16 : 48,
     left: 16,
     right: 16,
-    zIndex: 999999,
+    zIndex: 2147483647,
     alignItems: 'center',
     justifyContent: 'center',
   },

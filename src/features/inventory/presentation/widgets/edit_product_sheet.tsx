@@ -200,7 +200,7 @@ export function EditProductSheet({
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const { user } = useAuth();
+  const { user, getToken } = useAuth();
   const { updateProduct, addProduct, publishProduct, deleteProduct } = useProducts();
 
   // Local toast — renders INSIDE the Modal so it always appears on top of the sheet
@@ -218,7 +218,14 @@ export function EditProductSheet({
   const isEditing = Boolean(product);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
-  const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const [pendingPrimaryImage, setPendingPrimaryImage] = useState<{
+    uri: string;
+    name: string;
+    type: string;
+  } | null>(null);
+  const [pendingGalleryImages, setPendingGalleryImages] = useState<
+    { uri: string; name: string; type: string }[]
+  >([]);
   const [inlineError, setInlineError] = useState<string | null>(null);
   const [inlineSuccess, setInlineSuccess] = useState<string | null>(null);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
@@ -419,7 +426,7 @@ export function EditProductSheet({
       const genSku = `ND-${Math.floor(10000 + Math.random() * 90000)}`;
       setSku(genSku);
       setSlug(`product-${genSku.toLowerCase()}`);
-      setImageUrl('https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=800&auto=format&fit=crop&q=80');
+      setImageUrl('');
       setDescription('');
       setStatus('active');
 
@@ -534,33 +541,16 @@ export function EditProductSheet({
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
-        base64: true,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         setImageUrl(asset.uri);
-        if (asset.base64) {
-          setImageBase64(`data:image/jpeg;base64,${asset.base64}`);
-        }
-
-        // Try standalone upload to Cloudflare R2
-        setIsUploadingImage(true);
-        try {
-          const uploadRes = await ProductApiService.uploadImage({
-            uri: asset.uri,
-            name: asset.fileName || 'product.jpg',
-            type: asset.mimeType || 'image/jpeg',
-          });
-          if (uploadRes?.url) {
-            setImageUrl(uploadRes.url);
-            showSheetToast('success', 'Image Uploaded', 'Primary image saved to server.');
-          }
-        } catch (uploadErr: any) {
-          console.warn('R2 direct upload fallback to base64 payload:', uploadErr.message);
-        } finally {
-          setIsUploadingImage(false);
-        }
+        setPendingPrimaryImage({
+          uri: asset.uri,
+          name: asset.fileName || 'product.jpg',
+          type: asset.mimeType || 'image/jpeg',
+        });
       }
     } catch (error) {
       console.warn('Image picker error:', error);
@@ -576,22 +566,13 @@ export function EditProductSheet({
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        for (const asset of result.assets) {
-          try {
-            const uploadRes = await ProductApiService.uploadImage({
-              uri: asset.uri,
-              name: asset.fileName || 'gallery.jpg',
-              type: asset.mimeType || 'image/jpeg',
-            });
-            if (uploadRes?.url) {
-              setMediaUrls((prev) => [...prev, uploadRes.url]);
-            } else {
-              setMediaUrls((prev) => [...prev, asset.uri]);
-            }
-          } catch {
-            setMediaUrls((prev) => [...prev, asset.uri]);
-          }
-        }
+        const selectedImages = result.assets.map((asset) => ({
+          uri: asset.uri,
+          name: asset.fileName || 'gallery.jpg',
+          type: asset.mimeType || 'image/jpeg',
+        }));
+        setMediaUrls((prev) => [...prev, ...selectedImages.map((asset) => asset.uri)]);
+        setPendingGalleryImages((prev) => [...prev, ...selectedImages]);
       }
     } catch (error) {
       console.warn('Gallery image picker error:', error);
@@ -605,7 +586,9 @@ export function EditProductSheet({
   };
 
   const handleRemoveMediaUrl = (index: number) => {
+    const removedUrl = mediaUrls[index];
     setMediaUrls((prev) => prev.filter((_, i) => i !== index));
+    setPendingGalleryImages((prev) => prev.filter((image) => image.uri !== removedUrl));
   };
 
   // --- Save / Publish Product ---
@@ -628,6 +611,11 @@ export function EditProductSheet({
       setInlineError('Please choose or create a product category branch.');
       return;
     }
+    if (!imageUrl.trim() && !product?.imageUrl?.trim()) {
+      showSheetToast('error', 'Image Required', 'Please choose a primary product image before publishing.');
+      setInlineError('Please choose a primary product image before publishing.');
+      return;
+    }
 
     const numericSrp = parseInt(srp.replace(/[^0-9]/g, ''), 10) || 0;
     if (numericSrp <= 0) {
@@ -643,10 +631,55 @@ export function EditProductSheet({
     const numericStock = parseInt(stockQuantity.replace(/[^0-9]/g, ''), 10) || 50;
     const numericMoq = parseInt(moq.replace(/[^0-9]/g, ''), 10) || 1;
     const finalTiers = priceTiers.length > 0 ? priceTiers : [{ minQuantity: 1, price: numericSrp }];
-    const finalImage = imageUrl.trim() || product?.imageUrl || 'https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=800';
 
     setIsSaving(true);
     try {
+      let finalImage =
+        isEditing && product && pendingPrimaryImage
+          ? product.imageUrl
+          : imageUrl.trim() || product?.imageUrl?.trim() || '';
+      let finalMediaUrls = [...mediaUrls];
+      if (pendingPrimaryImage && !(isEditing && product)) {
+        setIsUploadingImage(true);
+        try {
+          const uploadRes = await ProductApiService.uploadImage(
+            pendingPrimaryImage,
+            getToken() ?? undefined
+          );
+          if (!uploadRes?.url) {
+            throw new Error('The image upload did not return a URL.');
+          }
+          finalImage = uploadRes.url;
+          setImageUrl(finalImage);
+          setPendingPrimaryImage(null);
+        } finally {
+          setIsUploadingImage(false);
+        }
+      }
+      if (pendingGalleryImages.length > 0) {
+        setIsUploadingImage(true);
+        try {
+          for (const pendingImage of pendingGalleryImages) {
+            const uploadRes = await ProductApiService.uploadImage(
+              pendingImage,
+              getToken() ?? undefined
+            );
+            if (!uploadRes?.url) {
+              throw new Error('A gallery image upload did not return a URL.');
+            }
+            finalMediaUrls = finalMediaUrls.map((url) =>
+              url === pendingImage.uri ? uploadRes.url : url
+            );
+            setMediaUrls(finalMediaUrls);
+            setPendingGalleryImages((prev) =>
+              prev.filter((image) => image.uri !== pendingImage.uri)
+            );
+          }
+        } finally {
+          setIsUploadingImage(false);
+        }
+      }
+
       const payload: Partial<Product> = {
         name: name.trim(),
         brand: brand.trim(),
@@ -654,7 +687,7 @@ export function EditProductSheet({
         categoryName: categoryName.trim() || 'General Wholesale',
         supplierId: activeSupplierId,
         supplierName: activeSupplierName,
-        sku: sku.trim() || `SKU-${Date.now().toString().slice(-6)}`,
+        sku: sku.trim() || product?.sku || '',
         slug: slug.trim() || name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
         warehouseLoc: warehouseLoc.trim() || 'Kampala Central',
         srp: numericSrp,
@@ -686,12 +719,33 @@ export function EditProductSheet({
         seoTitle: seoTitle.trim(),
         seoDescription: seoDescription.trim(),
         priceTiers: finalTiers,
-        mediaUrls: mediaUrls.length > 0 ? mediaUrls : [finalImage],
-        imageBase64: imageBase64 || undefined,
+        mediaUrls: finalMediaUrls.length > 0 ? finalMediaUrls : [finalImage],
       };
 
       if (isEditing && product) {
         await updateProduct(product.id, payload);
+        if (pendingPrimaryImage) {
+          setIsUploadingImage(true);
+          try {
+            const updatedProduct = await ProductApiService.uploadProductImage(
+              product.id,
+              pendingPrimaryImage,
+              getToken() ?? undefined
+            );
+            finalImage = updatedProduct.imageUrl;
+            finalMediaUrls = [
+              finalImage,
+              ...finalMediaUrls.filter(
+                (url) => url !== product.imageUrl && url !== finalImage
+              ),
+            ];
+            setImageUrl(finalImage);
+            setMediaUrls(finalMediaUrls);
+            setPendingPrimaryImage(null);
+          } finally {
+            setIsUploadingImage(false);
+          }
+        }
         showSheetToast('success', 'Product Updated', `"${payload.name}" updated successfully.`);
         setInlineSuccess(`"${payload.name}" has been updated successfully.`);
       } else {
@@ -705,7 +759,7 @@ export function EditProductSheet({
       }
 
       setTimeout(() => {
-        onClose();
+        handleClose();
         if (onSuccess) onSuccess();
       }, 1200);
     } catch (err: any) {
@@ -721,7 +775,7 @@ export function EditProductSheet({
     const confirmAction = () => {
       deleteProduct(product.id);
       showSheetToast('warning', 'Product Removed', `"${product.name}" was removed.`);
-      setTimeout(() => { onClose(); if (onSuccess) onSuccess(); }, 1000);
+      setTimeout(() => { handleClose(); if (onSuccess) onSuccess(); }, 1000);
     };
 
     if (Platform.OS === 'web') {
@@ -736,10 +790,17 @@ export function EditProductSheet({
     }
   };
 
+  const handleClose = () => {
+    setPendingPrimaryImage(null);
+    setPendingGalleryImages([]);
+    setIsUploadingImage(false);
+    onClose();
+  };
+
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
       <View style={[styles.overlay, isDesktop && styles.overlayDesktop]}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
+        <Pressable style={styles.backdrop} onPress={handleClose} />
 
         {/* Local toast — renders inside Modal so it always appears cleanly on top */}
         {sheetToast && (
@@ -775,6 +836,7 @@ export function EditProductSheet({
             </TouchableOpacity>
           )}
 
+
           {/* Header */}
           <View style={styles.headerRow}>
             <View style={{ flex: 1 }}>
@@ -803,7 +865,7 @@ export function EditProductSheet({
                   color={colors.onSurfaceMuted}
                 />
               </TouchableOpacity>
-              <TouchableOpacity onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={styles.closeBtn}>
+              <TouchableOpacity onPress={handleClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={styles.closeBtn}>
                 <MaterialIcon name="close" size={22} color={colors.onSurface} />
               </TouchableOpacity>
             </View>
@@ -918,7 +980,10 @@ export function EditProductSheet({
                       </TouchableOpacity>
                       {imageUrl ? (
                         <TouchableOpacity
-                          onPress={() => setImageUrl('')}
+                          onPress={() => {
+                            setImageUrl('');
+                            setPendingPrimaryImage(null);
+                          }}
                           style={[
                             styles.addBtnSmall,
                             {

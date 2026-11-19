@@ -17,6 +17,21 @@ import { MaterialIcon } from '@/core/widgets/material_icon';
 import { CategoryDto } from '../../data/dto/product_dto';
 import { ProductApiService } from '../../data/services/product_api_service';
 import { useAuth } from '@/features/auth/context/auth_context';
+import { resolveImageUrl } from '@/core/utils/image_utils';
+
+const LEGACY_CATEGORY_IMAGES: Record<string, number> = {
+  'assets/welcomeimages/1.jpg': require('@/../assets/welcomeimages/1.jpg'),
+  'assets/welcomeimages/26ABTest_Computing_THUMBNAILS_300x300.png': require('@/../assets/welcomeimages/26ABTest_Computing_THUMBNAILS_300x300.png'),
+  'assets/welcomeimages/26ABTest_Fashion_THUMBNAILS_300x300.png': require('@/../assets/welcomeimages/26ABTest_Fashion_THUMBNAILS_300x300.png'),
+  'assets/welcomeimages/26ABTest_Jumia-Picks_THUMBNAILS_300x300.png': require('@/../assets/welcomeimages/26ABTest_Jumia-Picks_THUMBNAILS_300x300.png'),
+  'assets/welcomeimages/26ABTest_Mens-Shoes_THUMBNAILS_300x300.png': require('@/../assets/welcomeimages/26ABTest_Mens-Shoes_THUMBNAILS_300x300.png'),
+};
+
+function getCategoryImageSource(imageUrl?: string | null) {
+  const url = imageUrl?.trim();
+  if (!url) return null;
+  return LEGACY_CATEGORY_IMAGES[url] ?? { uri: resolveImageUrl(url) };
+}
 
 export interface CategorySelectionResult {
   id: string;
@@ -326,6 +341,10 @@ export function CategoryBranchPicker({
                 const hasSub = categories.some((c) => c.parent_id === item.id);
                 const isSelected = selectedCategoryId === item.id;
                 const pathDesc = searchQuery ? buildBreadcrumb(item) : null;
+                const categoryImage = getCategoryImageSource(
+                  item.image_url ||
+                    categories.find((category) => category.id === item.parent_id)?.image_url
+                );
 
                 return (
                   <View
@@ -344,24 +363,35 @@ export function CategoryBranchPicker({
                       onPress={() => handleSelectFinal(item)}
                       style={styles.categoryRowLeft}
                     >
-                      <View
-                        style={[
-                          styles.categoryIconBox,
-                          {
-                            backgroundColor: isSelected
-                              ? colors.primary
-                              : isDark
-                              ? colors.cardColor
-                              : '#F0F2F5',
-                          },
-                        ]}
-                      >
-                        <MaterialIcon
-                          name={hasSub ? 'folder' : 'label'}
-                          size={18}
-                          color={isSelected ? '#FFFFFF' : colors.primary}
+                      {categoryImage ? (
+                        <Image
+                          source={categoryImage}
+                          style={[
+                            styles.categoryImageThumbnail,
+                            isSelected && { borderColor: colors.primary },
+                          ]}
+                          resizeMode="cover"
                         />
-                      </View>
+                      ) : (
+                        <View
+                          style={[
+                            styles.categoryIconBox,
+                            {
+                              backgroundColor: isSelected
+                                ? colors.primary
+                                : isDark
+                                ? colors.cardColor
+                                : '#F0F2F5',
+                            },
+                          ]}
+                        >
+                          <MaterialIcon
+                            name={hasSub ? 'folder' : 'label'}
+                            size={18}
+                            color={isSelected ? '#FFFFFF' : colors.primary}
+                          />
+                        </View>
+                      )}
                       <View style={{ flex: 1 }}>
                         <Text
                           style={[
@@ -629,6 +659,14 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  categoryImageThumbnail: {
+    width: 42,
+    height: 42,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    backgroundColor: '#F0F2F5',
   },
   categoryName: {
     fontSize: 15,
