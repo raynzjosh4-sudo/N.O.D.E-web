@@ -55,7 +55,7 @@ export function PdfTab({ documents, onOpenPdf }: PdfTabProps) {
         <TouchableOpacity
           key={doc.id}
           activeOpacity={0.75}
-          style={[styles.pdfTile, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}
+          style={styles.pdfTile}
           onPress={() => onOpenPdf(doc)}
         >
           {/* PDF Icon Badge */}
@@ -104,21 +104,22 @@ const styles = StyleSheet.create({
   },
   scrollList: {
     paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingTop: 8,
     paddingBottom: 40,
   },
   pdfTile: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(28, 27, 31, 0.06)',
-    gap: 14,
+    borderBottomColor: 'rgba(28, 27, 31, 0.07)',
+    gap: 12,
   },
   iconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 6,
     backgroundColor: 'rgba(18, 187, 240, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -156,10 +157,12 @@ const styles = StyleSheet.create({
     color: 'rgba(28, 27, 31, 0.45)',
   },
   downloadCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(28, 27, 31, 0.04)',
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(28, 27, 31, 0.1)',
+    backgroundColor: 'rgba(28, 27, 31, 0.03)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -172,7 +175,7 @@ const styles = StyleSheet.create({
   emptyIconCircle: {
     width: 72,
     height: 72,
-    borderRadius: 36,
+    borderRadius: 6,
     backgroundColor: 'rgba(28, 27, 31, 0.04)',
     alignItems: 'center',
     justifyContent: 'center',

@@ -52,6 +52,21 @@ export function ProfilePage() {
   const { user, isAuthenticated, signOut, getToken } = useAuth();
   const [showBecomeSupplierModal, setShowBecomeSupplierModal] = useState(false);
 
+  // ── GitHub Primer Design System ──
+  const gitColors = {
+    canvas: isDark ? '#0D1117' : '#FFFFFF',
+    canvasSubtle: isDark ? '#161B22' : '#F6F8FA',
+    border: isDark ? '#30363D' : '#D0D7DE',
+    textPrimary: isDark ? '#E6EDF3' : '#1F2328',
+    textSecondary: isDark ? '#848D97' : '#656D76',
+    textLink: isDark ? '#58A6FF' : '#0969DA',
+    btnBg: isDark ? '#21262D' : '#F6F8FA',
+    btnBorder: isDark ? '#30363D' : '#D0D7DE',
+    activeNavBg: isDark ? 'rgba(177, 186, 196, 0.12)' : '#F6F8FA',
+    activeNavBorder: '#FD8C73', // GitHub signature active border indicator
+    badgeBg: isDark ? '#30363D' : 'rgba(175, 184, 193, 0.2)',
+  };
+
   // Active Tab
   const [activeTab, setActiveTab] = useState<ProfileTabKey>('saved');
 
@@ -221,9 +236,9 @@ export function ProfilePage() {
             {/* ── Main Two-Column Layout ── */}
             <View style={styles.desktopDashboardRow}>
               {/* ── 1. LEFT SIDEBAR: PROFILE & NAVIGATION CARD ── */}
-              <View style={[styles.desktopSidebarCard, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}>
-                {/* Profile Identity */}
-                <View style={styles.sidebarProfileHeader}>
+              <View style={[styles.desktopSidebarCard, { backgroundColor: colors.surface, borderColor: gitColors.border }]}>
+                {/* Profile Identity — padded section */}
+                <View style={[styles.sidebarProfileHeader, { padding: 16, borderBottomWidth: 1, borderBottomColor: gitColors.border }]}>
                   <View style={styles.desktopAvatarWrapper}>
                     <Image
                       source={{ uri: profile.avatarUrl }}
@@ -238,26 +253,28 @@ export function ProfilePage() {
                       <Text style={[styles.sidebarFullName, { color: colors.onSurface }]}>{profile.fullName}</Text>
                       <MaterialIcon name="verified" size={16} color={AppColors.primary} />
                     </View>
-                    <Text style={styles.sidebarLegalName}>{profile.legalBusinessName}</Text>
+                    <Text style={[styles.sidebarLegalName, { color: gitColors.textSecondary }]}>{profile.legalBusinessName}</Text>
                     <View style={styles.tinBadge}>
                       <Text style={styles.tinBadgeText}>{profile.taxId}</Text>
                     </View>
                   </View>
                 </View>
 
-                {/* Quick Stats Grid */}
-                <View style={[styles.sidebarStatsGrid, { backgroundColor: colors.cardColor, borderColor: colors.borderLight, borderWidth: 1 }]}>
+                {/* Quick Stats Grid — flat row with dividers */}
+                <View style={[styles.sidebarStatsGrid, { borderBottomWidth: 1, borderBottomColor: gitColors.border }]}>
                   <View style={styles.sidebarStatBox}>
                     <Text style={[styles.sidebarStatNum, { color: colors.onSurface }]}>{savedItems.length}</Text>
-                    <Text style={[styles.sidebarStatLbl, { color: colors.onSurfaceMuted }]}>Saved Items</Text>
+                    <Text style={[styles.sidebarStatLbl, { color: gitColors.textSecondary }]}>Saved Items</Text>
                   </View>
+                  <View style={[styles.sidebarStatDivider, { backgroundColor: gitColors.border }]} />
                   <View style={styles.sidebarStatBox}>
                     <Text style={[styles.sidebarStatNum, { color: colors.onSurface }]}>{pendingOrders.length + sentOrders.length}</Text>
-                    <Text style={[styles.sidebarStatLbl, { color: colors.onSurfaceMuted }]}>Total Orders</Text>
+                    <Text style={[styles.sidebarStatLbl, { color: gitColors.textSecondary }]}>Total Orders</Text>
                   </View>
+                  <View style={[styles.sidebarStatDivider, { backgroundColor: gitColors.border }]} />
                   <View style={styles.sidebarStatBox}>
                     <Text style={[styles.sidebarStatNum, { color: colors.onSurface }]}>Gold</Text>
-                    <Text style={[styles.sidebarStatLbl, { color: colors.onSurfaceMuted }]}>Buyer Tier</Text>
+                    <Text style={[styles.sidebarStatLbl, { color: gitColors.textSecondary }]}>Buyer Tier</Text>
                   </View>
                 </View>
 
@@ -275,16 +292,18 @@ export function ProfilePage() {
                         ]}
                         onPress={() => setActiveTab(item.key)}
                       >
+                        {/* Active left accent bar */}
+                        {isActive && <View style={styles.sidebarNavActiveBar} />}
                         <View style={styles.sidebarNavLeft}>
                           <MaterialIcon
                             name={item.icon}
-                            size={18}
+                            size={16}
                             color={isActive ? colors.primary : colors.onSurfaceMuted}
                           />
                           <Text
                             style={[
                               styles.sidebarNavLabel,
-                              { color: isActive ? colors.primary : colors.onSurfaceMuted },
+                              { color: isActive ? colors.onSurface : colors.onSurfaceMuted },
                               isActive && styles.sidebarNavLabelActive,
                             ]}
                           >
@@ -314,12 +333,12 @@ export function ProfilePage() {
                   })}
                 </View>
 
-                {/* Warehouse Location Info */}
-                <View style={[styles.sidebarLocationCard, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}>
-                  <MaterialIcon name="warehouse" size={16} color={colors.primary} />
+                {/* Warehouse Location Info — flat line section */}
+                <View style={[styles.sidebarLocationCard, { borderTopColor: gitColors.border, borderBottomColor: gitColors.border }]}>
+                  <MaterialIcon name="warehouse" size={14} color={colors.primary} />
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.sidebarLocTitle, { color: colors.primary }]}>Delivery Warehouse</Text>
-                    <Text style={[styles.sidebarLocAddress, { color: colors.onSurfaceMuted }]}>{profile.warehouseAddress}</Text>
+                    <Text style={[styles.sidebarLocAddress, { color: gitColors.textSecondary }]} numberOfLines={2}>{profile.warehouseAddress}</Text>
                   </View>
                 </View>
 
@@ -330,13 +349,13 @@ export function ProfilePage() {
                     style={[
                       styles.sidebarSupplierBtn,
                       {
-                        backgroundColor: colors.primary + '18',
-                        borderColor: colors.primary + '40',
+                        borderColor: gitColors.border,
+                        borderTopWidth: 0,
                       },
                     ]}
                     onPress={() => router.push('/supplier-products')}
                   >
-                    <MaterialIcon name="inventory_2" size={16} color={colors.primary} />
+                    <MaterialIcon name="inventory_2" size={14} color={colors.primary} />
                     <Text style={[styles.sidebarSupplierText, { color: colors.primary }]}>
                       Supplier Catalog (Manage)
                     </Text>
@@ -347,13 +366,13 @@ export function ProfilePage() {
                     style={[
                       styles.sidebarSupplierBtn,
                       {
-                        backgroundColor: colors.primary + '18',
-                        borderColor: colors.primary + '40',
+                        borderColor: gitColors.border,
+                        borderTopWidth: 0,
                       },
                     ]}
                     onPress={() => setShowBecomeSupplierModal(true)}
                   >
-                    <MaterialIcon name="storefront" size={16} color={colors.primary} />
+                    <MaterialIcon name="storefront" size={14} color={colors.primary} />
                     <Text style={[styles.sidebarSupplierText, { color: colors.primary }]}>
                       Become a Supplier
                     </Text>
@@ -363,16 +382,16 @@ export function ProfilePage() {
                 {/* Sign Out CTA */}
                 <TouchableOpacity
                   activeOpacity={0.7}
-                  style={styles.sidebarSignOutBtn}
+                  style={[styles.sidebarSignOutBtn, { borderTopColor: gitColors.border }]}
                   onPress={handleLogout}
                 >
-                  <MaterialIcon name="logout" size={16} color="#D32F2F" />
+                  <MaterialIcon name="logout" size={14} color="#D32F2F" />
                   <Text style={styles.sidebarSignOutText}>Sign Out from N.O.D.E.</Text>
                 </TouchableOpacity>
               </View>
 
               {/* ── 2. RIGHT CONTENT AREA: ACTIVE TAB VIEW ── */}
-              <View style={[styles.desktopContentPane, { backgroundColor: colors.surface, borderColor: colors.borderLight }]}>
+              <View style={[styles.desktopContentPane, { backgroundColor: colors.surface, borderColor: gitColors.border }]}>
                 {/* Tab Header Banner */}
                 <View style={[styles.desktopPaneHeader, { borderBottomColor: colors.borderLight }]}>
                   <Text style={[styles.desktopPaneTitle, { color: colors.onSurface }]}>
@@ -613,12 +632,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: 'transparent',
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: 'rgba(28, 27, 31, 0.08)',
+    borderColor: 'rgba(28, 27, 31, 0.15)',
   },
   desktopBackText: {
     fontSize: 13,
@@ -653,28 +672,21 @@ const styles = StyleSheet.create({
 
   // Desktop Left Sidebar
   desktopSidebarCard: {
-    width: 330,
+    width: 280,
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: 'rgba(28, 27, 31, 0.08)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 3,
+    borderColor: 'rgba(28, 27, 31, 0.1)',
     display: 'flex',
     flexDirection: 'column',
-    gap: 16,
     flexShrink: 0,
+    overflow: 'hidden',
   },
   sidebarProfileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-  },
-  desktopAvatarWrapper: {
+  },  desktopAvatarWrapper: {
     width: 52,
     height: 52,
     borderRadius: 26,
@@ -734,9 +746,13 @@ const styles = StyleSheet.create({
   // Stats Grid
   sidebarStatsGrid: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(28, 27, 31, 0.03)',
-    borderRadius: 12,
-    padding: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+  },
+  sidebarStatDivider: {
+    width: 1,
+    height: 28,
+    alignSelf: 'center',
   },
   sidebarStatBox: {
     flex: 1,
@@ -756,19 +772,29 @@ const styles = StyleSheet.create({
 
   // Sidebar Nav Items
   sidebarNavList: {
-    gap: 4,
+    paddingVertical: 4,
   },
   sidebarNavItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 0,
     backgroundColor: 'transparent',
+    position: 'relative',
   },
   sidebarNavItemActive: {
-    backgroundColor: 'rgba(18, 187, 240, 0.08)',
+    backgroundColor: 'rgba(18, 187, 240, 0.07)',
+  },
+  sidebarNavActiveBar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    backgroundColor: '#FD8C73',
+    borderRadius: 0,
   },
   sidebarNavLeft: {
     flexDirection: 'row',
@@ -785,10 +811,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_800ExtraBold',
   },
   sidebarNavBadge: {
-    backgroundColor: 'rgba(28, 27, 31, 0.08)',
-    paddingHorizontal: 7,
+    backgroundColor: 'rgba(175, 184, 193, 0.2)',
+    paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(28, 27, 31, 0.1)',
   },
   sidebarNavBadgeActive: {
     backgroundColor: AppColors.primary,
@@ -806,11 +834,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    backgroundColor: 'rgba(18, 187, 240, 0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(18, 187, 240, 0.1)',
-    borderRadius: 10,
-    padding: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
   },
   sidebarLocTitle: {
     fontSize: 11,
@@ -831,10 +858,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1,
+    paddingHorizontal: 16,
+    borderTopWidth: 1,
     marginTop: 'auto',
-    marginBottom: 8,
   },
   sidebarSupplierText: {
     fontSize: 12,
@@ -869,8 +895,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: 'rgba(211, 47, 47, 0.06)',
+    borderTopWidth: 1,
+    backgroundColor: 'rgba(211, 47, 47, 0.04)',
   },
   sidebarSignOutText: {
     fontSize: 12,
@@ -882,14 +908,9 @@ const styles = StyleSheet.create({
   desktopContentPane: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: 'rgba(28, 27, 31, 0.08)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 3,
+    borderColor: 'rgba(28, 27, 31, 0.1)',
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',

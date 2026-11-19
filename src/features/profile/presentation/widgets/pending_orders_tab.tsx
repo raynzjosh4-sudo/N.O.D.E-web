@@ -66,7 +66,7 @@ export function PendingOrdersTab({
         const badgeLabel = isProcessing ? 'PROCESSING' : 'PENDING REVIEW';
 
         return (
-          <View key={order.id} style={[styles.orderCard, { backgroundColor: colors.cardColor, borderColor: colors.cardBorder }]}>
+          <View key={order.id} style={[styles.orderCard, { borderBottomColor: colors.borderLight }]}>
             {/* ── Order Top Bar: Number + Status ── */}
             <View style={styles.orderHeaderRow}>
               <View>
@@ -165,22 +165,12 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   scrollList: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
     paddingBottom: 40,
-    gap: 14,
   },
   orderCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(28, 27, 31, 0.08)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-    elevation: 2,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
   },
   orderHeaderRow: {
     flexDirection: 'row',
@@ -268,8 +258,10 @@ const styles = StyleSheet.create({
     gap: 4,
     backgroundColor: 'rgba(18, 187, 240, 0.08)',
     paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 14,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(18, 187, 240, 0.2)',
   },
   proformaText: {
     fontSize: 11,
@@ -282,8 +274,8 @@ const styles = StyleSheet.create({
     gap: 4,
     backgroundColor: AppColors.primary,
     paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 14,
+    paddingVertical: 6,
+    borderRadius: 6,
   },
   detailsText: {
     fontSize: 11,

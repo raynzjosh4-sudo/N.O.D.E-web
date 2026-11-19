@@ -63,7 +63,7 @@ export function DraftsTab({
       contentContainerStyle={styles.scrollList}
     >
       {drafts.map((draft) => (
-        <View key={draft.id} style={[styles.draftCard, { backgroundColor: colors.cardColor, borderColor: colors.cardBorder }]}>
+        <View key={draft.id} style={[styles.draftCard, { borderBottomColor: colors.borderLight }]}>
           <View style={styles.cardHeaderRow}>
             <View style={styles.badgeSupplierRow}>
               <View style={[styles.draftPill, { backgroundColor: colors.scaffoldBackground }]}>
@@ -132,22 +132,12 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   scrollList: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
     paddingBottom: 40,
-    gap: 12,
   },
   draftCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(28, 27, 31, 0.08)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-    elevation: 2,
+    borderBottomWidth: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
   },
   cardHeaderRow: {
     flexDirection: 'row',
@@ -186,9 +176,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(28, 27, 31, 0.03)',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     marginBottom: 14,
   },
   statItem: {
@@ -234,8 +224,8 @@ const styles = StyleSheet.create({
     gap: 6,
     backgroundColor: AppColors.primary,
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 16,
+    paddingVertical: 7,
+    borderRadius: 6,
   },
   continueText: {
     fontSize: 12,
@@ -251,7 +241,7 @@ const styles = StyleSheet.create({
   emptyIconCircle: {
     width: 72,
     height: 72,
-    borderRadius: 36,
+    borderRadius: 6,
     backgroundColor: 'rgba(28, 27, 31, 0.04)',
     alignItems: 'center',
     justifyContent: 'center',

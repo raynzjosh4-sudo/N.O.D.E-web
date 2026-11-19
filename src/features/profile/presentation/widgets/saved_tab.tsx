@@ -433,9 +433,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     backgroundColor: AppColors.primary,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 6,
   },
   placeOrderText: {
     fontSize: 13,
@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
   emptyIconCircle: {
     width: 72,
     height: 72,
-    borderRadius: 36,
+    borderRadius: 6,
     backgroundColor: 'rgba(28, 27, 31, 0.04)',
     alignItems: 'center',
     justifyContent: 'center',

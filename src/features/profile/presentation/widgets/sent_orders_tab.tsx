@@ -66,7 +66,7 @@ export function SentOrdersTab({
         const badgeLabel = isCompleted ? 'DELIVERED & VERIFIED' : 'DISPATCHED IN TRANSIT';
 
         return (
-          <View key={order.id} style={[styles.orderCard, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}>
+          <View key={order.id} style={[styles.orderCard, { borderBottomColor: colors.borderLight }]}>
             {/* ── Order Header Row ── */}
             <View style={styles.orderHeaderRow}>
               <View>
@@ -167,22 +167,12 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   scrollList: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
     paddingBottom: 40,
-    gap: 14,
   },
   orderCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(28, 27, 31, 0.08)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-    elevation: 2,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
   },
   orderHeaderRow: {
     flexDirection: 'row',
