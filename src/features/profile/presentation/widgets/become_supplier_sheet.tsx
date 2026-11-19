@@ -176,8 +176,9 @@ export function BecomeSupplierSheet({
               </View>
             ) : (
               <ScrollView
+                style={styles.scrollView}
                 contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
+                showsVerticalScrollIndicator={true}
                 keyboardShouldPersistTaps="handled"
               >
                 {/* Missing Fields Banner */}
@@ -414,19 +415,23 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     maxHeight: '92%',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
     overflow: 'hidden',
     borderWidth: 1,
+    display: 'flex',
+    flexDirection: 'column',
   },
   containerDesktop: {
     width: 600,
-    maxHeight: 700,
-    borderRadius: 24,
+    maxWidth: '95%',
+    maxHeight: Platform.OS === 'web' ? ('85vh' as any) : 700,
+    borderRadius: 6,
+    borderWidth: 1,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
     elevation: 8,
   },
   header: {
@@ -436,6 +441,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
+    flexShrink: 0,
   },
   titleRow: {
     flexDirection: 'row',
@@ -453,7 +459,7 @@ const styles = StyleSheet.create({
   },
   closeBtn: {
     padding: 6,
-    borderRadius: 20,
+    borderRadius: 4,
   },
   loadingContainer: {
     padding: 40,
@@ -465,9 +471,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'PlusJakartaSans_500Medium',
   },
+  scrollView: {
+    flex: 1,
+    minHeight: 0,
+    width: '100%',
+  },
   scrollContent: {
     padding: 20,
     gap: 16,
+    paddingBottom: 28,
   },
   warningBox: {
     flexDirection: 'row',
@@ -476,7 +488,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(245, 158, 11, 0.12)',
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: 'rgba(245, 158, 11, 0.3)',
   },
@@ -493,7 +505,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: 'rgba(239, 68, 68, 0.3)',
   },
@@ -522,7 +534,7 @@ const styles = StyleSheet.create({
   },
   input: {
     height: 44,
-    borderRadius: 12,
+    borderRadius: 6,
     borderWidth: 1,
     paddingHorizontal: 14,
     fontSize: 13,
@@ -535,7 +547,7 @@ const styles = StyleSheet.create({
   },
   locationCard: {
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 6,
     borderWidth: 1,
     gap: 10,
   },
@@ -554,7 +566,7 @@ const styles = StyleSheet.create({
   locationIconPill: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -572,7 +584,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: 6,
   },
   pickOnMapBtnText: {
     color: '#FFFFFF',
@@ -586,7 +598,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.04)',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: 6,
   },
   coordPill: {
     flexDirection: 'row',
@@ -607,7 +619,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     height: 48,
-    borderRadius: 14,
+    borderRadius: 6,
     marginTop: 8,
   },
   submitBtnText: {
