@@ -274,15 +274,20 @@ export function CategoriesPage() {
 
                 {/* Right Content Area */}
                 <View style={[styles.rightContentArea, { backgroundColor: gitColors.canvas, borderColor: gitColors.border }]}>
-                  {/* Active Category Header */}
+                  {/* Active Category Header — flat directory-style header */}
                   <View style={[styles.categoryHeroHeader, { backgroundColor: gitColors.canvasSubtle, borderBottomColor: gitColors.border }]}>
-                    <Image source={{ uri: currentCategory.imageUrl }} style={[styles.heroThumbnail, { borderColor: gitColors.border }]} />
+                    {/* Back breadcrumb + folder icon inline */}
+                    <MaterialIcon
+                      name={isLeaf ? 'category' : 'folder_open'}
+                      size={18}
+                      color={isLeaf ? gitColors.textSecondary : '#54AEFF'}
+                    />
                     <View style={styles.heroTextWrapper}>
                       <Text style={[styles.heroCategoryTitle, { color: gitColors.textPrimary }]}>{currentCategory.name}</Text>
                       <Text style={[styles.heroCategorySubtitle, { color: gitColors.textSecondary }]}>
                         {!isLeaf
-                          ? `${subCategories.length} Sub-Categories available • Click any to explore deeper`
-                          : `${displayProducts.length} Verified wholesale products available in this section`}
+                          ? `${subCategories.length} sub-categories`
+                          : `${displayProducts.length} wholesale products`}
                       </Text>
                     </View>
 
@@ -301,42 +306,72 @@ export function CategoriesPage() {
                     )}
                   </View>
 
-                  {/* 1. Sub-Categories Cards */}
+                  {/* 1. Sub-Categories as GitHub directory-style file rows */}
                   {!isLeaf ? (
-                    <ScrollView
-                      contentContainerStyle={styles.subCategoryGrid}
-                      showsVerticalScrollIndicator={false}
-                    >
-                      {subCategories.map((sub) => {
+                    <ScrollView showsVerticalScrollIndicator={false}>
+                      {/* Directory header row */}
+                      <View style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        paddingHorizontal: 16,
+                        paddingVertical: 8,
+                        borderBottomWidth: 1,
+                        borderBottomColor: gitColors.border,
+                        backgroundColor: gitColors.canvasSubtle,
+                      }}>
+                        <MaterialIcon name="folder_open" size={14} color={gitColors.textSecondary} />
+                        <Text style={{ marginLeft: 8, fontSize: 11, fontFamily: 'Outfit_600SemiBold', color: gitColors.textSecondary, flex: 1 }}>
+                          Name
+                        </Text>
+                        <Text style={{ fontSize: 11, fontFamily: 'Outfit_600SemiBold', color: gitColors.textSecondary }}>
+                          Sub-categories
+                        </Text>
+                      </View>
+
+                      {subCategories.map((sub, idx) => {
                         const hasDeeper = sub.subCategories && sub.subCategories.length > 0;
+                        const isLastRow = idx === subCategories.length - 1;
                         return (
                           <TouchableOpacity
                             key={sub.id}
-                            style={[styles.subCategoryCard, { backgroundColor: gitColors.canvasSubtle, borderColor: gitColors.border }]}
-                            activeOpacity={0.85}
+                            activeOpacity={0.75}
                             onPress={() => handleDesktopDrillIn(sub)}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              paddingHorizontal: 16,
+                              paddingVertical: 10,
+                              borderBottomWidth: isLastRow ? 0 : 1,
+                              borderBottomColor: gitColors.border,
+                              backgroundColor: gitColors.canvas,
+                            }}
                           >
-                            <Image source={{ uri: sub.imageUrl }} style={[styles.subCardImage, { borderBottomColor: gitColors.border }]} />
-                            <View style={styles.subCardContent}>
-                              <Text style={[styles.subCardTitle, { color: gitColors.textPrimary }]} numberOfLines={1}>
-                                {sub.name}
-                              </Text>
-                              <Text style={[styles.subCardCount, { color: gitColors.textSecondary }]}>
-                                {hasDeeper
-                                  ? `${sub.subCategories?.length} Nested Categories`
-                                  : 'Tap to view products'}
-                              </Text>
-                              <View style={[styles.viewProductsRow, { backgroundColor: gitColors.btnBg, borderColor: gitColors.btnBorder }]}>
-                                <Text style={[styles.viewProductsText, { color: gitColors.textPrimary }]}>
-                                  {hasDeeper ? 'Open Sub-Categories' : 'View Products'}
-                                </Text>
-                                <MaterialIcon
-                                  name="arrow_forward"
-                                  size={13}
-                                  color={gitColors.textPrimary}
-                                />
-                              </View>
-                            </View>
+                            {/* Folder icon */}
+                            <MaterialIcon
+                              name={hasDeeper ? 'folder' : 'category'}
+                              size={16}
+                              color={hasDeeper ? '#54AEFF' : gitColors.textSecondary}
+                            />
+                            {/* Name */}
+                            <Text style={{
+                              flex: 1,
+                              marginLeft: 10,
+                              fontSize: 13.5,
+                              fontFamily: 'Outfit_600SemiBold',
+                              color: gitColors.textLink,
+                            }} numberOfLines={1}>
+                              {sub.name}
+                            </Text>
+                            {/* Sub-count badge or "leaf" indicator */}
+                            <Text style={{
+                              fontSize: 11,
+                              fontFamily: 'PlusJakartaSans_500Medium',
+                              color: gitColors.textSecondary,
+                              marginRight: 10,
+                            }}>
+                              {hasDeeper ? `${sub.subCategories?.length} folders` : 'View products'}
+                            </Text>
+                            <MaterialIcon name="chevron_right" size={14} color={gitColors.textSecondary} />
                           </TouchableOpacity>
                         );
                       })}

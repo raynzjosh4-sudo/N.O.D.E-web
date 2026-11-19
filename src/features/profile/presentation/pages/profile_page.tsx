@@ -216,20 +216,14 @@ export function ProfilePage() {
           /* ═══════════════════════════════════════════════════════════════════ */
           <View style={styles.desktopOuterWrapper}>
             {/* ── Top Bar with Breadcrumbs & Back to Catalog ── */}
-            <View style={styles.desktopTopNav}>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                style={[styles.desktopBackBtn, { backgroundColor: colors.surface, borderColor: colors.cardBorder }]}
-                onPress={() => router.safeGoBack('/')}
-              >
-                <MaterialIcon name="arrow_back" size={18} color={colors.onSurface} />
-                <Text style={[styles.desktopBackText, { color: colors.onSurface }]}>Back to Catalog</Text>
-              </TouchableOpacity>
-
+            <View style={[styles.desktopTopNav, { borderBottomColor: gitColors.border }]}>
+              {/* Breadcrumbs: plain text link style, no button box */}
               <View style={styles.desktopBreadcrumbs}>
-                <Text style={styles.desktopBreadcrumbRoot}>N.O.D.E.</Text>
-                <Text style={styles.desktopBreadcrumbSeparator}>/</Text>
-                <Text style={styles.desktopBreadcrumbActive}>Wholesale Buyer Dashboard</Text>
+                <TouchableOpacity activeOpacity={0.7} onPress={() => router.safeGoBack('/')}>
+                  <Text style={[styles.desktopBreadcrumbRoot, { color: gitColors.textLink }]}>N.O.D.E.</Text>
+                </TouchableOpacity>
+                <Text style={[styles.desktopBreadcrumbSeparator, { color: gitColors.textSecondary }]}>/</Text>
+                <Text style={[styles.desktopBreadcrumbActive, { color: gitColors.textPrimary }]}>dashboard</Text>
               </View>
             </View>
 
@@ -338,7 +332,12 @@ export function ProfilePage() {
                   <MaterialIcon name="warehouse" size={14} color={colors.primary} />
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.sidebarLocTitle, { color: colors.primary }]}>Delivery Warehouse</Text>
-                    <Text style={[styles.sidebarLocAddress, { color: gitColors.textSecondary }]} numberOfLines={2}>{profile.warehouseAddress}</Text>
+                    <Text style={[styles.sidebarLocAddress, { color: gitColors.textSecondary }]} numberOfLines={1}>
+                      {/* Strip emoji/garbage chars — show only printable ASCII + common chars */}
+                      {profile.warehouseAddress
+                        ? profile.warehouseAddress.replace(/[^\x20-\x7E\u00C0-\u024F,.\-\s]/g, '').trim() || 'East Africa'
+                        : 'East Africa'}
+                    </Text>
                   </View>
                 </View>
 
@@ -625,8 +624,10 @@ const styles = StyleSheet.create({
   desktopTopNav: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingBottom: 16,
+    justifyContent: 'flex-start',
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    marginBottom: 16,
   },
   desktopBackBtn: {
     flexDirection: 'row',
@@ -647,20 +648,18 @@ const styles = StyleSheet.create({
   desktopBreadcrumbs: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   desktopBreadcrumbRoot: {
     fontSize: 13,
-    fontFamily: 'Outfit_700Bold',
-    color: 'rgba(28, 27, 31, 0.4)',
+    fontFamily: 'Outfit_600SemiBold',
   },
   desktopBreadcrumbSeparator: {
-    color: 'rgba(28, 27, 31, 0.3)',
+    fontSize: 13,
   },
   desktopBreadcrumbActive: {
     fontSize: 13,
-    fontFamily: 'Outfit_800ExtraBold',
-    color: AppColors.primary,
+    fontFamily: 'Outfit_700Bold',
   },
 
   desktopDashboardRow: {
@@ -669,7 +668,6 @@ const styles = StyleSheet.create({
     gap: 20,
     minHeight: 0,
   },
-
   // Desktop Left Sidebar
   desktopSidebarCard: {
     width: 280,
