@@ -26,9 +26,25 @@ import { resolveImageUrl } from '@/core/utils/image_utils';
 export function CategoriesPage() {
   const router = useAppNavigation();
   const { width } = useWindowDimensions();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const isDesktop = width >= 960;
   const { products } = useProducts();
+
+  // ── GitHub Primer Palette ──
+  const gitColors = {
+    canvas: isDark ? '#0D1117' : '#FFFFFF',
+    canvasSubtle: isDark ? '#161B22' : '#F6F8FA',
+    border: isDark ? '#30363D' : '#D0D7DE',
+    borderMuted: isDark ? '#21262D' : '#EAECEF',
+    textPrimary: isDark ? '#E6EDF3' : '#1F2328',
+    textSecondary: isDark ? '#848D97' : '#656D76',
+    textLink: isDark ? '#58A6FF' : '#0969DA',
+    btnBg: isDark ? '#21262D' : '#F6F8FA',
+    btnBorder: isDark ? '#30363D' : '#D0D7DE',
+    activeNavBg: isDark ? 'rgba(177, 186, 196, 0.12)' : '#F6F8FA',
+    activeNavBorder: '#FD8C73', // GitHub signature orange active indicator
+    badgeBg: isDark ? '#30363D' : 'rgba(175, 184, 193, 0.2)',
+  };
 
   const [categoriesTree, setCategoriesTree] = useState<CategoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -152,36 +168,40 @@ export function CategoriesPage() {
     };
 
     return (
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>
-        <View style={[styles.container, { backgroundColor: colors.scaffoldBackground }]}>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: gitColors.canvas }]}>
+        <View style={[styles.container, { backgroundColor: gitColors.canvas }]}>
           <View style={styles.desktopOuterLayout}>
             {/* ── Left / Center Categories & Products Area ── */}
             <View style={styles.desktopMainFlow}>
               {/* Top Bar with Back Button & Breadcrumbs */}
-              <View style={[styles.desktopTopNav, { backgroundColor: colors.surface, borderBottomColor: colors.borderLight }]}>
+              <View style={[styles.desktopTopNav, { backgroundColor: gitColors.canvasSubtle, borderBottomColor: gitColors.border }]}>
                 <TouchableOpacity
                   onPress={() => router.safeGoBack()}
-                  style={[styles.backButton, { backgroundColor: colors.cardColor }]}
+                  style={[styles.backButton, { backgroundColor: gitColors.btnBg, borderColor: gitColors.btnBorder }]}
                   activeOpacity={0.7}
                 >
-                  <MaterialIcon name="arrow_back" size={20} color={colors.onSurface} />
+                  <MaterialIcon name="arrow_back" size={16} color={gitColors.textPrimary} />
+                  <Text style={{ fontSize: 12, fontFamily: 'Outfit_700Bold', color: gitColors.textPrimary }}>Back</Text>
                 </TouchableOpacity>
 
                 <View style={styles.breadcrumbsContainer}>
-                  <Text style={[styles.desktopPageTitle, { color: colors.onSurface }]}>Explore Catalog</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Text style={[styles.desktopPageTitle, { color: gitColors.textPrimary }]}>Explore Catalog</Text>
+                    <View style={{ paddingHorizontal: 7, paddingVertical: 2, borderRadius: 12, borderWidth: 1, borderColor: gitColors.border, backgroundColor: gitColors.canvas }}>
+                      <Text style={{ fontSize: 10.5, fontFamily: 'Outfit_700Bold', color: gitColors.textSecondary }}>Directory</Text>
+                    </View>
+                  </View>
 
                   {/* Interactive Dynamic Breadcrumb Trail */}
                   <View style={styles.breadcrumbTrail}>
+                    <Text style={{ fontSize: 12.5, fontFamily: 'Outfit_600SemiBold', color: gitColors.textSecondary }}>N.O.D.E.</Text>
+                    <Text style={{ marginHorizontal: 4, color: gitColors.textSecondary }}>/</Text>
                     {activePath.map((item, idx) => {
                       const isLast = idx === activePath.length - 1;
                       return (
                         <View key={item.id} style={styles.breadcrumbItem}>
                           {idx > 0 && (
-                            <MaterialIcon
-                              name="chevron_right"
-                              size={16}
-                              color={colors.onSurfaceMuted}
-                            />
+                            <Text style={{ marginHorizontal: 4, color: gitColors.textSecondary }}>/</Text>
                           )}
                           <TouchableOpacity
                             activeOpacity={0.7}
@@ -191,7 +211,7 @@ export function CategoriesPage() {
                             <Text
                               style={[
                                 styles.breadcrumbText,
-                                { color: isLast ? colors.onSurface : colors.onSurfaceMuted },
+                                { color: isLast ? gitColors.textPrimary : gitColors.textLink },
                                 isLast && styles.breadcrumbActive,
                               ]}
                             >
@@ -208,8 +228,8 @@ export function CategoriesPage() {
               {/* Split Megamenu Content */}
               <View style={styles.megamenuContainer}>
                 {/* Left Sidebar: Root Categories */}
-                <View style={[styles.leftSidebar, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}>
-                  <Text style={[styles.sidebarHeader, { color: colors.onSurfaceMuted }]}>ALL DEPARTMENTS</Text>
+                <View style={[styles.leftSidebar, { backgroundColor: gitColors.canvasSubtle, borderColor: gitColors.border }]}>
+                  <Text style={[styles.sidebarHeader, { color: gitColors.textSecondary, borderBottomColor: gitColors.border }]}>ALL DEPARTMENTS</Text>
                   <ScrollView showsVerticalScrollIndicator={false}>
                     {categoriesTree.map((cat) => {
                       const isSelected = activePath[0]?.id === cat.id;
@@ -219,18 +239,22 @@ export function CategoriesPage() {
                           activeOpacity={0.8}
                           style={[
                             styles.sidebarItem,
-                            isSelected && [styles.sidebarItemSelected, { backgroundColor: colors.surface }],
+                            { borderBottomColor: gitColors.borderMuted },
+                            isSelected && [
+                              styles.sidebarItemSelected,
+                              { backgroundColor: gitColors.activeNavBg, borderLeftColor: gitColors.activeNavBorder },
+                            ],
                           ]}
                           onPress={() => {
                             setActivePath([cat]);
                             setSelectedProduct(null);
                           }}
                         >
-                          <Image source={{ uri: cat.imageUrl }} style={styles.sidebarThumbnail} />
+                          <Image source={{ uri: cat.imageUrl }} style={[styles.sidebarThumbnail, { borderColor: gitColors.border }]} />
                           <Text
                             style={[
                               styles.sidebarItemText,
-                              { color: isSelected ? colors.primary : colors.onSurface },
+                              { color: isSelected ? gitColors.textPrimary : gitColors.textSecondary },
                               isSelected && styles.sidebarItemTextSelected,
                             ]}
                             numberOfLines={1}
@@ -239,8 +263,8 @@ export function CategoriesPage() {
                           </Text>
                           <MaterialIcon
                             name="chevron_right"
-                            size={18}
-                            color={isSelected ? colors.primary : colors.onSurfaceMuted}
+                            size={16}
+                            color={isSelected ? gitColors.textPrimary : gitColors.textSecondary}
                           />
                         </TouchableOpacity>
                       );
@@ -249,13 +273,13 @@ export function CategoriesPage() {
                 </View>
 
                 {/* Right Content Area */}
-                <View style={[styles.rightContentArea, { backgroundColor: colors.surface, borderColor: colors.borderLight }]}>
+                <View style={[styles.rightContentArea, { backgroundColor: gitColors.canvas, borderColor: gitColors.border }]}>
                   {/* Active Category Header */}
-                  <View style={[styles.categoryHeroHeader, { borderBottomColor: colors.borderLight }]}>
-                    <Image source={{ uri: currentCategory.imageUrl }} style={styles.heroThumbnail} />
+                  <View style={[styles.categoryHeroHeader, { backgroundColor: gitColors.canvasSubtle, borderBottomColor: gitColors.border }]}>
+                    <Image source={{ uri: currentCategory.imageUrl }} style={[styles.heroThumbnail, { borderColor: gitColors.border }]} />
                     <View style={styles.heroTextWrapper}>
-                      <Text style={[styles.heroCategoryTitle, { color: colors.onSurface }]}>{currentCategory.name}</Text>
-                      <Text style={[styles.heroCategorySubtitle, { color: colors.onSurfaceMuted }]}>
+                      <Text style={[styles.heroCategoryTitle, { color: gitColors.textPrimary }]}>{currentCategory.name}</Text>
+                      <Text style={[styles.heroCategorySubtitle, { color: gitColors.textSecondary }]}>
                         {!isLeaf
                           ? `${subCategories.length} Sub-Categories available • Click any to explore deeper`
                           : `${displayProducts.length} Verified wholesale products available in this section`}
@@ -265,14 +289,14 @@ export function CategoriesPage() {
                     {activePath.length > 1 && (
                       <TouchableOpacity
                         activeOpacity={0.75}
-                        style={styles.upLevelButton}
+                        style={[styles.upLevelButton, { backgroundColor: gitColors.btnBg, borderColor: gitColors.btnBorder }]}
                         onPress={() => {
                           setActivePath((prev) => prev.slice(0, prev.length - 1));
                           setSelectedProduct(null);
                         }}
                       >
-                        <MaterialIcon name="arrow_upward" size={15} color={AppColors.primary} />
-                        <Text style={styles.upLevelText}>Up one level</Text>
+                        <MaterialIcon name="arrow_upward" size={14} color={gitColors.textPrimary} />
+                        <Text style={[styles.upLevelText, { color: gitColors.textPrimary }]}>Up one level</Text>
                       </TouchableOpacity>
                     )}
                   </View>
@@ -288,28 +312,28 @@ export function CategoriesPage() {
                         return (
                           <TouchableOpacity
                             key={sub.id}
-                            style={[styles.subCategoryCard, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}
+                            style={[styles.subCategoryCard, { backgroundColor: gitColors.canvasSubtle, borderColor: gitColors.border }]}
                             activeOpacity={0.85}
                             onPress={() => handleDesktopDrillIn(sub)}
                           >
-                            <Image source={{ uri: sub.imageUrl }} style={styles.subCardImage} />
+                            <Image source={{ uri: sub.imageUrl }} style={[styles.subCardImage, { borderBottomColor: gitColors.border }]} />
                             <View style={styles.subCardContent}>
-                              <Text style={[styles.subCardTitle, { color: colors.onSurface }]} numberOfLines={1}>
+                              <Text style={[styles.subCardTitle, { color: gitColors.textPrimary }]} numberOfLines={1}>
                                 {sub.name}
                               </Text>
-                              <Text style={[styles.subCardCount, { color: colors.onSurfaceMuted }]}>
+                              <Text style={[styles.subCardCount, { color: gitColors.textSecondary }]}>
                                 {hasDeeper
                                   ? `${sub.subCategories?.length} Nested Categories`
                                   : 'Tap to view products'}
                               </Text>
-                              <View style={styles.viewProductsRow}>
-                                <Text style={[styles.viewProductsText, { color: colors.primary }]}>
+                              <View style={[styles.viewProductsRow, { backgroundColor: gitColors.btnBg, borderColor: gitColors.btnBorder }]}>
+                                <Text style={[styles.viewProductsText, { color: gitColors.textPrimary }]}>
                                   {hasDeeper ? 'Open Sub-Categories' : 'View Products'}
                                 </Text>
                                 <MaterialIcon
                                   name="arrow_forward"
-                                  size={14}
-                                  color={colors.primary}
+                                  size={13}
+                                  color={gitColors.textPrimary}
                                 />
                               </View>
                             </View>
