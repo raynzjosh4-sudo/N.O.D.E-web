@@ -6,6 +6,7 @@ import { useAppTheme } from '@/core/theme/theme_context';
 import { MaterialIcon } from '@/core/widgets/material_icon';
 import { SupplierProductsScreen } from '@/features/inventory/presentation/pages/supplier_products_screen';
 import { BecomeSupplierSheet } from '@/features/profile/presentation/widgets/become_supplier_sheet';
+import { SupplierProductsShimmer } from '@/features/inventory/presentation/pages/shimmer/supplier_products_shimmer';
 
 export default function SupplierProductsRoute() {
   const { user, isAuthenticated, isLoading, isProfileReady } = useAuth();
@@ -15,12 +16,9 @@ export default function SupplierProductsRoute() {
 
   if (isLoading || !isProfileReady) {
     return (
-      <View style={[styles.center, { backgroundColor: colors.scaffoldBackground }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.loadingText, { color: colors.onSurfaceMuted }]}>
-          Verifying supplier account...
-        </Text>
-      </View>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>
+        <SupplierProductsShimmer />
+      </SafeAreaView>
     );
   }
 

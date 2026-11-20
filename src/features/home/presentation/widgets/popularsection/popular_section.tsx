@@ -11,6 +11,7 @@ import { useAppTheme } from '@/core/theme/theme_context';
 import { Product } from '@/features/inventory/domain/entities/product';
 import { useProducts } from '@/features/inventory/context/products_context';
 import { PopularCard } from './popular_card';
+import { PopularSectionShimmer } from '../shimmer/home_widgets_shimmer';
 
 interface PopularSectionProps {
   products?: Product[];
@@ -34,8 +35,8 @@ export function PopularSection({
         <View style={styles.container}>
           <View style={styles.titleRow}>
             <Text style={[styles.sectionTitle, { color: colors.onSurface }]}>Popular</Text>
-            <ActivityIndicator size="small" color={colors.primary} style={styles.spinner} />
           </View>
+          <PopularSectionShimmer />
         </View>
       );
     }
@@ -46,9 +47,6 @@ export function PopularSection({
     <View style={styles.container}>
       <View style={styles.titleRow}>
         <Text style={[styles.sectionTitle, { color: colors.onSurface }]}>Popular</Text>
-        {isPopularLoading && (
-          <ActivityIndicator size="small" color={colors.primary} style={styles.spinner} />
-        )}
       </View>
 
       <ScrollView

@@ -7,6 +7,7 @@ import { ProductApiService } from '@/features/inventory/data/services/product_ap
 import { Product } from '@/features/inventory/domain/entities/product';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState, useMemo } from 'react';
+import { ProductDetailShimmer } from './product_detail/shimmer/product_detail_shimmer';
 import {
   ActivityIndicator,
   Image,
@@ -82,12 +83,7 @@ export default function ProductDetailScreen() {
   if (!product && isLoadingProduct) {
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={{ marginTop: 14, color: colors.onSurfaceMuted, fontSize: 13 }}>
-            Loading products...
-          </Text>
-        </View>
+        <ProductDetailShimmer />
       </SafeAreaView>
     );
   }

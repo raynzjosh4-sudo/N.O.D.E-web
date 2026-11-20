@@ -18,6 +18,7 @@ import { MaterialIcon } from '@/core/widgets/material_icon';
 import { Supplier } from '@/features/home/domain/entities/supplier';
 import { ProductApiService } from '@/features/inventory/data/services/product_api_service';
 import { ProductMapper } from '@/features/inventory/data/mappers/product_mapper';
+import { SuppliersShimmer } from './shimmer/suppliers_shimmer';
 
 const DEFAULT_CATEGORIES = [
   'All',
@@ -205,10 +206,7 @@ export function AllSuppliersScreen() {
 
           {/* ── List ── */}
           {loading ? (
-            <View style={styles.emptyState}>
-              <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={[styles.emptyText, { color: muted, marginTop: 12 }]}>Loading verified suppliers…</Text>
-            </View>
+            <SuppliersShimmer />
           ) : filteredSuppliers.length === 0 ? (
             <View style={styles.emptyState}>
               <MaterialIcon name="storefront" size={40} color={muted} />

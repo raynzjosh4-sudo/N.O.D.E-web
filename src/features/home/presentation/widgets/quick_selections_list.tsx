@@ -13,6 +13,7 @@ import { useAppTheme } from '@/core/theme/theme_context';
 import { Supplier } from '@/features/home/domain/entities/supplier';
 import { ProductApiService } from '@/features/inventory/data/services/product_api_service';
 import { ProductMapper } from '@/features/inventory/data/mappers/product_mapper';
+import { QuickSelectionsShimmer } from './shimmer/home_widgets_shimmer';
 
 interface QuickSelectionsListProps {
   suppliers?: Supplier[];
@@ -73,20 +74,15 @@ export function QuickSelectionsList({
       </View>
 
       {/* Horizontal Pill List */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollList}
-      >
-        {loading && suppliers.length === 0 ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: 40, gap: 8 }}>
-            <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={{ color: colors.onSurfaceMuted, fontSize: 13, fontFamily: 'PlusJakartaSans_500Medium' }}>
-              Loading suppliers...
-            </Text>
-          </View>
-        ) : (
-          suppliers.map((supplier) => (
+      {loading && suppliers.length === 0 ? (
+        <QuickSelectionsShimmer />
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.scrollList}
+        >
+          {suppliers.map((supplier) => (
             <TouchableOpacity
               key={supplier.id}
               style={[styles.pillContainer, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}
@@ -107,9 +103,9 @@ export function QuickSelectionsList({
               </View>
               <Text style={[styles.supplierName, { color: colors.onSurface }]}>{supplier.name}</Text>
             </TouchableOpacity>
-          ))
-        )}
-      </ScrollView>
+          ))}
+        </ScrollView>
+      )}
     </View>
   );
 }

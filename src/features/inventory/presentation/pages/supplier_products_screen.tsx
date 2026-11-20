@@ -18,6 +18,7 @@ import { Product } from '../../domain/entities/product';
 import { ProductApiService } from '../../data/services/product_api_service';
 import { EditProductSheet } from '../widgets/edit_product_sheet';
 import { useAuth } from '@/features/auth/context/auth_context';
+import { SupplierProductsShimmer } from './shimmer/supplier_products_shimmer';
 
 type FilterTab = 'all' | 'active' | 'low_stock';
 
@@ -198,12 +199,7 @@ export function SupplierProductsScreen() {
 
         {/* ── 3. BODY: GITHUB TABLE LIST VIEW ── */}
         {isLoadingProducts ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={gitColors.textLink} />
-            <Text style={[styles.loadingText, { color: gitColors.textSecondary }]}>
-              Loading repository catalog...
-            </Text>
-          </View>
+          <SupplierProductsShimmer />
         ) : (
           <ScrollView
             contentContainerStyle={styles.scrollContent}

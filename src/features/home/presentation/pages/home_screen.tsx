@@ -23,6 +23,7 @@ import { FeaturedCategoryCard } from '@/features/home/presentation/widgets/featu
 import { PopularSection } from '@/features/home/presentation/widgets/popularsection/popular_section';
 import { ProductGridSection } from '@/features/home/presentation/widgets/product_grid_section';
 import { ProductDetailSidePanel } from '@/features/home/presentation/widgets/product_detail_side_panel';
+import { HomeFeedShimmer } from './home/shimmer/home_feed_shimmer';
 import { SearchHistoryView } from '@/features/home/presentation/widgets/search_history_view';
 import { Product } from '@/features/inventory/domain/entities/product';
 import { useProducts } from '@/features/inventory/context/products_context';
@@ -265,13 +266,6 @@ export default function HomeScreen() {
                   onProductPress={handleProductTap}
                   onCartPress={(p) => console.log('Add popular to cart:', p.name)}
                 />
-
-                {/* Loading Indicator for Initial Network Fetch */}
-                {isLoading && (
-                  <View style={{ paddingVertical: 20, alignItems: 'center' }}>
-                    <ActivityIndicator size="small" color={colors.primary} />
-                  </View>
-                )}
 
                 {/* 7. Product Masonry Waterfall Grid */}
                 <ProductGridSection

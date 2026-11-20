@@ -21,6 +21,7 @@ import { ProductApiService } from '@/features/inventory/data/services/product_ap
 import { ProfileApiService } from '@/features/profile/data/services/profile_api_service';
 import { ProductGridSection } from '@/features/home/presentation/widgets/product_grid_section';
 import { useToast } from '@/core/widgets/whatsapp_dialog';
+import { ProductSpecsShimmer } from './shimmer/product_specs_shimmer';
 
 export default function ProductSpecsScreen() {
   const router = useAppNavigation();
@@ -69,9 +70,7 @@ export default function ProductSpecsScreen() {
   if (!product && isLoading) {
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <ProductSpecsShimmer />
       </SafeAreaView>
     );
   }

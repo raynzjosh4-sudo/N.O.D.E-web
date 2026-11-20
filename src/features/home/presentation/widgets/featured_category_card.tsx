@@ -14,6 +14,7 @@ import { MaterialIcon } from '@/core/widgets/material_icon';
 import { ProductApiService } from '@/features/inventory/data/services/product_api_service';
 import { CategoryDto } from '@/features/inventory/data/dto/product_dto';
 import { resolveImageUrl } from '@/core/utils/image_utils';
+import { FeaturedCategoryShimmer } from './shimmer/home_widgets_shimmer';
 
 export interface FeaturedCategoryItem {
   id: string;
@@ -80,11 +81,7 @@ export function FeaturedCategoryCard({
 
   if (items.length === 0) {
     if (isLoading) {
-      return (
-        <View style={[styles.container, { height: cardHeight, justifyContent: 'center', alignItems: 'center' }]}>
-          <ActivityIndicator size="small" color={AppColors.accentCyan} />
-        </View>
-      );
+      return <FeaturedCategoryShimmer />;
     }
     return null;
   }

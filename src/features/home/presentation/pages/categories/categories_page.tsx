@@ -22,6 +22,7 @@ import { ProductApiService } from '@/features/inventory/data/services/product_ap
 import { useProducts } from '@/features/inventory/context/products_context';
 import { styles } from './categorystyle';
 import { resolveImageUrl } from '@/core/utils/image_utils';
+import { CategoriesShimmer } from './shimmer/categories_shimmer';
 
 export function CategoriesPage() {
   const router = useAppNavigation();
@@ -129,10 +130,7 @@ export function CategoriesPage() {
     if (isLoading) {
       return (
         <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>
-          <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={{ marginTop: 12, color: colors.onSurfaceMuted }}>Loading wholesale categories...</Text>
-          </View>
+          <CategoriesShimmer />
         </SafeAreaView>
       );
     }
@@ -459,10 +457,7 @@ export function CategoriesPage() {
   if (isLoading) {
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>
-        <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={{ marginTop: 12, color: colors.onSurfaceMuted }}>Loading categories...</Text>
-        </View>
+        <CategoriesShimmer />
       </SafeAreaView>
     );
   }
