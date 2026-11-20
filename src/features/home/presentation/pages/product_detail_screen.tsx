@@ -1,60 +1,92 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  TouchableOpacity,
-  Image,
-  ScrollView,
-  useWindowDimensions,
-  ActivityIndicator,
-} from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
-import { useAppNavigation } from '@/core/utils/use_app_navigation';
 import { useAppTheme } from '@/core/theme/theme_context';
+import { useAppNavigation } from '@/core/utils/use_app_navigation';
 import { MaterialIcon } from '@/core/widgets/material_icon';
-import { useProducts } from '@/features/inventory/context/products_context';
-import { Product } from '@/features/inventory/domain/entities/product';
-import { ProductApiService } from '@/features/inventory/data/services/product_api_service';
 import { ProductGridSection } from '@/features/home/presentation/widgets/product_grid_section';
+import { useProducts } from '@/features/inventory/context/products_context';
+import { ProductApiService } from '@/features/inventory/data/services/product_api_service';
+import { Product } from '@/features/inventory/domain/entities/product';
+import { useLocalSearchParams } from 'expo-router';
+import { useEffect, useState, useMemo } from 'react';
+import {
+  ActivityIndicator,
+  Image,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 export default function ProductDetailScreen() {
   const router = useAppNavigation();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, category, supplierId } = useLocalSearchParams<{
+    id?: string;
+    category?: string;
+    supplierId?: string;
+  }>();
   const { width, height } = useWindowDimensions();
   const { colors, isDark } = useAppTheme();
   const { products, getProductById } = useProducts();
 
-  const initialProduct = (id ? getProductById(id) : undefined) || products[0];
-  const [product, setProduct] = useState<Product | undefined>(initialProduct);
+  const [product, setProduct] = useState<Product | undefined>(() => {
+    if (id) return getProductById(id);
+    return undefined;
+  });
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [isLoadingProduct, setIsLoadingProduct] = useState(false);
   const [isMediaExpanded, setIsMediaExpanded] = useState(false);
 
   useEffect(() => {
-    if (id) {
-      const cached = getProductById(id);
-      if (cached) setProduct(cached);
+    let isMounted = true;
+    setIsLoadingProduct(true);
 
-      setIsLoadingProduct(true);
-      ProductApiService.getProductById(id)
-        .then((fullProd) => {
-          if (fullProd) setProduct(fullProd);
-        })
-        .catch((err) => {
-          console.warn('[ProductDetailScreen] Product fetch error:', err);
-        })
-        .finally(() => {
-          setIsLoadingProduct(false);
-        });
-    }
-  }, [id]);
+    const loadData = async () => {
+      try {
+        // Case 1: Specific product ID provided
+        if (id) {
+          const cached = getProductById(id);
+          if (cached && isMounted) setProduct(cached);
+
+          const fullProd = await ProductApiService.getProductById(id);
+          if (fullProd && isMounted) setProduct(fullProd);
+        } else if (category || supplierId) {
+          // Case 2: Opened from category or supplier tap (Dart parity)
+          const res = await ProductApiService.getProducts({
+            categoryId: category,
+            supplierId: supplierId,
+            limit: 50,
+          });
+          if (res.products && res.products.length > 0 && isMounted) {
+            setProduct(res.products[0]);
+            setFilteredProducts(res.products);
+          }
+        } else if (products.length > 0 && isMounted) {
+          setProduct(products[0]);
+        }
+      } catch (err) {
+        console.warn('[ProductDetailScreen] Data load error:', err);
+      } finally {
+        if (isMounted) setIsLoadingProduct(false);
+      }
+    };
+
+    loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id, category, supplierId]);
 
   if (!product && isLoadingProduct) {
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={{ marginTop: 14, color: colors.onSurfaceMuted, fontSize: 13 }}>
+            Loading products...
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -64,12 +96,18 @@ export default function ProductDetailScreen() {
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>
         <View style={styles.centerContainer}>
-          <Text style={[styles.errorText, { color: colors.onSurface }]}>Product not found.</Text>
+          <MaterialIcon name="inventory_2" size={48} color={colors.onSurfaceMuted} />
+          <Text style={[styles.errorText, { color: colors.onSurface, marginTop: 12 }]}>
+            No products available
+          </Text>
+          <Text style={{ color: colors.onSurfaceMuted, fontSize: 13, marginBottom: 18, textAlign: 'center' }}>
+            There are currently no products listed under this section.
+          </Text>
           <TouchableOpacity
             style={[styles.backHomeBtn, { backgroundColor: colors.primary }]}
-            onPress={() => router.push('/')}
+            onPress={() => router.safeGoBack('/')}
           >
-            <Text style={styles.backHomeBtnText}>Go to Home</Text>
+            <Text style={styles.backHomeBtnText}>Go Back</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -88,7 +126,9 @@ export default function ProductDetailScreen() {
 
   const formatPrice = (val: number) => 'UGX ' + (val || 0).toLocaleString('en-US');
 
-  const exploreProducts = products.filter((p) => p.id !== product.id);
+  // Explore waterfall: prioritize products from current filter or global products
+  const explorePool = filteredProducts.length > 0 ? filteredProducts : products;
+  const exploreProducts = explorePool.filter((p) => p.id !== product.id);
 
   const navigateToSpecs = () => {
     router.push(`/product/specs/${product.id}`);
@@ -145,13 +185,13 @@ export default function ProductDetailScreen() {
               <MaterialIcon name="close" size={18} color={colors.onSurface} />
             </TouchableOpacity>
 
-            {/* ── PRICE BADGE (Bottom-Left) ── */}
+            {/* 🏷️ FLOATING PRICE BADGE (Bottom-Left Pill) */}
             <View
               style={[
                 styles.priceBadge,
                 {
-                  backgroundColor: isDark ? 'rgba(24,24,27,0.92)' : 'rgba(255,255,255,0.94)',
-                  borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
+                  backgroundColor: isDark ? 'rgba(15,17,23,0.88)' : 'rgba(255,255,255,0.92)',
+                  borderColor: colors.borderLight,
                 },
               ]}
             >
@@ -160,34 +200,30 @@ export default function ProductDetailScreen() {
               </Text>
             </View>
 
-            {/* ── VIEW SPECS BUTTON (Bottom-Right -> Navigates to Specs Page) ── */}
+            {/* ⚙️ FLOATING SPECIFICATION BUTTON (Bottom-Right Orange Pill) */}
             <TouchableOpacity
               activeOpacity={0.85}
               style={[styles.viewSpecsButton, { backgroundColor: colors.primary }]}
               onPress={navigateToSpecs}
             >
-              <MaterialIcon name="tune" size={16} color="#FFFFFF" />
               <Text style={styles.viewSpecsButtonText}>View Specs</Text>
+              <MaterialIcon name="arrow_forward" size={16} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* 🏷️ PRODUCT MEDIA SECTION (Restored from Flutter) */}
-        {mediaUrls.length > 0 && (
+        {/* 📸 RICH MEDIA GALLERY SECTION */}
+        {mediaUrls.length > 1 && (
           <View style={[styles.sectionContainer, isDesktop && styles.desktopContainer]}>
             <View style={styles.mediaHeaderRow}>
-              <Text style={[styles.sectionTitle, { color: colors.onSurface }]}>Product Media</Text>
+              <Text style={[styles.sectionTitle, { color: colors.onSurface }]}>Media</Text>
               <TouchableOpacity
-                activeOpacity={0.7}
-                style={[
-                  styles.expandChevronBtn,
-                  { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' },
-                ]}
                 onPress={() => setIsMediaExpanded(!isMediaExpanded)}
+                style={[styles.expandChevronBtn, { backgroundColor: colors.cardColor }]}
               >
                 <MaterialIcon
-                  name={isMediaExpanded ? 'keyboard_arrow_up' : 'keyboard_arrow_down'}
-                  size={20}
+                  name={isMediaExpanded ? 'expand_less' : 'expand_more'}
+                  size={22}
                   color={colors.onSurface}
                 />
               </TouchableOpacity>
@@ -202,7 +238,7 @@ export default function ProductDetailScreen() {
               >
                 {mediaUrls.map((uri, idx) => (
                   <TouchableOpacity
-                    key={`media-${idx}`}
+                    key={`media-thumb-${idx}`}
                     activeOpacity={0.85}
                     style={[styles.mediaThumbCard, { borderColor: colors.borderLight }]}
                     onPress={navigateToSpecs}

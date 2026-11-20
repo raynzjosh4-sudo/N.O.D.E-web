@@ -440,7 +440,11 @@ export function CategoriesPage() {
     if (category.subCategories && category.subCategories.length > 0) {
       setMobileStack((prev) => [...prev, category]);
     } else {
-      console.log('Selected Category leaf:', category.name);
+      // Dart parity: Navigate to explore products filtered by this category
+      router.push({
+        pathname: '/product/[id]',
+        params: { id: 'category', category: category.id },
+      });
     }
   };
 

@@ -242,7 +242,10 @@ export function AllSuppliersScreen() {
                         { borderBottomColor: border },
                         isLast && styles.rowLast,
                       ]}
-                      onPress={() => router.push(`/explore`)}
+                      onPress={() => router.push({
+                        pathname: '/product/[id]',
+                        params: { id: 'supplier', supplierId: supplier.id },
+                      })}
                     >
                       {/* Avatar */}
                       <View style={[styles.avatar, { borderColor: border, backgroundColor: colors.cardColor }]}>
