@@ -369,4 +369,34 @@ export class ProfileApiService {
       body: JSON.stringify(order),
     });
   }
+
+  /**
+   * Fetch incoming orders for supplier
+   */
+  static async getSupplierIncomingOrders(params: { page?: number; limit?: number; status?: string } = {}): Promise<{
+    orders: any[];
+    total: number;
+  }> {
+    const res = await apiClient<{ data: any[]; total: number }>(API_ENDPOINTS.ORDERS.SUPPLIER_INCOMING, {
+      params: {
+        page: params.page ?? 1,
+        limit: params.limit ?? 50,
+        status: params.status,
+      },
+    });
+    return {
+      orders: res.data || [],
+      total: res.total || 0,
+    };
+  }
+
+  /**
+   * Update order status by supplier or buyer
+   */
+  static async updateOrderStatus(orderId: string, newStatus: string): Promise<any> {
+    return await apiClient(API_ENDPOINTS.ORDERS.UPDATE_STATUS(orderId), {
+      method: 'PATCH',
+      body: JSON.stringify({ status: newStatus }),
+    });
+  }
 }

@@ -52,7 +52,36 @@ export function ProfileShimmer() {
   );
 }
 
+export function ProfileTabShimmer() {
+  const { colors } = useAppTheme();
+
+  return (
+    <View style={styles.tabShimmerContainer}>
+      {Array.from({ length: 4 }).map((_, i) => (
+        <View
+          key={`tab-item-${i}`}
+          style={[styles.listItem, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}
+        >
+          <ShimmerBlock width={64} height={64} borderRadius={10} />
+          <View style={styles.listInfo}>
+            <ShimmerBlock width="65%" height={16} borderRadius={4} />
+            <ShimmerBlock width="40%" height={12} borderRadius={4} style={{ marginTop: 8 }} />
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+              <ShimmerBlock width={80} height={18} borderRadius={9} />
+              <ShimmerBlock width={100} height={18} borderRadius={9} />
+            </View>
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  tabShimmerContainer: {
+    padding: 16,
+    gap: 12,
+  },
   scroll: {
     padding: 16,
     paddingBottom: 60,

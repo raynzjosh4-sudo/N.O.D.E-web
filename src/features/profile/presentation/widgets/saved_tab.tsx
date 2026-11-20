@@ -16,6 +16,7 @@ interface SavedTabProps {
   items: SavedProductItem[];
   onPlaceOrder: (selectedItems: SavedProductItem[]) => void;
   onDeleteItem: (id: string) => void;
+  onDeleteMultipleItems?: (ids: string[]) => void;
   onProductClick: (productId: string) => void;
 }
 
@@ -23,9 +24,20 @@ export function SavedTab({
   items,
   onPlaceOrder,
   onDeleteItem,
+  onDeleteMultipleItems,
   onProductClick,
 }: SavedTabProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(items.map((i) => i.id)));
+
+  const isAllSelected = items.length > 0 && selectedIds.size === items.length;
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(items.map((i) => i.id)));
+    }
+  };
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -37,6 +49,17 @@ export function SavedTab({
       }
       return next;
     });
+  };
+
+  const handleDeleteSelected = () => {
+    const idsToDelete = Array.from(selectedIds);
+    if (idsToDelete.length === 0) return;
+    if (onDeleteMultipleItems) {
+      onDeleteMultipleItems(idsToDelete);
+    } else {
+      idsToDelete.forEach((id) => onDeleteItem(id));
+    }
+    setSelectedIds(new Set());
   };
 
   const selectedItems = items.filter((i) => selectedIds.has(i.id));
@@ -73,19 +96,38 @@ export function SavedTab({
 
   return (
     <View style={[styles.container, { backgroundColor: colors.surface }]}>
-      {/* ── Selection Status Banner ── */}
-      {selectedIds.size > 0 && (
-        <View style={styles.selectionBanner}>
-          <View style={styles.selectionPill}>
-            <Text style={styles.selectionCountText}>
-              {selectedIds.size} selected
-            </Text>
+      {/* ── Selection Control & Status Banner ── */}
+      <View style={styles.selectionBanner}>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={toggleSelectAll}
+          style={styles.selectAllBtn}
+        >
+          <View style={[styles.checkbox, isAllSelected && styles.checkboxActive]}>
+            {isAllSelected && <MaterialIcon name="check" size={12} color="#FFFFFF" />}
           </View>
-          <Text style={styles.selectionHintText}>
-            Tap 'Place Wholesale Order' below to proceed with bulk checkout.
+          <Text style={[styles.selectAllText, { color: colors.onSurface }]}>
+            {isAllSelected ? 'Deselect All' : 'Select All'}
+          </Text>
+        </TouchableOpacity>
+
+        <View style={styles.selectionPill}>
+          <Text style={styles.selectionCountText}>
+            {selectedIds.size} of {items.length} selected
           </Text>
         </View>
-      )}
+
+        {selectedIds.size > 0 && (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={handleDeleteSelected}
+            style={styles.deleteSelectedBtn}
+          >
+            <MaterialIcon name="delete" size={15} color="#D32F2F" />
+            <Text style={styles.deleteSelectedText}>Remove ({selectedIds.size})</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       {/* ── Saved Items List ── */}
       <ScrollView
@@ -248,12 +290,36 @@ const styles = StyleSheet.create({
   selectionBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    justifyContent: 'space-between',
+    gap: 8,
     backgroundColor: 'rgba(18, 187, 240, 0.08)',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(18, 187, 240, 0.15)',
+  },
+  selectAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  selectAllText: {
+    fontSize: 12,
+    fontFamily: 'Outfit_600SemiBold',
+  },
+  deleteSelectedBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(211, 47, 47, 0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  deleteSelectedText: {
+    fontSize: 11,
+    fontFamily: 'Outfit_600SemiBold',
+    color: '#D32F2F',
   },
   selectionPill: {
     backgroundColor: AppColors.primary,

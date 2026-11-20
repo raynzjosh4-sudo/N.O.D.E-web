@@ -1,26 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-  useWindowDimensions,
-  Linking,
-  ActivityIndicator,
-} from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
-import { useAppNavigation } from '@/core/utils/use_app_navigation';
 import { useAppTheme } from '@/core/theme/theme_context';
+import { useAppNavigation } from '@/core/utils/use_app_navigation';
 import { MaterialIcon } from '@/core/widgets/material_icon';
-import { Product } from '@/features/inventory/domain/entities/product';
+import { useToast } from '@/core/widgets/whatsapp_dialog';
+import { ProductGridSection } from '@/features/home/presentation/widgets/product_grid_section';
 import { useProducts } from '@/features/inventory/context/products_context';
 import { ProductApiService } from '@/features/inventory/data/services/product_api_service';
+import { Product } from '@/features/inventory/domain/entities/product';
 import { ProfileApiService } from '@/features/profile/data/services/profile_api_service';
-import { ProductGridSection } from '@/features/home/presentation/widgets/product_grid_section';
-import { useToast } from '@/core/widgets/whatsapp_dialog';
+import { useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Image,
+  Linking,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { ProductSpecsShimmer } from './shimmer/product_specs_shimmer';
 
 export default function ProductSpecsScreen() {

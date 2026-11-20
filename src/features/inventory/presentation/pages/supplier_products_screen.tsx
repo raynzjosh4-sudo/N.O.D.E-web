@@ -18,9 +18,10 @@ import { Product } from '../../domain/entities/product';
 import { ProductApiService } from '../../data/services/product_api_service';
 import { EditProductSheet } from '../widgets/edit_product_sheet';
 import { useAuth } from '@/features/auth/context/auth_context';
+import { ProfileApiService } from '@/features/profile/data/services/profile_api_service';
 import { SupplierProductsShimmer } from './shimmer/supplier_products_shimmer';
 
-type FilterTab = 'all' | 'active' | 'low_stock';
+type FilterTab = 'all' | 'active' | 'low_stock' | 'incoming_orders';
 
 export function SupplierProductsScreen() {
   const router = useRouter();
@@ -60,6 +61,11 @@ export function SupplierProductsScreen() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
+  // Incoming wholesale orders state
+  const [incomingOrders, setIncomingOrders] = useState<any[]>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+
   const loadMyProducts = useCallback(async () => {
     setIsLoadingProducts(true);
     try {
@@ -73,9 +79,37 @@ export function SupplierProductsScreen() {
     }
   }, []);
 
+  const loadIncomingOrders = useCallback(async () => {
+    setIsLoadingOrders(true);
+    try {
+      const res = await ProfileApiService.getSupplierIncomingOrders({ limit: 100 });
+      setIncomingOrders(res.orders || []);
+    } catch (err: any) {
+      console.warn('Failed to load incoming orders:', err.message);
+      setIncomingOrders([]);
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadMyProducts();
-  }, [loadMyProducts]);
+    loadIncomingOrders();
+  }, [loadMyProducts, loadIncomingOrders]);
+
+  const handleUpdateStatus = async (orderId: string, newStatus: string) => {
+    setUpdatingOrderId(orderId);
+    try {
+      await ProfileApiService.updateOrderStatus(orderId, newStatus);
+      setIncomingOrders((prev) =>
+        prev.map((o) => (o.order_id === orderId ? { ...o, status: newStatus } : o))
+      );
+    } catch (err: any) {
+      console.warn('Update order status failed:', err.message);
+    } finally {
+      setUpdatingOrderId(null);
+    }
+  };
 
   // Filtered Products by active tab
   const filteredProducts = useMemo(() => {
@@ -159,6 +193,7 @@ export function SupplierProductsScreen() {
                 { key: 'all' as FilterTab, label: 'All Products', count: stats.totalListings, icon: 'list_alt' },
                 { key: 'active' as FilterTab, label: 'In Stock', count: stats.activeCount, icon: 'check_circle' },
                 { key: 'low_stock' as FilterTab, label: 'Low Stock', count: stats.lowStockCount, icon: 'warning' },
+                { key: 'incoming_orders' as FilterTab, label: 'Incoming Orders', count: incomingOrders.length, icon: 'inbox' },
               ].map((tab) => {
                 const isSelected = activeTab === tab.key;
                 return (
@@ -211,13 +246,21 @@ export function SupplierProductsScreen() {
                 {/* ── Table Header Row (Like GitHub commit/issue header) ── */}
                 <View style={[styles.gitTableHeader, { backgroundColor: gitColors.canvasSubtle, borderBottomColor: gitColors.border }]}>
                   <View style={styles.gitTableHeaderLeft}>
-                    <MaterialIcon name="check_circle_outline" size={16} color={gitColors.labelGreenText} />
+                    <MaterialIcon
+                      name={activeTab === 'incoming_orders' ? 'inbox' : 'check_circle_outline'}
+                      size={16}
+                      color={activeTab === 'incoming_orders' ? gitColors.textLink : gitColors.labelGreenText}
+                    />
                     <Text style={[styles.gitTableHeaderTitle, { color: gitColors.textPrimary }]}>
-                      {filteredProducts.length} {activeTab === 'all' ? 'total listings' : activeTab === 'active' ? 'in stock' : 'low stock'}
+                      {activeTab === 'incoming_orders'
+                        ? `${incomingOrders.length} incoming wholesale orders`
+                        : `${filteredProducts.length} ${activeTab === 'all' ? 'total listings' : activeTab === 'active' ? 'in stock' : 'low stock'}`}
                     </Text>
-                    <Text style={[styles.gitTableHeaderSub, { color: gitColors.textSecondary }]}>
-                      • {stats.totalUnits.toLocaleString()} units total in warehouse
-                    </Text>
+                    {activeTab !== 'incoming_orders' && (
+                      <Text style={[styles.gitTableHeaderSub, { color: gitColors.textSecondary }]}>
+                        • {stats.totalUnits.toLocaleString()} units total in warehouse
+                      </Text>
+                    )}
                   </View>
 
                   <View style={styles.gitTableHeaderRight}>
@@ -227,8 +270,174 @@ export function SupplierProductsScreen() {
                   </View>
                 </View>
 
-                {/* ── Table Items (Clean 1px separated rows, NO rounded floating cards) ── */}
-                {filteredProducts.length === 0 ? (
+                {/* ── Table Items: INCOMING ORDERS vs PRODUCTS ── */}
+                {activeTab === 'incoming_orders' ? (
+                  isLoadingOrders ? (
+                    <View style={{ padding: 40, alignItems: 'center' }}>
+                      <ActivityIndicator size="small" color={gitColors.textLink} />
+                    </View>
+                  ) : incomingOrders.length === 0 ? (
+                    <View style={styles.emptyContainer}>
+                      <MaterialIcon name="inbox" size={48} color={gitColors.textSecondary} />
+                      <Text style={[styles.emptyTitle, { color: gitColors.textPrimary }]}>
+                        No incoming wholesale orders yet.
+                      </Text>
+                      <Text style={[styles.emptySubtitle, { color: gitColors.textSecondary }]}>
+                        Orders placed by verified retail buyers for your products will appear here for processing and fulfillment.
+                      </Text>
+                    </View>
+                  ) : (
+                    incomingOrders.map((ord, idx) => {
+                      const isLast = idx === incomingOrders.length - 1;
+                      const isUpdating = updatingOrderId === ord.order_id;
+                      const entries = Array.isArray(ord.entries_json) ? ord.entries_json : [];
+                      const status = (ord.status || 'new').toLowerCase();
+
+                      const statusColor =
+                        status === 'completed'
+                          ? gitColors.labelGreenText
+                          : status === 'processing'
+                          ? gitColors.labelYellowText
+                          : status === 'seen'
+                          ? gitColors.textLink
+                          : status === 'cancelled'
+                          ? '#D32F2F'
+                          : gitColors.labelGreenText;
+
+                      const statusBg =
+                        status === 'completed'
+                          ? gitColors.labelGreenBg
+                          : status === 'processing'
+                          ? gitColors.labelYellowBg
+                          : status === 'seen'
+                          ? 'rgba(88, 166, 255, 0.15)'
+                          : status === 'cancelled'
+                          ? 'rgba(211, 47, 47, 0.15)'
+                          : gitColors.labelGreenBg;
+
+                      return (
+                        <View
+                          key={ord.order_id || idx}
+                          style={[
+                            styles.gitOrderRow,
+                            !isLast && { borderBottomWidth: 1, borderBottomColor: gitColors.border },
+                            { backgroundColor: gitColors.canvas },
+                          ]}
+                        >
+                          <View style={styles.orderHeaderRow}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                              <Text style={[styles.orderIdText, { color: gitColors.textLink }]}>
+                                #{ord.order_id}
+                              </Text>
+                              <View style={[styles.statusPill, { backgroundColor: statusBg }]}>
+                                <Text style={[styles.statusPillText, { color: statusColor }]}>
+                                  {status.toUpperCase()}
+                                </Text>
+                              </View>
+                            </View>
+                            <Text style={[styles.orderDateText, { color: gitColors.textSecondary }]}>
+                              {ord.created_at ? new Date(ord.created_at).toLocaleDateString() : ''}
+                            </Text>
+                          </View>
+
+                          <View style={styles.buyerInfoRow}>
+                            <MaterialIcon name="store" size={14} color={gitColors.textSecondary} />
+                            <Text style={[styles.buyerNameText, { color: gitColors.textPrimary }]}>
+                              {ord.business_name || 'Wholesale Buyer'}
+                            </Text>
+                            {ord.business_phone ? (
+                              <Text style={[styles.buyerPhoneText, { color: gitColors.textSecondary }]}>
+                                • {ord.business_phone}
+                              </Text>
+                            ) : null}
+                            {ord.business_city ? (
+                              <Text style={[styles.buyerCityText, { color: gitColors.textSecondary }]}>
+                                • {ord.business_city}
+                              </Text>
+                            ) : null}
+                          </View>
+
+                          {entries.length > 0 && (
+                            <View style={[styles.entriesList, { backgroundColor: gitColors.canvasSubtle, borderColor: gitColors.border }]}>
+                              {entries.map((item: any, eIdx: number) => (
+                                <View key={eIdx} style={styles.entryLine}>
+                                  <Text style={[styles.entryName, { color: gitColors.textPrimary }]} numberOfLines={1}>
+                                    {item.name || item.product_name || 'Product Item'}
+                                  </Text>
+                                  <Text style={[styles.entryQty, { color: gitColors.textSecondary }]}>
+                                    {item.color ? `${item.color} • ` : ''}
+                                    {item.total_units || item.quantity || 1} units
+                                  </Text>
+                                </View>
+                              ))}
+                            </View>
+                          )}
+
+                          <View style={styles.orderFooterRow}>
+                            <Text style={[styles.orderTotalText, { color: gitColors.textPrimary }]}>
+                              Total:{' '}
+                              <Text style={{ color: gitColors.textLink, fontWeight: '700' }}>
+                                UGX {(ord.total_amount || 0).toLocaleString()}
+                              </Text>
+                            </Text>
+
+                            <View style={styles.orderActionsRow}>
+                              {status === 'new' && (
+                                <TouchableOpacity
+                                  activeOpacity={0.7}
+                                  disabled={isUpdating}
+                                  onPress={() => handleUpdateStatus(ord.order_id, 'seen')}
+                                  style={[styles.actionBtn, { borderColor: gitColors.border, backgroundColor: gitColors.btnBg }]}
+                                >
+                                  <MaterialIcon name="visibility" size={14} color={gitColors.textLink} />
+                                  <Text style={[styles.actionBtnText, { color: gitColors.textLink }]}>Mark Seen</Text>
+                                </TouchableOpacity>
+                              )}
+
+                              {(status === 'new' || status === 'seen') && (
+                                <TouchableOpacity
+                                  activeOpacity={0.7}
+                                  disabled={isUpdating}
+                                  onPress={() => handleUpdateStatus(ord.order_id, 'processing')}
+                                  style={[styles.actionBtn, { borderColor: gitColors.border, backgroundColor: gitColors.btnBg }]}
+                                >
+                                  <MaterialIcon name="conveyor_belt" size={14} color={gitColors.labelYellowText} />
+                                  <Text style={[styles.actionBtnText, { color: gitColors.labelYellowText }]}>Process</Text>
+                                </TouchableOpacity>
+                              )}
+
+                              {status === 'processing' && (
+                                <TouchableOpacity
+                                  activeOpacity={0.7}
+                                  disabled={isUpdating}
+                                  onPress={() => handleUpdateStatus(ord.order_id, 'completed')}
+                                  style={[styles.actionBtn, { borderColor: gitColors.border, backgroundColor: gitColors.greenBtn }]}
+                                >
+                                  <MaterialIcon name="check" size={14} color="#FFFFFF" />
+                                  <Text style={[styles.actionBtnText, { color: '#FFFFFF' }]}>Complete</Text>
+                                </TouchableOpacity>
+                              )}
+
+                              {status !== 'completed' && status !== 'cancelled' && (
+                                <TouchableOpacity
+                                  activeOpacity={0.7}
+                                  disabled={isUpdating}
+                                  onPress={() => handleUpdateStatus(ord.order_id, 'cancelled')}
+                                  style={[styles.actionBtn, { borderColor: gitColors.border, backgroundColor: gitColors.btnBg }]}
+                                >
+                                  <MaterialIcon name="close" size={14} color="#D32F2F" />
+                                  <Text style={[styles.actionBtnText, { color: '#D32F2F' }]}>Decline</Text>
+                                </TouchableOpacity>
+                              )}
+                            </View>
+                          </View>
+                        </View>
+                      );
+                    })
+                  )
+                ) : (
+                  /* ── Products List ── */
+                  filteredProducts.length === 0 ? (
                   <View style={styles.emptyContainer}>
                     <MaterialIcon name="inventory_2" size={48} color={gitColors.textSecondary} />
                     <Text style={[styles.emptyTitle, { color: gitColors.textPrimary }]}>
@@ -355,7 +564,7 @@ export function SupplierProductsScreen() {
                       </TouchableOpacity>
                     );
                   })
-                )}
+                ))}
               </View>
             </View>
           </ScrollView>
@@ -651,5 +860,98 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
     maxWidth: 360,
+  },
+  // ── Incoming Orders Styles ──
+  gitOrderRow: {
+    padding: 16,
+    gap: 10,
+  },
+  orderHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  orderIdText: {
+    fontSize: 14,
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  statusPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  statusPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  orderDateText: {
+    fontSize: 11,
+  },
+  buyerInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  buyerNameText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  buyerPhoneText: {
+    fontSize: 12,
+  },
+  buyerCityText: {
+    fontSize: 12,
+  },
+  entriesList: {
+    padding: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    gap: 4,
+  },
+  entryLine: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  entryName: {
+    fontSize: 12,
+    fontWeight: '500',
+    flex: 1,
+  },
+  entryQty: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  orderFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  orderTotalText: {
+    fontSize: 13,
+  },
+  orderActionsRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  actionBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
 });

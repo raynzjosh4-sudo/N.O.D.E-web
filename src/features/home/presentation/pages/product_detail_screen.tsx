@@ -31,8 +31,10 @@ export default function ProductDetailScreen() {
   const { colors, isDark } = useAppTheme();
   const { products, getProductById } = useProducts();
 
+  const isSpecialPlaceholder = !id || id === 'supplier' || id === 'category' || id === 'explore';
+
   const [product, setProduct] = useState<Product | undefined>(() => {
-    if (id) return getProductById(id);
+    if (id && !isSpecialPlaceholder) return getProductById(id);
     return undefined;
   });
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
@@ -45,26 +47,69 @@ export default function ProductDetailScreen() {
 
     const loadData = async () => {
       try {
-        // Case 1: Specific product ID provided
-        if (id) {
-          const cached = getProductById(id);
-          if (cached && isMounted) setProduct(cached);
-
-          const fullProd = await ProductApiService.getProductById(id);
-          if (fullProd && isMounted) setProduct(fullProd);
-        } else if (category || supplierId) {
-          // Case 2: Opened from category or supplier tap (Dart parity)
-          const res = await ProductApiService.getProducts({
-            categoryId: category,
+        if (supplierId) {
+          // Case 1: Opened from supplier tap (Dart parity) — latest supplier product as Hero, rest below
+          let listRes = await ProductApiService.getProducts({
             supplierId: supplierId,
             limit: 50,
           });
-          if (res.products && res.products.length > 0 && isMounted) {
-            setProduct(res.products[0]);
-            setFilteredProducts(res.products);
+
+          let supplierProds = listRes.products || [];
+          if (supplierProds.length === 0 && products.length > 0) {
+            supplierProds = products.filter(
+              (p) => p.supplierId === supplierId
+            );
+          }
+
+          if (supplierProds.length > 0 && isMounted) {
+            setProduct(supplierProds[0]);
+            setFilteredProducts(supplierProds);
+          }
+        } else if (category) {
+          // Case 2: Opened from category tap (Dart parity) — latest category product as Hero, rest below
+          let listRes = await ProductApiService.getProducts({
+            categoryId: category,
+            limit: 50,
+          });
+
+          let catProds = listRes.products || [];
+          if (catProds.length === 0 && products.length > 0) {
+            catProds = products.filter(
+              (p) =>
+                p.categoryId === category ||
+                (p.categoryId && p.categoryId.toLowerCase() === category.toLowerCase())
+            );
+          }
+
+          if (catProds.length > 0 && isMounted) {
+            setProduct(catProds[0]);
+            setFilteredProducts(catProds);
+          }
+        } else if (id && !isSpecialPlaceholder) {
+          // Case 3: Specific product ID provided
+          const cached = getProductById(id);
+          if (cached && isMounted) setProduct(cached);
+
+          try {
+            const fullProd = await ProductApiService.getProductById(id);
+            if (fullProd && isMounted) {
+              setProduct(fullProd);
+              // Load companion products from same supplier or category
+              const relRes = await ProductApiService.getProducts({
+                supplierId: fullProd.supplierId,
+                categoryId: fullProd.categoryId,
+                limit: 20,
+              });
+              if (relRes.products && isMounted) {
+                setFilteredProducts(relRes.products);
+              }
+            }
+          } catch (e) {
+            if (cached && isMounted) setProduct(cached);
           }
         } else if (products.length > 0 && isMounted) {
           setProduct(products[0]);
+          setFilteredProducts(products);
         }
       } catch (err) {
         console.warn('[ProductDetailScreen] Data load error:', err);
@@ -78,7 +123,7 @@ export default function ProductDetailScreen() {
     return () => {
       isMounted = false;
     };
-  }, [id, category, supplierId]);
+  }, [id, category, supplierId, isSpecialPlaceholder]);
 
   if (!product && isLoadingProduct) {
     return (

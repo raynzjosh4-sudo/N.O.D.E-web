@@ -43,6 +43,7 @@ import { SettingsTab } from '../widgets/settings_tab';
 import { BecomeSupplierSheet } from '../widgets/become_supplier_sheet';
 import { useAuth } from '@/features/auth/context/auth_context';
 import { ProfileApiService } from '../../data/services/profile_api_service';
+import { ProfileTabShimmer } from './shimmer/profile_shimmer';
 
 export function ProfilePage() {
   const router = useAppNavigation();
@@ -147,8 +148,14 @@ export function ProfilePage() {
 
   // Tab Handlers
   const handlePlaceOrder = (selected: SavedProductItem[]) => {
-    if (selected.length > 0) {
+    if (selected.length === 1) {
       router.push(`/product/order/${selected[0].product.id}`);
+    } else if (selected.length > 1) {
+      const ids = selected.map((s) => s.product.id).join(',');
+      router.push({
+        pathname: '/product/multi-order' as any,
+        params: { ids },
+      });
     }
   };
 
@@ -162,6 +169,16 @@ export function ProfilePage() {
     }
   };
 
+  const handleDeleteMultipleSaved = async (ids: string[]) => {
+    setSavedItems((prev) => prev.filter((item) => !ids.includes(item.id)));
+    try {
+      await Promise.allSettled(ids.map((id) => ProfileApiService.removeSavedItem(id)));
+      showSuccess('Items Removed', `${ids.length} items removed from your bag.`);
+    } catch (e) {
+      console.warn('Failed to delete multiple saved items:', e);
+    }
+  };
+
   const handleDeleteDraft = async (id: string) => {
     setDrafts((prev) => prev.filter((d) => d.id !== id));
     try {
@@ -169,6 +186,16 @@ export function ProfilePage() {
       showSuccess('Draft Discarded', 'Order draft was removed.');
     } catch (e) {
       console.warn('Failed to delete draft:', e);
+    }
+  };
+
+  const handleDeleteMultipleDrafts = async (ids: string[]) => {
+    setDrafts((prev) => prev.filter((d) => !ids.includes(d.id)));
+    try {
+      await Promise.allSettled(ids.map((id) => ProfileApiService.deleteDraftOrder(id)));
+      showSuccess('Drafts Removed', `${ids.length} drafts were deleted.`);
+    } catch (e) {
+      console.warn('Failed to delete multiple drafts:', e);
     }
   };
 
@@ -413,52 +440,60 @@ export function ProfilePage() {
 
                 {/* Main Content Component with height fill */}
                 <View style={styles.desktopPaneBody}>
-                  {activeTab === 'saved' && (
-                    <SavedTab
-                      items={savedItems}
-                      onPlaceOrder={handlePlaceOrder}
-                      onDeleteItem={handleDeleteSaved}
-                      onProductClick={(pId) => router.push(`/product/${pId}`)}
-                    />
-                  )}
+                  {isLoadingData ? (
+                    <ProfileTabShimmer />
+                  ) : (
+                    <>
+                      {activeTab === 'saved' && (
+                        <SavedTab
+                          items={savedItems}
+                          onPlaceOrder={handlePlaceOrder}
+                          onDeleteItem={handleDeleteSaved}
+                          onDeleteMultipleItems={handleDeleteMultipleSaved}
+                          onProductClick={(pId) => router.push(`/product/${pId}`)}
+                        />
+                      )}
 
-                  {activeTab === 'drafts' && (
-                    <DraftsTab
-                      drafts={drafts}
-                      onContinueDraft={handleContinueDraft}
-                      onDeleteDraft={handleDeleteDraft}
-                    />
-                  )}
+                      {activeTab === 'drafts' && (
+                        <DraftsTab
+                          drafts={drafts}
+                          onContinueDraft={handleContinueDraft}
+                          onDeleteDraft={handleDeleteDraft}
+                          onDeleteMultipleDrafts={handleDeleteMultipleDrafts}
+                        />
+                      )}
 
-                  {activeTab === 'pending' && (
-                    <PendingOrdersTab
-                      orders={pendingOrders}
-                      onOrderPress={(o) => console.log('Pending order:', o.orderNumber)}
-                      onDownloadInvoice={handleOpenPdf as any}
-                    />
-                  )}
+                      {activeTab === 'pending' && (
+                        <PendingOrdersTab
+                          orders={pendingOrders}
+                          onOrderPress={(o) => console.log('Pending order:', o.orderNumber)}
+                          onDownloadInvoice={handleOpenPdf as any}
+                        />
+                      )}
 
-                  {activeTab === 'sent' && (
-                    <SentOrdersTab
-                      orders={sentOrders}
-                      onTrackOrder={(o) => console.log('Track order:', o.trackingNumber)}
-                      onViewInvoice={handleOpenPdf as any}
-                    />
-                  )}
+                      {activeTab === 'sent' && (
+                        <SentOrdersTab
+                          orders={sentOrders}
+                          onTrackOrder={(o) => console.log('Track order:', o.trackingNumber)}
+                          onViewInvoice={handleOpenPdf as any}
+                        />
+                      )}
 
-                  {activeTab === 'pdf' && (
-                    <PdfTab
-                      documents={pdfDocuments}
-                      onOpenPdf={handleOpenPdf}
-                    />
-                  )}
+                      {activeTab === 'pdf' && (
+                        <PdfTab
+                          documents={pdfDocuments}
+                          onOpenPdf={handleOpenPdf}
+                        />
+                      )}
 
-                  {activeTab === 'settings' && (
-                    <SettingsTab
-                      profile={profile}
-                      onUpdateProfile={setProfile}
-                      onLogout={handleLogout}
-                    />
+                      {activeTab === 'settings' && (
+                        <SettingsTab
+                          profile={profile}
+                          onUpdateProfile={setProfile}
+                          onLogout={handleLogout}
+                        />
+                      )}
+                    </>
                   )}
                 </View>
               </View>
@@ -533,52 +568,60 @@ export function ProfilePage() {
 
             {/* Content View */}
             <View style={[styles.mobileTabContent, { backgroundColor: colors.scaffoldBackground }]}>
-              {activeTab === 'saved' && (
-                <SavedTab
-                  items={savedItems}
-                  onPlaceOrder={handlePlaceOrder}
-                  onDeleteItem={handleDeleteSaved}
-                  onProductClick={(pId) => router.push(`/product/${pId}`)}
-                />
-              )}
+              {isLoadingData ? (
+                <ProfileTabShimmer />
+              ) : (
+                <>
+                  {activeTab === 'saved' && (
+                    <SavedTab
+                      items={savedItems}
+                      onPlaceOrder={handlePlaceOrder}
+                      onDeleteItem={handleDeleteSaved}
+                      onDeleteMultipleItems={handleDeleteMultipleSaved}
+                      onProductClick={(pId) => router.push(`/product/${pId}`)}
+                    />
+                  )}
 
-              {activeTab === 'drafts' && (
-                <DraftsTab
-                  drafts={drafts}
-                  onContinueDraft={handleContinueDraft}
-                  onDeleteDraft={handleDeleteDraft}
-                />
-              )}
+                  {activeTab === 'drafts' && (
+                    <DraftsTab
+                      drafts={drafts}
+                      onContinueDraft={handleContinueDraft}
+                      onDeleteDraft={handleDeleteDraft}
+                      onDeleteMultipleDrafts={handleDeleteMultipleDrafts}
+                    />
+                  )}
 
-              {activeTab === 'pending' && (
-                <PendingOrdersTab
-                  orders={pendingOrders}
-                  onOrderPress={(o) => console.log('Pending order:', o.orderNumber)}
-                  onDownloadInvoice={handleOpenPdf as any}
-                />
-              )}
+                  {activeTab === 'pending' && (
+                    <PendingOrdersTab
+                      orders={pendingOrders}
+                      onOrderPress={(o) => console.log('Pending order:', o.orderNumber)}
+                      onDownloadInvoice={handleOpenPdf as any}
+                    />
+                  )}
 
-              {activeTab === 'sent' && (
-                <SentOrdersTab
-                  orders={sentOrders}
-                  onTrackOrder={(o) => console.log('Track order:', o.trackingNumber)}
-                  onViewInvoice={handleOpenPdf as any}
-                />
-              )}
+                  {activeTab === 'sent' && (
+                    <SentOrdersTab
+                      orders={sentOrders}
+                      onTrackOrder={(o) => console.log('Track order:', o.trackingNumber)}
+                      onViewInvoice={handleOpenPdf as any}
+                    />
+                  )}
 
-              {activeTab === 'pdf' && (
-                <PdfTab
-                  documents={pdfDocuments}
-                  onOpenPdf={handleOpenPdf}
-                />
-              )}
+                  {activeTab === 'pdf' && (
+                    <PdfTab
+                      documents={pdfDocuments}
+                      onOpenPdf={handleOpenPdf}
+                    />
+                  )}
 
-              {activeTab === 'settings' && (
-                <SettingsTab
-                  profile={profile}
-                  onUpdateProfile={setProfile}
-                  onLogout={handleLogout}
-                />
+                  {activeTab === 'settings' && (
+                    <SettingsTab
+                      profile={profile}
+                      onUpdateProfile={setProfile}
+                      onLogout={handleLogout}
+                    />
+                  )}
+                </>
               )}
             </View>
           </View>

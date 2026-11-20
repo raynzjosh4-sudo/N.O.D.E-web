@@ -70,11 +70,18 @@ export function CategoriesPage() {
         // Build hierarchical tree from flat CategoryDto list
         const catMap = new Map<string, CategoryItem>();
         (cats || []).forEach((c) => {
+          const matchingProducts = products.filter(
+            (p) =>
+              p.categoryId === c.id ||
+              (p.categoryId && p.categoryId.toLowerCase() === c.name.toLowerCase())
+          );
+          const computedCount = Math.max((c as any).item_count || 0, matchingProducts.length);
+
           catMap.set(c.id, {
             id: c.id,
             name: c.name,
             imageUrl: resolveImageUrl(c.image_url),
-            itemCount: 0,
+            itemCount: computedCount,
             subCategories: [],
           });
         });
@@ -91,6 +98,8 @@ export function CategoriesPage() {
             if (parent) {
               parent.subCategories = parent.subCategories || [];
               parent.subCategories.push(item);
+              // Accumulate sub-category count into parent
+              parent.itemCount = (parent.itemCount || 0) + (item.itemCount || 0);
             } else {
               roots.push(item);
             }
@@ -112,7 +121,7 @@ export function CategoriesPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [products]);
 
   // Product tap handler (Adaptive desktop vs mobile)
   const handleProductTap = (product: Product) => {
