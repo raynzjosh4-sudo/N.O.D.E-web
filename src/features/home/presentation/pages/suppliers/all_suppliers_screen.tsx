@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import { useAppNavigation } from '@/core/utils/use_app_navigation';
 import { useAppTheme } from '@/core/theme/theme_context';
-import { AppColors } from '@/core/theme/app_theme';
 import { MaterialIcon } from '@/core/widgets/material_icon';
 import { Supplier } from '@/features/home/domain/entities/supplier';
 import { ProductApiService } from '@/features/inventory/data/services/product_api_service';
@@ -30,11 +29,38 @@ const DEFAULT_CATEGORIES = [
   'Groceries',
 ];
 
+/** Strip garbled GPS / emoji chars from location strings */
+function cleanLocation(raw: string | undefined | null): string {
+  if (!raw) return '';
+  // Remove emoji, control chars, raw coordinates like "0.341, 32.583", "right 😂" etc.
+  const stripped = raw
+    .replace(/[\u{1F000}-\u{1FFFF}]/gu, '')   // emoji ranges
+    .replace(/[\u0300-\u036F]/g, '')           // combining diacritics
+    .replace(/Loc:\s*[\d.]+\s*,\s*[\d.]+/gi, '') // GPS coord literals
+    .replace(/,\s*right\b/gi, '')              // ", right" junk from map picker
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  return stripped;
+}
+
+/** Build a compact, clean location label: "City, Region" only */
+function formatLocation(supplier: Supplier): string {
+  const raw = supplier.location ?? '';
+  // Try to extract city + region if the string is sane
+  const cleaned = cleanLocation(raw);
+  // If it still looks like GPS coords, just show "East Africa"
+  if (/\d+\.\d+/.test(cleaned) || cleaned.length < 2) return 'East Africa';
+  // If too long (> 40 chars) truncate to first two comma-parts
+  const parts = cleaned.split(',').map((p) => p.trim()).filter(Boolean);
+  if (parts.length >= 2) return `${parts[0]}, ${parts[1]}`;
+  return cleaned.slice(0, 40);
+}
+
 export function AllSuppliersScreen() {
   const router = useAppNavigation();
   const { width } = useWindowDimensions();
   const { colors } = useAppTheme();
-  const isDesktop = width >= 960;
+  const isDesktop = width >= 768;
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -50,22 +76,17 @@ export function AllSuppliersScreen() {
         setSuppliers(mapped);
       })
       .catch((err) => {
-        console.warn('Failed to load suppliers in AllSuppliersScreen:', err);
+        console.warn('Failed to load suppliers:', err);
       })
       .finally(() => {
         if (isMounted) setLoading(false);
       });
-
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, []);
 
   const categories = useMemo(() => {
     const dynamicCats = new Set<string>();
-    suppliers.forEach((s) => {
-      if (s.category) dynamicCats.add(s.category);
-    });
+    suppliers.forEach((s) => { if (s.category) dynamicCats.add(s.category); });
     if (dynamicCats.size === 0) return DEFAULT_CATEGORIES;
     return ['All', ...Array.from(dynamicCats)];
   }, [suppliers]);
@@ -84,177 +105,214 @@ export function AllSuppliersScreen() {
     });
   }, [suppliers, selectedCategory, searchQuery]);
 
+  // GitHub-style border color
+  const border = colors.borderLight;
+  const muted = colors.onSurfaceMuted;
+  const accent = '#54AEFF';        // GitHub blue link color
+  const bg = colors.scaffoldBackground;
+  const surface = colors.surface;
+
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>
-      <View style={[styles.container, { backgroundColor: colors.scaffoldBackground }]}>
-        <View style={styles.contentWrapper}>
-          {/* ── Top Header Bar ── */}
-          <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.borderLight }]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: bg }]}>
+      <View style={[styles.root, { backgroundColor: bg }]}>
+        <View style={[styles.inner, isDesktop && styles.innerDesktop]}>
+
+          {/* ── Top bar ── */}
+          <View style={[styles.topbar, { backgroundColor: surface, borderBottomColor: border }]}>
             <TouchableOpacity
               activeOpacity={0.7}
-              style={[styles.backButton, { backgroundColor: colors.cardColor }]}
+              style={styles.backBtn}
               onPress={() => router.safeGoBack('/')}
             >
-              <MaterialIcon name="arrow_back" size={20} color={colors.onSurface} />
+              <MaterialIcon name="arrow_back" size={18} color={colors.onSurface} />
             </TouchableOpacity>
-
-            <View style={styles.headerTitleBlock}>
-              <Text style={[styles.headerTitle, { color: colors.onSurface }]}>All Suppliers</Text>
-              <Text style={[styles.headerSubtitle, { color: colors.onSurfaceMuted }]}>
-                {loading ? 'Loading...' : `${filteredSuppliers.length} Verified East African Distributors`}
+            <View style={styles.topbarTitle}>
+              <Text style={[styles.pageTitle, { color: colors.onSurface }]}>All Suppliers</Text>
+              <Text style={[styles.pageSubtitle, { color: muted }]}>
+                {loading ? 'Loading…' : `${filteredSuppliers.length} Verified East African Distributors`}
               </Text>
             </View>
-
-            <View style={{ width: 36 }} />
+            <View style={{ width: 32 }} />
           </View>
 
-          {/* ── Quick Search & Category Bar ── */}
-          <View style={[styles.searchFilterContainer, { backgroundColor: colors.surface, borderBottomColor: colors.borderLight }]}>
-            {/* Search Input */}
-            <View style={[styles.searchBar, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}>
-              <MaterialIcon name="search" size={18} color={colors.onSurfaceMuted} />
+          {/* ── Search + Category tabs ── */}
+          <View style={[styles.filterBar, { backgroundColor: surface, borderBottomColor: border }]}>
+            {/* Search */}
+            <View style={[styles.searchWrap, { backgroundColor: bg, borderColor: border }]}>
+              <MaterialIcon name="search" size={16} color={muted} />
               <TextInput
                 value={searchQuery}
                 onChangeText={setSearchQuery}
-                placeholder="Search suppliers by name, category, hub..."
-                placeholderTextColor={colors.onSurfaceMuted}
+                placeholder="Search suppliers by name, category, hub…"
+                placeholderTextColor={muted}
                 style={[styles.searchInput, { color: colors.onSurface }]}
                 returnKeyType="search"
               />
               {searchQuery.length > 0 && (
-                <TouchableOpacity
-                  onPress={() => setSearchQuery('')}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <MaterialIcon name="close" size={16} color={colors.onSurfaceMuted} />
+                <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <MaterialIcon name="close" size={14} color={muted} />
                 </TouchableOpacity>
               )}
             </View>
 
-            {/* Horizontal Category Chips */}
+            {/* Category tabs — GitHub-style underline tabs */}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.categoryChipsList}
+              contentContainerStyle={styles.tabsList}
             >
               {categories.map((cat) => {
-                const isSelected = selectedCategory === cat;
+                const isActive = selectedCategory === cat;
                 return (
                   <TouchableOpacity
                     key={cat}
                     activeOpacity={0.75}
                     style={[
-                      styles.categoryChip,
-                      {
-                        backgroundColor: isSelected ? colors.primary : colors.cardColor,
-                        borderColor: isSelected ? colors.primary : colors.borderLight,
-                      },
+                      styles.tab,
+                      isActive && { borderBottomColor: '#F7881B', borderBottomWidth: 2 },
                     ]}
                     onPress={() => setSelectedCategory(cat)}
                   >
-                    <Text
-                      style={[
-                        styles.categoryChipText,
-                        { color: isSelected ? '#FFFFFF' : colors.onSurfaceMuted },
-                        isSelected && styles.categoryChipTextSelected,
-                      ]}
-                    >
+                    <Text style={[
+                      styles.tabText,
+                      { color: isActive ? colors.onSurface : muted },
+                      isActive && styles.tabTextActive,
+                    ]}>
                       {cat}
                     </Text>
+                    {isActive && (
+                      <View style={[styles.countPill, { backgroundColor: 'rgba(247,136,27,0.15)' }]}>
+                        <Text style={[styles.countPillText, { color: '#F7881B' }]}>
+                          {filteredSuppliers.length}
+                        </Text>
+                      </View>
+                    )}
                   </TouchableOpacity>
                 );
               })}
             </ScrollView>
           </View>
 
-          {/* ── Supplier List / Desktop Grid ── */}
+          {/* ── Table header (desktop) ── */}
+          {isDesktop && !loading && filteredSuppliers.length > 0 && (
+            <View style={[styles.tableHead, { backgroundColor: colors.cardColor, borderColor: border }]}>
+              <Text style={[styles.tableHeadCell, { color: muted, flex: 2 }]}>Supplier</Text>
+              <Text style={[styles.tableHeadCell, { color: muted, flex: 1 }]}>Category</Text>
+              <Text style={[styles.tableHeadCell, { color: muted, flex: 1 }]}>Location</Text>
+              <Text style={[styles.tableHeadCell, { color: muted, width: 80, textAlign: 'right' }]}>Status</Text>
+            </View>
+          )}
+
+          {/* ── List ── */}
           {loading ? (
-            <View style={[styles.emptyState, { paddingTop: 60 }]}>
+            <View style={styles.emptyState}>
               <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={[styles.emptySubtitle, { color: colors.onSurfaceMuted, marginTop: 12 }]}>
-                Loading verified suppliers...
-              </Text>
+              <Text style={[styles.emptyText, { color: muted, marginTop: 12 }]}>Loading verified suppliers…</Text>
             </View>
           ) : filteredSuppliers.length === 0 ? (
             <View style={styles.emptyState}>
-              <View style={[styles.emptyIconCircle, { backgroundColor: colors.cardColor }]}>
-                <MaterialIcon name="storefront" size={42} color={colors.onSurfaceMuted} />
-              </View>
+              <MaterialIcon name="storefront" size={40} color={muted} />
               <Text style={[styles.emptyTitle, { color: colors.onSurface }]}>No Suppliers Found</Text>
-              <Text style={[styles.emptySubtitle, { color: colors.onSurfaceMuted }]}>
-                No verified supplier matches "{searchQuery}". Try selecting another category or clearing your search.
+              <Text style={[styles.emptyText, { color: muted }]}>
+                Nothing matches "{searchQuery}". Try a different search or category.
               </Text>
               <TouchableOpacity
-                style={[styles.resetButton, { backgroundColor: colors.primary }]}
-                onPress={() => {
-                  setSelectedCategory('All');
-                  setSearchQuery('');
-                }}
+                style={[styles.resetBtn, { borderColor: border }]}
+                onPress={() => { setSelectedCategory('All'); setSearchQuery(''); }}
               >
-                <Text style={styles.resetButtonText}>Reset Filters</Text>
+                <Text style={[styles.resetBtnText, { color: colors.onSurface }]}>Reset Filters</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <ScrollView
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={[
-                styles.scrollList,
-                isDesktop && styles.desktopGridContainer,
-              ]}
+              contentContainerStyle={{ paddingBottom: 60 }}
             >
-              {filteredSuppliers.map((supplier) => (
-                <TouchableOpacity
-                  key={supplier.id}
-                  activeOpacity={0.75}
-                  style={[
-                    styles.supplierCard,
-                    isDesktop && styles.desktopSupplierCard,
-                    { backgroundColor: colors.cardColor, borderColor: colors.borderLight },
-                  ]}
-                  onPress={() => router.push(`/explore`)}
-                >
-                  {/* Avatar / Brand Logo */}
-                  <View style={[styles.avatarWrapper, { borderColor: colors.borderLight, backgroundColor: colors.surfaceContainerHighest }]}>
-                    {supplier.imageUrl ? (
-                      <Image source={{ uri: supplier.imageUrl }} style={styles.avatarImage} />
-                    ) : (
-                      <Text style={[styles.supplierInitial, { color: colors.primary }]}>
-                        {supplier.name.charAt(0).toUpperCase()}
-                      </Text>
-                    )}
-                  </View>
-
-                  {/* Supplier Info */}
-                  <View style={styles.supplierInfo}>
-                    <View style={styles.titleRow}>
-                      <Text style={[styles.supplierName, { color: colors.onSurface }]} numberOfLines={1}>
-                        {supplier.name}
-                      </Text>
-                      <View style={styles.activeBadge}>
-                        <Text style={[styles.activeBadgeText, { color: colors.primary }]}>Active</Text>
+              {/* GitHub-style flat directory rows */}
+              <View style={[styles.table, { borderColor: border }]}>
+                {filteredSuppliers.map((supplier, idx) => {
+                  const isLast = idx === filteredSuppliers.length - 1;
+                  const loc = formatLocation(supplier);
+                  return (
+                    <TouchableOpacity
+                      key={supplier.id}
+                      activeOpacity={0.6}
+                      style={[
+                        styles.row,
+                        { borderBottomColor: border },
+                        isLast && styles.rowLast,
+                      ]}
+                      onPress={() => router.push(`/explore`)}
+                    >
+                      {/* Avatar */}
+                      <View style={[styles.avatar, { borderColor: border, backgroundColor: colors.cardColor }]}>
+                        {supplier.imageUrl ? (
+                          <Image source={{ uri: supplier.imageUrl }} style={styles.avatarImg} />
+                        ) : (
+                          <Text style={[styles.avatarInitial, { color: accent }]}>
+                            {supplier.name.charAt(0).toUpperCase()}
+                          </Text>
+                        )}
                       </View>
-                    </View>
 
-                    <Text style={[styles.supplierCategory, { color: colors.onSurfaceMuted }]} numberOfLines={1}>
-                      {supplier.category} • {supplier.productCount || 80}+ Products
-                    </Text>
+                      {isDesktop ? (
+                        /* Desktop: columnar layout matching table head */
+                        <>
+                          <View style={{ flex: 2 }}>
+                            <Text style={[styles.supplierName, { color: accent }]} numberOfLines={1}>
+                              {supplier.name}
+                            </Text>
+                            <Text style={[styles.rowMeta, { color: muted }]}>
+                              {supplier.productCount || 50}+ products
+                            </Text>
+                          </View>
+                          <Text style={[styles.rowCell, { color: muted, flex: 1 }]} numberOfLines={1}>
+                            {supplier.category}
+                          </Text>
+                          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                            {loc ? (
+                              <>
+                                <MaterialIcon name="location_on" size={12} color={muted} />
+                                <Text style={[styles.rowCell, { color: muted }]} numberOfLines={1}>{loc}</Text>
+                              </>
+                            ) : null}
+                          </View>
+                          <View style={[styles.activeDot, { width: 80, justifyContent: 'flex-end' }]}>
+                            <View style={[styles.statusDot, { backgroundColor: '#2EA043' }]} />
+                            <Text style={[styles.statusText, { color: '#2EA043' }]}>Active</Text>
+                          </View>
+                        </>
+                      ) : (
+                        /* Mobile: stacked */
+                        <View style={styles.rowContent}>
+                          <View style={styles.rowTop}>
+                            <Text style={[styles.supplierName, { color: accent }]} numberOfLines={1}>
+                              {supplier.name}
+                            </Text>
+                            <View style={styles.activeDot}>
+                              <View style={[styles.statusDot, { backgroundColor: '#2EA043' }]} />
+                              <Text style={[styles.statusText, { color: '#2EA043' }]}>Active</Text>
+                            </View>
+                          </View>
+                          <Text style={[styles.rowMeta, { color: muted }]} numberOfLines={1}>
+                            {supplier.category} · {supplier.productCount || 50}+ products
+                          </Text>
+                          {loc ? (
+                            <View style={styles.locRow}>
+                              <MaterialIcon name="location_on" size={12} color={muted} />
+                              <Text style={[styles.rowCell, { color: muted }]} numberOfLines={1}>{loc}</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      )}
 
-                    {supplier.location && (
-                      <View style={styles.locationRow}>
-                        <MaterialIcon name="location_on" size={13} color={colors.primary} />
-                        <Text style={[styles.locationText, { color: colors.onSurfaceMuted }]} numberOfLines={1}>
-                          {supplier.location}
-                        </Text>
+                      <View style={{ marginLeft: 4 }}>
+                        <MaterialIcon name="chevron_right" size={18} color={border} />
                       </View>
-                    )}
-                  </View>
-
-                  {/* Right Action Chevron */}
-                  <View style={styles.chevronWrapper}>
-                    <MaterialIcon name="chevron_right" size={20} color={colors.onSurfaceMuted} />
-                  </View>
-                </TouchableOpacity>
-              ))}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </ScrollView>
           )}
         </View>
@@ -264,206 +322,228 @@ export function AllSuppliersScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  safe: {
     flex: 1,
     paddingTop: Platform.OS === 'android' ? 25 : 0,
   },
-  container: {
+  root: {
     flex: 1,
     alignItems: 'center',
-    width: '100%',
   },
-  contentWrapper: {
+  inner: {
     flex: 1,
     width: '100%',
-    maxWidth: 1300,
+    maxWidth: 1100,
   },
-  header: {
-    height: 60,
+  innerDesktop: {},
+
+  // ── Top bar ──
+  topbar: {
+    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitleBlock: {
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontFamily: 'Outfit_800ExtraBold',
-  },
-  headerSubtitle: {
-    fontSize: 11,
-    fontFamily: 'PlusJakartaSans_500Medium',
-    marginTop: 1,
-  },
-  searchFilterContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
     borderBottomWidth: 1,
     gap: 12,
   },
-  searchBar: {
+  backBtn: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topbarTitle: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  pageTitle: {
+    fontSize: 15,
+    fontFamily: 'Outfit_700Bold',
+  },
+  pageSubtitle: {
+    fontSize: 11,
+    fontFamily: 'PlusJakartaSans_400Regular',
+    marginTop: 1,
+  },
+
+  // ── Filter bar ──
+  filterBar: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    borderBottomWidth: 1,
+    gap: 0,
+  },
+  searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 14,
-    height: 42,
-    borderRadius: 21,
+    gap: 8,
+    paddingHorizontal: 12,
+    height: 36,
+    borderRadius: 6,
     borderWidth: 1,
+    marginBottom: 8,
   },
   searchInput: {
     flex: 1,
     fontSize: 13,
-    fontFamily: 'PlusJakartaSans_500Medium',
+    fontFamily: 'PlusJakartaSans_400Regular',
     paddingVertical: 0,
     height: '100%',
     outlineStyle: 'none' as any,
   },
-  categoryChipsList: {
-    gap: 8,
-    paddingVertical: 2,
+  tabsList: {
+    gap: 0,
+    paddingBottom: 0,
   },
-  categoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  categoryChipText: {
-    fontSize: 12,
-    fontFamily: 'Outfit_600SemiBold',
-  },
-  categoryChipTextSelected: {
-    fontFamily: 'Outfit_700Bold',
-  },
-  scrollList: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    gap: 10,
-    paddingBottom: 50,
-  },
-  desktopGridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
-  },
-  supplierCard: {
+  tab: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabText: {
+    fontSize: 13,
+    fontFamily: 'PlusJakartaSans_500Medium',
+  },
+  tabTextActive: {
+    fontFamily: 'Outfit_700Bold',
+  },
+  countPill: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 10,
+  },
+  countPillText: {
+    fontSize: 10,
+    fontFamily: 'Outfit_700Bold',
+  },
+
+  // ── Table header ──
+  tableHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+  },
+  tableHeadCell: {
+    fontSize: 11,
+    fontFamily: 'Outfit_600SemiBold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+
+  // ── GitHub directory rows ──
+  table: {
+    borderWidth: 1,
+    borderRadius: 6,
+    marginHorizontal: 16,
+    marginTop: 16,
+    overflow: 'hidden',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    borderBottomWidth: 1,
+    gap: 12,
+  },
+  rowLast: {
+    borderBottomWidth: 0,
+  },
+  avatar: {
+    width: 32,
+    height: 32,
     borderRadius: 16,
     borderWidth: 1,
-    gap: 14,
-  },
-  desktopSupplierCard: {
-    width: '48.8%',
-  },
-  avatarWrapper: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
     overflow: 'hidden',
-    borderWidth: 1.5,
-    flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
-  supplierInitial: {
-    fontSize: 22,
-    fontFamily: 'Outfit_700Bold',
-  },
-  avatarImage: {
+  avatarImg: {
     width: '100%',
     height: '100%',
   },
-  supplierInfo: {
-    flex: 1,
-    gap: 3,
+  avatarInitial: {
+    fontSize: 14,
+    fontFamily: 'Outfit_700Bold',
   },
-  titleRow: {
+  rowContent: {
+    flex: 1,
+    gap: 2,
+  },
+  rowTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 8,
   },
   supplierName: {
-    fontSize: 15,
-    fontFamily: 'Outfit_700Bold',
+    fontSize: 14,
+    fontFamily: 'Outfit_600SemiBold',
     flex: 1,
   },
-  activeBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    backgroundColor: 'rgba(18, 187, 240, 0.08)',
-  },
-  activeBadgeText: {
-    fontSize: 10.5,
-    fontFamily: 'Outfit_700Bold',
-  },
-  supplierCategory: {
+  rowMeta: {
     fontSize: 12,
-    fontFamily: 'PlusJakartaSans_500Medium',
+    fontFamily: 'PlusJakartaSans_400Regular',
   },
-  locationRow: {
+  rowCell: {
+    fontSize: 12,
+    fontFamily: 'PlusJakartaSans_400Regular',
+  },
+  locRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
     marginTop: 2,
   },
-  locationText: {
+  activeDot: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  statusText: {
     fontSize: 11,
-    fontFamily: 'PlusJakartaSans_400Regular',
-    flex: 1,
+    fontFamily: 'Outfit_600SemiBold',
   },
-  chevronWrapper: {
-    paddingLeft: 4,
-  },
+
+  // ── Empty state ──
   emptyState: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
-    paddingVertical: 80,
-  },
-  emptyIconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
+    gap: 10,
+    padding: 40,
   },
   emptyTitle: {
-    fontSize: 17,
-    fontFamily: 'Outfit_800ExtraBold',
-    marginBottom: 6,
+    fontSize: 16,
+    fontFamily: 'Outfit_700Bold',
   },
-  emptySubtitle: {
+  emptyText: {
     fontSize: 13,
     fontFamily: 'PlusJakartaSans_400Regular',
     textAlign: 'center',
-    lineHeight: 18,
-    maxWidth: 320,
-    marginBottom: 20,
+    maxWidth: 300,
   },
-  resetButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
+  resetBtn: {
+    marginTop: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    borderRadius: 6,
+    borderWidth: 1,
   },
-  resetButtonText: {
-    color: '#FFFFFF',
+  resetBtnText: {
     fontSize: 13,
-    fontFamily: 'Outfit_700Bold',
+    fontFamily: 'Outfit_600SemiBold',
   },
 });
