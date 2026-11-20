@@ -9,7 +9,6 @@ import {
   Image,
   Platform,
   useWindowDimensions,
-  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAppTheme } from '@/core/theme/theme_context';
@@ -273,8 +272,20 @@ export function SupplierProductsScreen() {
                 {/* ── Table Items: INCOMING ORDERS vs PRODUCTS ── */}
                 {activeTab === 'incoming_orders' ? (
                   isLoadingOrders ? (
-                    <View style={{ padding: 40, alignItems: 'center' }}>
-                      <ActivityIndicator size="small" color={gitColors.textLink} />
+                    <View style={{ padding: 16, gap: 12 }}>
+                      {[1, 2, 3, 4].map((k) => (
+                        <View
+                          key={k}
+                          style={{
+                            height: 80,
+                            borderRadius: 6,
+                            backgroundColor: gitColors.canvasSubtle,
+                            borderWidth: 1,
+                            borderColor: gitColors.border,
+                            opacity: 0.6,
+                          }}
+                        />
+                      ))}
                     </View>
                   ) : incomingOrders.length === 0 ? (
                     <View style={styles.emptyContainer}>

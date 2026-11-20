@@ -200,7 +200,17 @@ export function ProfilePage() {
   };
 
   const handleContinueDraft = (draft: DraftOrder) => {
-    router.push(`/product/order/${draft.id}`);
+    const entries = draft.entries || [];
+    const productIds = Array.from(
+      new Set(entries.map((e: any) => e.product_id || e.productId).filter(Boolean))
+    );
+    if (productIds.length > 1) {
+      router.push(`/product/multi-order?ids=${productIds.join(',')}` as any);
+    } else if (productIds.length === 1) {
+      router.push(`/product/order/${productIds[0]}`);
+    } else {
+      router.push(`/product/order/${draft.id}`);
+    }
   };
 
   const handleOpenPdf = (doc: PdfDocumentItem) => {

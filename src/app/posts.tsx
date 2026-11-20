@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/features/auth/context/auth_context';
 import { useAppTheme } from '@/core/theme/theme_context';
 import { MaterialIcon } from '@/core/widgets/material_icon';
 import { SupplierProductsScreen } from '@/features/inventory/presentation/pages/supplier_products_screen';
 import { BecomeSupplierSheet } from '@/features/profile/presentation/widgets/become_supplier_sheet';
+import { SupplierProductsShimmer } from '@/features/inventory/presentation/pages/shimmer/supplier_products_shimmer';
 
 export default function PostsRoute() {
   const { user, isAuthenticated, isLoading, isProfileReady } = useAuth();
@@ -15,12 +16,9 @@ export default function PostsRoute() {
 
   if (isLoading || !isProfileReady) {
     return (
-      <View style={[styles.center, { backgroundColor: colors.scaffoldBackground }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.loadingText, { color: colors.onSurfaceMuted }]}>
-          Verifying supplier account...
-        </Text>
-      </View>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>
+        <SupplierProductsShimmer />
+      </SafeAreaView>
     );
   }
 

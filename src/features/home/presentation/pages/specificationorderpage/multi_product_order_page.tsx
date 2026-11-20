@@ -294,34 +294,48 @@ export default function MultiProductOrderPage() {
         profile = { legalBusinessName: 'Wholesale Buyer' };
       }
 
-      const orderId = 'ORD-' + Date.now().toString(36).toUpperCase();
+      // Group items by supplier_id so each supplier receives their own order
+      const itemsBySupplier = new Map<string, typeof summaryItems>();
+      summaryItems.forEach((item) => {
+        const sid = item.product.supplierId || productList[0]?.supplierId || 'supplier-main';
+        const list = itemsBySupplier.get(sid) || [];
+        list.push(item);
+        itemsBySupplier.set(sid, list);
+      });
 
-      const entries = summaryItems.flatMap((item) =>
-        item.groups.map((g) => ({
-          product_id: item.product.id,
-          name: item.product.name,
-          color: g.color.label,
-          size_quantities: g.sizeQtys,
-          unit_price: item.product.srp,
-          total_units: Object.values(g.sizeQtys).reduce((a, b) => a + b, 0),
-          supplier_id: item.product.supplierId || '',
+      const orderIds: string[] = [];
+      for (const [supplierId, supItems] of itemsBySupplier.entries()) {
+        const supOrderId = 'ORD-' + Date.now().toString(36).toUpperCase() + '-' + supplierId.slice(0, 4);
+        const supEntries = supItems.flatMap((item) =>
+          item.groups.map((g) => ({
+            product_id: item.product.id,
+            name: item.product.name,
+            color: g.color.label,
+            size_quantities: g.sizeQtys,
+            unit_price: item.product.srp,
+            total_units: Object.values(g.sizeQtys).reduce((a, b) => a + b, 0),
+            supplier_id: supplierId,
+            business_name: profile.legalBusinessName || 'Wholesale Buyer',
+          }))
+        );
+        const supTotalAmount = supItems.reduce((acc, item) => acc + item.subtotal, 0);
+
+        const orderPayload = {
+          order_id: supOrderId,
+          supplier_id: supplierId,
           business_name: profile.legalBusinessName || 'Wholesale Buyer',
-        }))
-      );
+          business_phone: profile.phone || '0700000000',
+          business_city: 'Kampala',
+          business_address: profile.warehouseAddress || 'Kampala Logistics Hub',
+          total_amount: supTotalAmount,
+          entries_json: supEntries,
+        };
 
-      const orderPayload = {
-        order_id: orderId,
-        supplier_id: productList[0]?.supplierId || 'supplier-main',
-        business_name: profile.legalBusinessName || 'Wholesale Buyer',
-        business_phone: profile.phone || '0700000000',
-        business_city: 'Kampala',
-        business_address: profile.warehouseAddress || 'Kampala Logistics Hub',
-        total_amount: grandTotalAmount,
-        entries_json: entries,
-      };
+        await ProfileApiService.createOrder(orderPayload);
+        orderIds.push(supOrderId);
+      }
 
-      await ProfileApiService.createOrder(orderPayload);
-      showSuccess('Order Placed!', `Your consolidated wholesale order ${orderId} has been sent to suppliers.`);
+      showSuccess('Order Placed!', `Your wholesale order (${orderIds.join(', ')}) has been routed to suppliers.`);
       setTimeout(() => router.push('/profile'), 1400);
     } catch (err: any) {
       showError('Order Failed', err?.message || 'Could not place consolidated order.');

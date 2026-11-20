@@ -252,7 +252,12 @@ export default function HomeScreen() {
                 {/* 4. Quick Selections List (Suppliers) */}
                 <QuickSelectionsList
                   onSeeMorePress={() => router.push('/suppliers')}
-                  onSupplierPress={(supplier) => router.push('/suppliers')}
+                  onSupplierPress={(supplier) =>
+                    router.push({
+                      pathname: '/product/[id]',
+                      params: { id: 'supplier', supplierId: supplier.id },
+                    })
+                  }
                 />
 
                 {/* 5. Featured Category Cards Carousel */}

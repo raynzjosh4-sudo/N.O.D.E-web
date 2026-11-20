@@ -262,6 +262,7 @@ export class ProfileApiService {
         estimatedTotal: d.total_amount || 0,
         updatedAt: d.updated_at || d.created_at || new Date().toISOString(),
         supplierName: d.business_name || 'Verified Supplier',
+        entries: entries,
       };
     });
   }

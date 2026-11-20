@@ -111,6 +111,7 @@ export interface CategoryDto {
   parent_id?: string | null;
   level: number;
   image_url?: string | null;
+  item_count?: number;
 }
 
 export interface CategoryCreatePayloadDto {

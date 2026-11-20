@@ -524,10 +524,11 @@ export function CategoriesPage() {
             contentContainerStyle={styles.listContent}
             ItemSeparatorComponent={() => <View style={[styles.separator, { backgroundColor: colors.borderLight }]} />}
             renderItem={({ item }) => {
-              const isLeaf = !item.subCategories || item.subCategories.length === 0;
-              const subtitle = isLeaf
-                ? `${item.itemCount} Items available`
-                : 'Tap to explore sub-categories';
+              const hasSub = item.subCategories && item.subCategories.length > 0;
+              const countText = `${item.itemCount ?? 0} ${item.itemCount === 1 ? 'item' : 'items'}`;
+              const subtitle = hasSub
+                ? `${countText} · Tap to explore sub-categories`
+                : `${countText} available`;
 
               return (
                 <TouchableOpacity
