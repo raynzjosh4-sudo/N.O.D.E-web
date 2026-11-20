@@ -1,5 +1,9 @@
 import React, { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { DefaultTheme, DarkTheme, Stack, ThemeProvider } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { NavigationBar } from 'expo-navigation-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
 import { MaterialSymbols_400Regular } from '@expo-google-fonts/material-symbols';
 import {
@@ -35,13 +39,26 @@ function AuthTokenBridge() {
 }
 
 function NavigationStack() {
-  const { isDark } = useAppTheme();
+  const { isDark, colors } = useAppTheme();
+
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      try {
+        NavigationBar.setStyle(isDark ? 'dark' : 'light');
+      } catch {
+        // ignore on unsupported web or mock envs
+      }
+    }
+  }, [isDark]);
 
   return (
     <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      {Platform.OS === 'android' && <NavigationBar style={isDark ? 'dark' : 'light'} />}
       <Stack
         screenOptions={{
           headerShown: false,
+          contentStyle: { backgroundColor: colors.scaffoldBackground },
           animation: 'slide_from_right', // Native smooth slide transition matching Flutter
           animationDuration: 350,
         }}
@@ -77,15 +94,17 @@ export default function RootLayout() {
   });
 
   return (
-    <AppThemeProvider>
-      <AuthProvider>
-        <AuthTokenBridge />
-        <ProductsProvider>
-          <ToastProvider>
-            <NavigationStack />
-          </ToastProvider>
-        </ProductsProvider>
-      </AuthProvider>
-    </AppThemeProvider>
+    <SafeAreaProvider>
+      <AppThemeProvider>
+        <AuthProvider>
+          <AuthTokenBridge />
+          <ProductsProvider>
+            <ToastProvider>
+              <NavigationStack />
+            </ToastProvider>
+          </ProductsProvider>
+        </AuthProvider>
+      </AppThemeProvider>
+    </SafeAreaProvider>
   );
 }

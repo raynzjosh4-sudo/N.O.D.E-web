@@ -6,7 +6,15 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "node-app",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
+    "androidNavigationBar": {
+      "barStyle": "light-content",
+      "backgroundColor": "#0D1117"
+    },
+    "androidStatusBar": {
+      "barStyle": "light-content",
+      "backgroundColor": "#0D1117"
+    },
     "ios": {
       "icon": "./assets/expo.icon"
     },
