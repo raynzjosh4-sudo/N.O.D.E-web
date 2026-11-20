@@ -49,7 +49,20 @@ function NavigationStack() {
         // ignore on unsupported web or mock envs
       }
     }
-  }, [isDark]);
+
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      const bg = colors.scaffoldBackground || '#0D1117';
+      document.documentElement.style.backgroundColor = bg;
+      document.body.style.backgroundColor = bg;
+      let metaTheme = document.querySelector('meta[name="theme-color"]');
+      if (!metaTheme) {
+        metaTheme = document.createElement('meta');
+        metaTheme.setAttribute('name', 'theme-color');
+        document.head.appendChild(metaTheme);
+      }
+      metaTheme.setAttribute('content', bg);
+    }
+  }, [isDark, colors.scaffoldBackground]);
 
   return (
     <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
