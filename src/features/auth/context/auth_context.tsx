@@ -282,14 +282,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     setIsProfileReady(false);
     try {
-      // If no credentials passed on web, trigger Google OAuth / GSI prompt
+      // If no credentials passed on web, trigger direct Google OAuth flow
       if (!options?.idToken && !options?.email) {
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
-          const google = (window as any).google;
-          if (google?.accounts?.id) {
-            google.accounts.id.prompt();
-            return false;
-          }
           const redirectUri = window.location.origin;
           window.location.href = `https://lihoygvdnnfqodjjxqnz.supabase.co/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectUri)}`;
           return false;

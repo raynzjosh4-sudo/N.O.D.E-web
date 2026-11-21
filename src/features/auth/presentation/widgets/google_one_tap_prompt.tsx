@@ -64,12 +64,17 @@ export function GoogleOneTapPrompt({
                 },
                 auto_select: false,
                 cancel_on_tap_outside: true,
+                use_fedcm_for_prompt: false,
               });
-              google.accounts.id.prompt((notification: any) => {
-                if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                  // Fall back gracefully to our in-app One Tap prompt
-                }
-              });
+              try {
+                google.accounts.id.prompt((notification: any) => {
+                  if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                    // Fall back gracefully to our custom floating prompt
+                  }
+                });
+              } catch {
+                // Ignore prompt error if FedCM or third-party cookies are blocked
+              }
             }
           } catch {
             // Ignore GSI init error on localhost/restricted origins

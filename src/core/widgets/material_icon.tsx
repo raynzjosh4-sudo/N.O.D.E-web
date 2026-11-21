@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text, Platform } from 'react-native';
 import { useAppTheme } from '@/core/theme/theme_context';
 
 interface MaterialIconProps {
@@ -30,7 +30,10 @@ export function MaterialIcon({ name, size = 20, color }: MaterialIconProps) {
 
 const styles = StyleSheet.create({
   icon: {
-    fontFamily: 'MaterialSymbols',
+    fontFamily: Platform.select({
+      web: "'Material Symbols Outlined', 'MaterialSymbols', sans-serif",
+      default: 'MaterialSymbols',
+    }),
     fontWeight: 'normal',
     textAlign: 'center',
     userSelect: 'none',
