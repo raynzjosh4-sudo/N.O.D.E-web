@@ -36,12 +36,47 @@ export async function copyProductLink(
 }
 
 /**
+ * Extracts volume wholesale tier pricing for share messages
+ */
+export function formatWholesaleSharePricing(product: Product): {
+  headline: string;
+  tierSummary: string;
+} {
+  const tiers = Array.isArray(product.priceTiers)
+    ? product.priceTiers.filter((t) => t && t.price > 0).sort((a, b) => a.minQuantity - b.minQuantity)
+    : [];
+
+  if (tiers.length > 0) {
+    const prices = tiers.map((t) => t.price);
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
+    const moq = tiers[0].minQuantity || product.moq || 1;
+
+    const tierSummary = tiers
+      .map((t) => `${t.minQuantity}+ pcs: UGX ${t.price.toLocaleString()}`)
+      .join(' • ');
+
+    const headline =
+      minPrice === maxPrice
+        ? `Wholesale UGX ${minPrice.toLocaleString()} / unit (MOQ: ${moq} pcs)`
+        : `Wholesale from UGX ${minPrice.toLocaleString()} / unit (MOQ: ${moq} pcs)`;
+
+    return { headline, tierSummary };
+  }
+
+  const srp = product.srp || 0;
+  const headline = srp > 0 ? `UGX ${srp.toLocaleString()} / unit` : 'Wholesale Direct';
+  return { headline, tierSummary: '' };
+}
+
+/**
  * Directly opens WhatsApp with the formatted product share message.
  */
 export function shareToWhatsApp(product: Product): void {
   const shareUrl = getProductShareUrl(product.id);
-  const price = product.srp ? `UGX ${product.srp.toLocaleString()}` : '';
-  const text = `*${product.name}* — Wholesale ${price}\nOrder directly from verified suppliers on N.O.D.E:\n${shareUrl}`;
+  const { headline, tierSummary } = formatWholesaleSharePricing(product);
+  const tierBlock = tierSummary ? `\n📦 Wholesale Tiers: ${tierSummary}` : '';
+  const text = `*${product.name}* — ${headline}${tierBlock}\nOrder directly from verified suppliers on N.O.D.E:\n${shareUrl}`;
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
   Linking.openURL(whatsappUrl);
 }
@@ -56,8 +91,9 @@ export async function shareProduct(
 ): Promise<void> {
   const shareUrl = getProductShareUrl(product.id);
   const shareTitle = product.name;
-  const priceText = product.srp ? ` for UGX ${product.srp.toLocaleString()}` : '';
-  const shareText = `Check out ${product.name} on N.O.D.E Wholesale${priceText}!\n${shareUrl}`;
+  const { headline, tierSummary } = formatWholesaleSharePricing(product);
+  const tierBlock = tierSummary ? ` | Tiers: ${tierSummary}` : '';
+  const shareText = `Check out ${product.name} on N.O.D.E Wholesale — ${headline}${tierBlock}!\n${shareUrl}`;
 
   if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.share) {
     try {
