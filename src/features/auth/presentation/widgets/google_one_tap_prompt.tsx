@@ -54,7 +54,7 @@ export function GoogleOneTapPrompt({
             const google = (window as any).google;
             if (google?.accounts?.id) {
               google.accounts.id.initialize({
-                client_id: '57183530401-gnoi6jt63bu4lnsdjmr2mu4j78826vpv.apps.googleusercontent.com',
+                client_id: '222218933371-rug9cjnfcc8hgirbjvdd6do8p6akf37n.apps.googleusercontent.com',
                 callback: async (res: any) => {
                   if (res?.credential) {
                     await signInWithGoogle({ idToken: res.credential });
