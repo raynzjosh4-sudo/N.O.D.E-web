@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  RefreshControl,
   useWindowDimensions,
 } from 'react-native';
 import { useAppNavigation } from '@/core/utils/use_app_navigation';
@@ -20,6 +21,8 @@ import {
   MOCK_NOTIFICATIONS,
 } from './models/notification_model';
 import { NotificationCard } from './widgets/notification_card';
+import { NotificationApiService } from './services/notification_api_service';
+import { NotificationsShimmer } from './shimmer/notifications_shimmer';
 
 export function NotificationPage() {
   const router = useAppNavigation();
@@ -27,8 +30,38 @@ export function NotificationPage() {
   const isDesktop = width >= 960;
   const { colors } = useAppTheme();
 
-  const [notifications, setNotifications] = useState<NotificationItem[]>(MOCK_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<NotificationCategory>('all');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+
+  const fetchNotifications = useCallback(async (isRefresh = false) => {
+    if (isRefresh) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
+
+    try {
+      const res = await NotificationApiService.getNotifications();
+      if (res && res.items && res.items.length > 0) {
+        setNotifications(res.items);
+      } else {
+        // Fallback to sample mock notifications if backend returns empty/unconfigured
+        setNotifications(MOCK_NOTIFICATIONS);
+      }
+    } catch (err) {
+      console.warn('[NotificationPage] Failed to fetch live notifications, falling back to mock:', err);
+      setNotifications(MOCK_NOTIFICATIONS);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
 
   const filteredNotifications = notifications.filter((item) => {
     if (selectedCategory === 'all') return true;
@@ -41,20 +74,29 @@ export function NotificationPage() {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, isUnread: false } : n))
     );
+    NotificationApiService.markAsRead(id).catch((err) => {
+      console.warn('[NotificationPage] Error marking notification as read:', err);
+    });
   };
 
   const handleMarkAllRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, isUnread: false })));
+    NotificationApiService.markAllAsRead().catch((err) => {
+      console.warn('[NotificationPage] Error marking all notifications as read:', err);
+    });
   };
 
   const handleDelete = (id: string) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
+    NotificationApiService.deleteNotification(id).catch((err) => {
+      console.warn('[NotificationPage] Error deleting notification:', err);
+    });
   };
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>
       <View style={[styles.container, { backgroundColor: colors.scaffoldBackground }]}>
-        <View style={[styles.contentWrapper, { backgroundColor: colors.surface }]}>
+        <View style={[styles.contentWrapper, { backgroundColor: colors.surface, maxWidth: isDesktop ? 800 : '100%' }]}>
           {/* ── Top Header (NodeAppBar style) ── */}
           <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.borderLight }]}>
             <TouchableOpacity
@@ -126,9 +168,21 @@ export function NotificationPage() {
             </ScrollView>
           </View>
 
-          {/* ── Notification Feed / Empty State ── */}
-          {filteredNotifications.length === 0 ? (
-            <View style={styles.emptyContainer}>
+          {/* ── Notification Feed / Shimmer / Empty State ── */}
+          {isLoading ? (
+            <NotificationsShimmer showFilters={false} />
+          ) : filteredNotifications.length === 0 ? (
+            <ScrollView
+              contentContainerStyle={styles.emptyContainer}
+              refreshControl={
+                <RefreshControl
+                  refreshing={isRefreshing}
+                  onRefresh={() => fetchNotifications(true)}
+                  tintColor={AppColors.primary}
+                  colors={[AppColors.primary]}
+                />
+              }
+            >
               <View style={[styles.emptyIconCircle, { backgroundColor: colors.cardColor }]}>
                 <MaterialIcon
                   name="notifications_none"
@@ -136,15 +190,23 @@ export function NotificationPage() {
                   color={colors.onSurfaceMuted}
                 />
               </View>
-              <Text style={styles.emptyTitle}>No notifications in this category</Text>
+              <Text style={[styles.emptyTitle, { color: colors.onSurface }]}>No notifications in this category</Text>
               <Text style={[styles.emptySubtitle, { color: colors.onSurfaceMuted }]}>
                 You will be notified when your wholesale orders update, tier prices drop, or shipments depart.
               </Text>
-            </View>
+            </ScrollView>
           ) : (
             <ScrollView
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.scrollList}
+              refreshControl={
+                <RefreshControl
+                  refreshing={isRefreshing}
+                  onRefresh={() => fetchNotifications(true)}
+                  tintColor={AppColors.primary}
+                  colors={[AppColors.primary]}
+                />
+              }
             >
               <View style={[styles.notificationsCard, { backgroundColor: colors.cardColor }]}>
                 {filteredNotifications.map((notif) => (

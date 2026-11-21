@@ -357,7 +357,7 @@ export class ProfileApiService {
    */
   static async createOrder(order: {
     order_id: string;
-    supplier_id: string;
+    supplier_id?: string;
     business_name: string;
     business_phone: string;
     business_city: string;

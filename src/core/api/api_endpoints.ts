@@ -50,6 +50,14 @@ export const API_ENDPOINTS = {
     REMOVE: (savedItemId: string) => `/saved-items/${savedItemId}`,
     CHECK: (productId: string) => `/saved-items/${productId}/check`,
   },
+  // Notifications
+  NOTIFICATIONS: {
+    LIST: '/notifications',
+    MARK_READ: (id: string) => `/notifications/${id}/read`,
+    MARK_ALL_READ: '/notifications/read-all',
+    DELETE: (id: string) => `/notifications/${id}`,
+    DEVICE_TOKEN: '/notifications/device-token',
+  },
   // Admin
   ADMIN: {
     CREATE_CATEGORY: '/admin/categories',
