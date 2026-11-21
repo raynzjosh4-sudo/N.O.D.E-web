@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { AppColors } from '@/core/theme/app_theme';
 import { useAppTheme } from '@/core/theme/theme_context';
@@ -64,8 +65,10 @@ export function DraftsTab({
     return 'UGX ' + (val || 0).toLocaleString('en-US');
   };
 
+  const now = useMemo(() => Date.now(), [drafts]);
+
   const getTimeAgo = (dateStr: string) => {
-    const diff = Date.now() - new Date(dateStr).getTime();
+    const diff = now - new Date(dateStr).getTime();
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const days = Math.floor(hours / 24);
 
@@ -180,6 +183,22 @@ export function DraftsTab({
               </View>
 
               <Text style={[styles.draftTitle, { color: colors.onSurface }]}>{draft.title}</Text>
+
+              {/* Product Thumbnails Strip */}
+              {draft.images && draft.images.length > 0 && (
+                <View style={styles.thumbnailStrip}>
+                  {draft.images.slice(0, 5).map((imgUrl, i) => (
+                    <View key={i} style={[styles.thumbBox, { borderColor: colors.borderLight, backgroundColor: colors.scaffoldBackground }]}>
+                      <Image source={{ uri: imgUrl }} style={styles.thumbImg} resizeMode="cover" />
+                    </View>
+                  ))}
+                  {draft.images.length > 5 && (
+                    <View style={[styles.thumbMoreBox, { backgroundColor: colors.scaffoldBackground, borderColor: colors.borderLight }]}>
+                      <Text style={[styles.thumbMoreText, { color: colors.onSurfaceMuted }]}>+{draft.images.length - 5}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
 
               <View style={[styles.statsRow, { backgroundColor: colors.scaffoldBackground }]}>
                 <View style={styles.statItem}>
@@ -332,7 +351,36 @@ const styles = StyleSheet.create({
   draftTitle: {
     fontSize: 16,
     fontFamily: 'Outfit_700Bold',
-    marginBottom: 12,
+    marginBottom: 8,
+  },
+  thumbnailStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 14,
+  },
+  thumbBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  thumbImg: {
+    width: '100%',
+    height: '100%',
+  },
+  thumbMoreBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  thumbMoreText: {
+    fontSize: 11,
+    fontFamily: 'Outfit_700Bold',
   },
   statsRow: {
     flexDirection: 'row',

@@ -38,8 +38,23 @@ export default function ProductSpecsScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedMediaIndex, setSelectedMediaIndex] = useState(0);
   const [quantity, setQuantity] = useState(product?.moq || 2);
+  const [selectedColorName, setSelectedColorName] = useState<string>(
+    product?.colors?.[0]?.name || 'Standard'
+  );
+  const [selectedSizeName, setSelectedSizeName] = useState<string>(
+    product?.sizes?.[0]?.name || 'Standard'
+  );
   const [isSavingToBag, setIsSavingToBag] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (product?.colors && product.colors.length > 0) {
+      setSelectedColorName(product.colors[0].name);
+    }
+    if (product?.sizes && product.sizes.length > 0) {
+      setSelectedSizeName(product.sizes[0].name);
+    }
+  }, [product?.id]);
 
   const desktopLeftScrollRef = useRef<any>(null);
   const desktopRightScrollRef = useRef<any>(null);
@@ -125,8 +140,8 @@ export default function ProductSpecsScreen() {
       await ProfileApiService.addSavedItem(
         product.id,
         quantity,
-        product.colors?.[0]?.name || 'Standard',
-        product.sizes?.[0]?.name || 'Standard',
+        selectedColorName || product.colors?.[0]?.name || 'Standard',
+        selectedSizeName || product.sizes?.[0]?.name || 'Standard',
         {
           id: product.id,
           name: product.name,
@@ -140,9 +155,9 @@ export default function ProductSpecsScreen() {
           moq: product.moq,
         }
       );
-      const msg = `Saved ${quantity} units of ${product.name} to your bulk order bag.`;
+      const msg = `Saved ${quantity} units (${selectedColorName}) to your bulk order bag.`;
       setSaveSuccessMsg(msg);
-      showSuccess('Saved to Bag', `${quantity} units of ${product.name} synced to your cloud bag.`);
+      showSuccess('Saved to Bag', `${quantity} units of ${product.name} (${selectedColorName}) saved to your bag.`);
       setTimeout(() => setSaveSuccessMsg(null), 4000);
     } catch (err: any) {
       console.warn('Failed to save to bag:', err.message);
@@ -384,18 +399,37 @@ export default function ProductSpecsScreen() {
             {product.colors && product.colors.length > 0 && (
               <View style={styles.variantBlock}>
                 <Text style={[styles.variantSubtitle, { color: colors.onSurface }]}>
-                  Colors ({product.colors.length}):
+                  Select Color Variant ({product.colors.length}):
                 </Text>
                 <View style={styles.colorChipsRow}>
-                  {product.colors.map((c, idx) => (
-                    <View
-                      key={`color-${idx}`}
-                      style={[styles.colorChip, { borderColor: gitBorder, backgroundColor: gitHeaderBg }]}
-                    >
-                      <View style={[styles.colorCircle, { backgroundColor: c.hexCode }]} />
-                      <Text style={[styles.colorChipText, { color: colors.onSurface }]}>{c.name}</Text>
-                    </View>
-                  ))}
+                  {product.colors.map((c, idx) => {
+                    const isSelected = selectedColorName === c.name;
+                    return (
+                      <TouchableOpacity
+                        key={`color-${idx}`}
+                        activeOpacity={0.8}
+                        onPress={() => setSelectedColorName(c.name)}
+                        style={[
+                          styles.colorChip,
+                          {
+                            borderColor: isSelected ? colors.primary : gitBorder,
+                            backgroundColor: isSelected ? 'rgba(18, 187, 240, 0.08)' : gitHeaderBg,
+                          },
+                        ]}
+                      >
+                        <View style={[styles.colorCircle, { backgroundColor: c.hexCode }]} />
+                        <Text
+                          style={[
+                            styles.colorChipText,
+                            { color: isSelected ? colors.primary : colors.onSurface, fontWeight: isSelected ? '700' : '600' },
+                          ]}
+                        >
+                          {c.name}
+                        </Text>
+                        {isSelected && <MaterialIcon name="check" size={14} color={colors.primary} />}
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               </View>
             )}
@@ -404,18 +438,37 @@ export default function ProductSpecsScreen() {
             {product.sizes && product.sizes.length > 0 && (
               <View style={[styles.variantBlock, { marginTop: 12 }]}>
                 <Text style={[styles.variantSubtitle, { color: colors.onSurface }]}>
-                  Sizes ({product.sizes.length}):
+                  Select Size ({product.sizes.length}):
                 </Text>
                 <View style={styles.sizeChipsRow}>
-                  {product.sizes.map((s, idx) => (
-                    <View
-                      key={`size-${idx}`}
-                      style={[styles.sizeChip, { borderColor: gitBorder, backgroundColor: gitHeaderBg }]}
-                    >
-                      <Text style={[styles.sizeChipAbbr, { color: colors.primary }]}>{s.abbreviation}</Text>
-                      <Text style={[styles.sizeChipName, { color: colors.onSurface }]}>{s.name}</Text>
-                    </View>
-                  ))}
+                  {product.sizes.map((s, idx) => {
+                    const isSelected = selectedSizeName === s.name;
+                    return (
+                      <TouchableOpacity
+                        key={`size-${idx}`}
+                        activeOpacity={0.8}
+                        onPress={() => setSelectedSizeName(s.name)}
+                        style={[
+                          styles.sizeChip,
+                          {
+                            borderColor: isSelected ? colors.primary : gitBorder,
+                            backgroundColor: isSelected ? 'rgba(18, 187, 240, 0.08)' : gitHeaderBg,
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.sizeChipAbbr, { color: colors.primary }]}>{s.abbreviation}</Text>
+                        <Text
+                          style={[
+                            styles.sizeChipName,
+                            { color: isSelected ? colors.primary : colors.onSurface, fontWeight: isSelected ? '700' : '500' },
+                          ]}
+                        >
+                          {s.name}
+                        </Text>
+                        {isSelected && <MaterialIcon name="check" size={14} color={colors.primary} />}
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               </View>
             )}

@@ -249,20 +249,42 @@ export class ProfileApiService {
     const data = await apiClient<BackendOrderResponse[]>(API_ENDPOINTS.ORDERS.DRAFTS);
     return data.map((d) => {
       const entries = Array.isArray(d.entries_json) ? d.entries_json : [];
-      const totalUnits = entries.reduce(
-        (acc: number, cur: any) => acc + (Number(cur.quantity) || 1),
-        0
-      );
+      const totalUnits = entries.reduce((acc: number, cur: any) => {
+        const directQty = Number(cur.total_units) || Number(cur.quantity);
+        if (directQty) return acc + directQty;
+        if (cur.size_quantities && typeof cur.size_quantities === 'object') {
+          const sum = Object.values(cur.size_quantities).reduce((a: any, b: any) => Number(a) + Number(b), 0);
+          if (sum) return acc + Number(sum);
+        }
+        return acc + 1;
+      }, 0);
+
+      const productNames = Array.from(
+        new Set(entries.map((e: any) => e.name || e.product_name || (e.savedProduct && e.savedProduct.product?.name)).filter(Boolean))
+      ) as string[];
+
+      const images = Array.from(
+        new Set(
+          entries
+            .map((e: any) => e.imageUrl || e.image_url || e.product_snapshot?.imageUrl || (e.savedProduct && e.savedProduct.product?.imageUrl))
+            .filter(Boolean)
+        )
+      ) as string[];
+
+      const customTitle = (d as any).title || (d as any).name || (d as any).order_name;
+      const title = customTitle || (productNames.length > 0 ? productNames.join(', ') : `Draft Order #${(d.id || d.order_id || '').slice(0, 8)}`);
 
       return {
         id: d.id || d.order_id,
-        title: `Draft Order • ${d.business_name || 'Wholesale Order'}`,
-        itemsCount: entries.length,
+        title,
+        itemsCount: productNames.length || entries.length || 1,
         totalUnits: totalUnits || 1,
         estimatedTotal: d.total_amount || 0,
         updatedAt: d.updated_at || d.created_at || new Date().toISOString(),
         supplierName: d.business_name || 'Verified Supplier',
         entries: entries,
+        images,
+        productNames,
       };
     });
   }

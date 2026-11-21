@@ -205,11 +205,11 @@ export function ProfilePage() {
       new Set(entries.map((e: any) => e.product_id || e.productId).filter(Boolean))
     );
     if (productIds.length > 1) {
-      router.push(`/product/multi-order?ids=${productIds.join(',')}` as any);
+      router.push(`/product/multi-order?ids=${productIds.join(',')}&draftId=${draft.id}` as any);
     } else if (productIds.length === 1) {
-      router.push(`/product/order/${productIds[0]}`);
+      router.push(`/product/order/${productIds[0]}?draftId=${draft.id}`);
     } else {
-      router.push(`/product/order/${draft.id}`);
+      router.push(`/product/order/${draft.id}?draftId=${draft.id}`);
     }
   };
 

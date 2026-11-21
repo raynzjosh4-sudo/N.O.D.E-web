@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Image,
   TextInput,
+  Modal,
   useWindowDimensions,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
@@ -25,19 +26,19 @@ import {
   ColorGroup,
 } from './order_models';
 
-interface ProductConfig {
-  product: Product;
-  confirmedGroups: ColorGroup[];
-}
-
 export default function MultiProductOrderPage() {
   const router = useAppNavigation();
   const { showSuccess, showError, showWarning } = useToast();
-  const { ids } = useLocalSearchParams<{ ids?: string }>();
+  const { ids, draftId } = useLocalSearchParams<{ ids?: string; draftId?: string }>();
   const { width } = useWindowDimensions();
   const { colors, isDark } = useAppTheme();
   const isDesktop = width >= 960;
   const { products: contextProducts, getProductById } = useProducts();
+
+  // GitHub Primer flat border colors
+  const gitBorder = isDark ? '#30363D' : '#D0D7DE';
+  const gitHeaderBg = isDark ? '#161B22' : '#F6F8FA';
+  const gitSubtleText = isDark ? '#8B949E' : '#57606A';
 
   const [loading, setLoading] = useState(true);
   const [productList, setProductList] = useState<Product[]>([]);
@@ -52,6 +53,10 @@ export default function MultiProductOrderPage() {
   const [activeSizeQtys, setActiveSizeQtys] = useState<Record<string, number>>({});
   const [currentGroups, setCurrentGroups] = useState<ColorGroup[]>([]);
 
+  // Bulk Draft naming state
+  const [showNamingModal, setShowNamingModal] = useState(false);
+  const [bulkDraftName, setBulkDraftName] = useState('');
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
 
@@ -61,9 +66,11 @@ export default function MultiProductOrderPage() {
     setLoading(true);
 
     const loadProducts = async () => {
-      const idArray = (ids || '').split(',').map((s) => s.trim()).filter(Boolean);
-      if (idArray.length === 0) {
-        // Fallback: use first few products
+      // Deduplicate IDs
+      const rawIds = (ids || '').split(',').map((s) => s.trim()).filter(Boolean);
+      const uniqueIds = Array.from(new Set(rawIds));
+
+      if (uniqueIds.length === 0) {
         if (contextProducts.length > 0 && isMounted) {
           setProductList(contextProducts.slice(0, 3));
         }
@@ -72,7 +79,7 @@ export default function MultiProductOrderPage() {
       }
 
       const fetched: Product[] = [];
-      for (const pId of idArray) {
+      for (const pId of uniqueIds) {
         const cached = getProductById(pId);
         if (cached) {
           fetched.push(cached);
@@ -98,6 +105,37 @@ export default function MultiProductOrderPage() {
       isMounted = false;
     };
   }, [ids, contextProducts]);
+
+  // Restore draft if draftId is supplied
+  useEffect(() => {
+    if (draftId) {
+      ProfileApiService.getDraftOrders().then((drafts) => {
+        const found = drafts.find((d) => d.id === draftId);
+        if (found) {
+          if (found.title) setBulkDraftName(found.title);
+          const entries = found.entries || [];
+          const restoredMap = new Map<string, ColorGroup[]>();
+          entries.forEach((e: any) => {
+            const pId = e.product_id || e.productId;
+            if (pId) {
+              const currentList = restoredMap.get(pId) || [];
+              const colorName = e.color || e.color_name || 'Standard';
+              const hex = e.colorHex || e.hex || '#1C1B1F';
+              const sq = e.size_quantities || e.sizeQtys || {};
+              currentList.push({
+                color: { label: colorName, color: hex },
+                sizeQtys: sq,
+              });
+              restoredMap.set(pId, currentList);
+            }
+          });
+          if (restoredMap.size > 0) {
+            setProductConfigs(restoredMap);
+          }
+        }
+      }).catch((e) => console.log('Could not restore draft:', e));
+    }
+  }, [draftId]);
 
   const currentProduct: Product | undefined = productList[currentStepIndex];
 
@@ -130,6 +168,10 @@ export default function MultiProductOrderPage() {
     }
     const initialQtys: Record<string, number> = {};
     availableSizes.forEach((s) => (initialQtys[s] = 0));
+    // Default first size to MOQ or 1 if nothing configured yet
+    if (existing.length === 0 && availableSizes.length > 0) {
+      initialQtys[availableSizes[0]] = currentProduct.moq || 1;
+    }
     setActiveSizeQtys(initialQtys);
   }, [currentStepIndex, currentProduct?.id]);
 
@@ -156,12 +198,18 @@ export default function MultiProductOrderPage() {
         const updated = [...prev];
         const mergedQtys = { ...updated[existingIdx].sizeQtys };
         Object.entries(activeSizeQtys).forEach(([size, qty]) => {
-          mergedQtys[size] = (mergedQtys[size] || 0) + qty;
+          if (qty > 0) {
+            mergedQtys[size] = (mergedQtys[size] || 0) + qty;
+          }
         });
         updated[existingIdx] = { color: activeColor, sizeQtys: mergedQtys };
         return updated;
       }
-      return [...prev, { color: activeColor, sizeQtys: { ...activeSizeQtys } }];
+      const filteredQtys: Record<string, number> = {};
+      Object.entries(activeSizeQtys).forEach(([s, q]) => {
+        if (q > 0) filteredQtys[s] = q;
+      });
+      return [...prev, { color: activeColor, sizeQtys: filteredQtys }];
     });
 
     // Reset size inputs
@@ -182,7 +230,7 @@ export default function MultiProductOrderPage() {
       return;
     }
 
-    // Save configuration
+    // Save configuration into map
     setProductConfigs((prev) => {
       const nextMap = new Map(prev);
       nextMap.set(currentProduct.id, currentGroups);
@@ -208,9 +256,17 @@ export default function MultiProductOrderPage() {
     }
   };
 
-  // Calculations for summary
+  // Calculations for summary - DEDUPLICATED by product id
   const summaryItems = useMemo(() => {
-    return productList.map((p) => {
+    // Unique list of products
+    const seen = new Set<string>();
+    const uniqueProducts = productList.filter((p) => {
+      if (seen.has(p.id)) return false;
+      seen.add(p.id);
+      return true;
+    });
+
+    return uniqueProducts.map((p) => {
       const groups = productConfigs.get(p.id) || [];
       const totalUnits = groups.reduce(
         (sum, g) => sum + Object.values(g.sizeQtys).reduce((a, b) => a + b, 0),
@@ -231,9 +287,26 @@ export default function MultiProductOrderPage() {
 
   const formatPrice = (val: number) => 'UGX ' + (val || 0).toLocaleString('en-US');
 
-  // Save Consolidated Draft
-  const handleSaveDraft = async () => {
+  // Trigger Save Draft prompt
+  const handleSaveDraftClick = () => {
+    if (grandTotalUnits === 0) {
+      showWarning('No Items', 'Configure items before saving as a draft.');
+      return;
+    }
+    if (!bulkDraftName) {
+      const defaultName = productList.length > 1
+        ? `${productList[0]?.name} + ${productList.length - 1} more Bulk Order`
+        : `${productList[0]?.name} Bulk Order`;
+      setBulkDraftName(defaultName);
+    }
+    setShowNamingModal(true);
+  };
+
+  // Save Consolidated Draft with custom name
+  const handleExecuteSaveDraft = async () => {
     if (isSavingDraft || grandTotalUnits === 0) return;
+    const finalName = bulkDraftName.trim() || `${productList[0]?.name || 'Consolidated'} Bulk Order`;
+    setShowNamingModal(false);
     setIsSavingDraft(true);
 
     try {
@@ -244,13 +317,16 @@ export default function MultiProductOrderPage() {
         profile = {};
       }
 
-      const draftId = 'DRAFT-' + Date.now().toString(36).toUpperCase();
+      const draftIdGenerated = draftId || ('DRAFT-' + Date.now().toString(36).toUpperCase());
 
       const entries = summaryItems.flatMap((item) =>
         item.groups.map((g) => ({
           product_id: item.product.id,
           name: item.product.name,
+          imageUrl: item.product.imageUrl,
+          image_url: item.product.imageUrl,
           color: g.color.label,
+          colorHex: g.color.color,
           size_quantities: g.sizeQtys,
           unit_price: item.product.srp,
           total_units: Object.values(g.sizeQtys).reduce((a, b) => a + b, 0),
@@ -260,7 +336,9 @@ export default function MultiProductOrderPage() {
       );
 
       const draftPayload = {
-        order_id: draftId,
+        order_id: draftIdGenerated,
+        title: finalName,
+        name: finalName,
         supplier_id: productList[0]?.supplierId || '',
         business_name: profile.legalBusinessName || profile.fullName || '',
         business_phone: profile.phone || '',
@@ -272,7 +350,7 @@ export default function MultiProductOrderPage() {
       };
 
       await ProfileApiService.saveDraftOrder(draftPayload);
-      showSuccess('Draft Saved', 'Consolidated bulk order saved to your profile drafts.');
+      showSuccess('Draft Saved', `"${finalName}" saved to your profile drafts.`);
       setTimeout(() => router.push('/profile'), 1200);
     } catch (err: any) {
       showError('Save Draft Failed', err?.message || 'Could not save draft.');
@@ -297,7 +375,7 @@ export default function MultiProductOrderPage() {
       // Group items by supplier_id so each supplier receives their own order
       const itemsBySupplier = new Map<string, typeof summaryItems>();
       summaryItems.forEach((item) => {
-        const sid = item.product.supplierId || productList[0]?.supplierId || '';
+        const sid = item.product.supplierId || productList[0]?.supplierId || 'DIRECT';
         const list = itemsBySupplier.get(sid) || [];
         list.push(item);
         itemsBySupplier.set(sid, list);
@@ -310,7 +388,10 @@ export default function MultiProductOrderPage() {
           item.groups.map((g) => ({
             product_id: item.product.id,
             name: item.product.name,
+            imageUrl: item.product.imageUrl,
+            image_url: item.product.imageUrl,
             color: g.color.label,
+            colorHex: g.color.color,
             size_quantities: g.sizeQtys,
             unit_price: item.product.srp,
             total_units: Object.values(g.sizeQtys).reduce((a, b) => a + b, 0),
@@ -335,7 +416,7 @@ export default function MultiProductOrderPage() {
         orderIds.push(supOrderId);
       }
 
-      showSuccess('Order Placed!', `Your wholesale order (${orderIds.join(', ')}) has been routed to suppliers.`);
+      showSuccess('Order Placed!', `Consolidated wholesale order (${orderIds.join(', ')}) placed successfully.`);
       setTimeout(() => router.push('/profile'), 1400);
     } catch (err: any) {
       showError('Order Failed', err?.message || 'Could not place consolidated order.');
@@ -358,9 +439,12 @@ export default function MultiProductOrderPage() {
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>
         <View style={styles.centerContainer}>
-          <MaterialIcon name="inventory_2" size={48} color={colors.onSurfaceMuted} />
+          <MaterialIcon name="inventory_2" size={48} color={gitSubtleText} />
           <Text style={[styles.title, { color: colors.onSurface, marginTop: 12 }]}>No Products Selected</Text>
-          <TouchableOpacity style={[styles.primaryBtn, { backgroundColor: colors.primary, marginTop: 16 }]} onPress={() => router.push('/profile')}>
+          <TouchableOpacity
+            style={[styles.primaryBtn, { backgroundColor: colors.primary, marginTop: 16 }]}
+            onPress={() => router.push('/profile')}
+          >
             <Text style={styles.primaryBtnText}>Return to Bag</Text>
           </TouchableOpacity>
         </View>
@@ -371,7 +455,7 @@ export default function MultiProductOrderPage() {
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>
       {/* ── Top Header ── */}
-      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.borderLight }]}>
+      <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: gitBorder }]}>
         <TouchableOpacity activeOpacity={0.7} onPress={handlePrevious} style={styles.headerBackBtn}>
           <MaterialIcon name="arrow_back" size={20} color={colors.onSurface} />
         </TouchableOpacity>
@@ -379,41 +463,72 @@ export default function MultiProductOrderPage() {
           <Text style={[styles.headerTitle, { color: colors.onSurface }]}>
             {showingSummary ? 'Consolidated Order Review' : `Configuring Product ${currentStepIndex + 1} of ${productList.length}`}
           </Text>
-          <Text style={styles.headerSubtitle}>
-            {showingSummary ? `${productList.length} products ready for checkout` : currentProduct?.name}
+          <Text style={[styles.headerSubtitle, { color: gitSubtleText }]} numberOfLines={1}>
+            {showingSummary ? `${summaryItems.length} products ready for checkout` : currentProduct?.name}
           </Text>
         </View>
       </View>
 
+      {/* ── Step Stepper Progress Bar (Dart style line indicator) ── */}
+      {!showingSummary && (
+        <View style={[styles.progressRow, { backgroundColor: colors.surface, borderBottomColor: gitBorder }]}>
+          {productList.map((p, idx) => {
+            const isDone = idx < currentStepIndex;
+            const isCurrent = idx === currentStepIndex;
+            return (
+              <View
+                key={p.id}
+                style={[
+                  styles.progressSegment,
+                  {
+                    backgroundColor: isDone || isCurrent ? colors.primary : gitBorder,
+                    opacity: isDone || isCurrent ? 1 : 0.4,
+                  },
+                ]}
+              />
+            );
+          })}
+        </View>
+      )}
+
       {showingSummary ? (
-        /* ── SUMMARY VIEW ── */
+        /* ── SUMMARY VIEW (Clean Flat Git List, No Box) ── */
         <ScrollView contentContainerStyle={styles.summaryContent} showsVerticalScrollIndicator={false}>
-          <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.borderLight }]}>
-            <Text style={[styles.sectionTitle, { color: colors.onSurface }]}>Order Summary Breakdown</Text>
-            {summaryItems.map((item, idx) => (
-              <View key={item.product.id} style={[styles.summaryRow, { borderBottomColor: colors.borderLight }]}>
-                <Image source={{ uri: item.product.imageUrl }} style={styles.summaryThumb} />
-                <View style={{ flex: 1, marginLeft: 12 }}>
+          <View style={styles.summaryListContainer}>
+            {summaryItems.map((item) => (
+              <View key={item.product.id} style={[styles.summaryItemRow, { borderBottomColor: gitBorder }]}>
+                <Image source={{ uri: item.product.imageUrl }} style={styles.summaryThumb} resizeMode="cover" />
+                <View style={{ flex: 1, marginLeft: 14 }}>
                   <Text style={[styles.summaryProdTitle, { color: colors.onSurface }]} numberOfLines={1}>
                     {item.product.name}
                   </Text>
-                  <Text style={styles.summaryMeta}>
-                    {item.groups.map((g) => `${g.color.label} (${Object.values(g.sizeQtys).reduce((a, b) => a + b, 0)})`).join(', ')}
-                  </Text>
-                  <Text style={[styles.summarySubtotal, { color: colors.primary }]}>
+                  <Text style={[styles.summaryMeta, { color: colors.primary }]}>
                     {item.totalUnits} units • {formatPrice(item.subtotal)}
                   </Text>
+
+                  {/* Configured Color Groups Badges */}
+                  <View style={styles.summaryBadgesWrap}>
+                    {item.groups.map((g, gi) => (
+                      <View key={gi} style={[styles.summaryBadge, { borderColor: gitBorder, backgroundColor: gitHeaderBg }]}>
+                        <View style={[styles.summaryColorDot, { backgroundColor: g.color.color }]} />
+                        <Text style={[styles.summaryBadgeText, { color: colors.onSurface }]}>
+                          {g.color.label}: {Object.entries(g.sizeQtys).map(([s, q]) => `${s}×${q}`).join(', ')}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
                 </View>
               </View>
             ))}
 
-            <View style={[styles.grandTotalRow, { backgroundColor: colors.scaffoldBackground }]}>
+            {/* Grand Total Summary Box */}
+            <View style={[styles.grandTotalRow, { borderTopColor: gitBorder, borderBottomColor: gitBorder }]}>
               <View>
-                <Text style={styles.grandLabel}>Total Units</Text>
+                <Text style={[styles.grandLabel, { color: gitSubtleText }]}>Total Units</Text>
                 <Text style={[styles.grandVal, { color: colors.onSurface }]}>{grandTotalUnits} units</Text>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.grandLabel}>Grand Total Amount</Text>
+                <Text style={[styles.grandLabel, { color: gitSubtleText }]}>Grand Total Amount</Text>
                 <Text style={[styles.grandVal, { color: colors.primary }]}>{formatPrice(grandTotalAmount)}</Text>
               </View>
             </View>
@@ -423,13 +538,13 @@ export default function MultiProductOrderPage() {
           <View style={styles.actionRow}>
             <TouchableOpacity
               activeOpacity={0.8}
-              style={[styles.saveDraftBtn, { borderColor: colors.borderLight }, isSavingDraft && { opacity: 0.6 }]}
-              onPress={handleSaveDraft}
+              style={[styles.saveDraftBtn, { borderColor: gitBorder, backgroundColor: gitHeaderBg }]}
+              onPress={handleSaveDraftClick}
               disabled={isSavingDraft || isSubmitting}
             >
               <MaterialIcon name="edit_note" size={18} color={colors.primary} />
               <Text style={[styles.saveDraftText, { color: colors.onSurface }]}>
-                {isSavingDraft ? 'Saving Draft...' : 'Save Draft'}
+                {isSavingDraft ? 'Saving Draft...' : 'Save as Draft'}
               </Text>
             </TouchableOpacity>
 
@@ -439,7 +554,7 @@ export default function MultiProductOrderPage() {
               onPress={handleConfirmOrder}
               disabled={isSubmitting || isSavingDraft}
             >
-              <MaterialIcon name="lock" size={16} color="#FFFFFF" />
+              <MaterialIcon name="check_circle" size={18} color="#FFFFFF" />
               <Text style={styles.confirmOrderText}>
                 {isSubmitting ? 'Placing Order...' : 'Confirm Order'}
               </Text>
@@ -447,71 +562,102 @@ export default function MultiProductOrderPage() {
           </View>
         </ScrollView>
       ) : (
-        /* ── STEP-BY-STEP CONFIGURATION ── */
+        /* ── STEP-BY-STEP CONFIGURATION (Clean Flat Git Style, No Box) ── */
         <ScrollView contentContainerStyle={styles.stepContent} showsVerticalScrollIndicator={false}>
-          {/* Active Product Card */}
+          {/* Active Product Row (Flat, No Box) */}
           {currentProduct && (
-            <View style={[styles.productBannerCard, { backgroundColor: colors.surface, borderColor: colors.borderLight }]}>
-              <Image source={{ uri: currentProduct.imageUrl }} style={styles.bannerImg} />
+            <View style={[styles.productBannerRow, { borderBottomColor: gitBorder }]}>
+              <Image source={{ uri: currentProduct.imageUrl }} style={styles.bannerImg} resizeMode="cover" />
               <View style={{ flex: 1, marginLeft: 14 }}>
-                <Text style={styles.bannerBrand}>{currentProduct.brand || 'Verified Wholesale'}</Text>
+                <Text style={[styles.bannerBrand, { color: gitSubtleText }]}>
+                  {currentProduct.brand ? currentProduct.brand.toUpperCase() : 'VERIFIED WHOLESALE'}
+                </Text>
                 <Text style={[styles.bannerName, { color: colors.onSurface }]} numberOfLines={2}>
                   {currentProduct.name}
                 </Text>
                 <Text style={[styles.bannerPrice, { color: colors.primary }]}>
-                  {formatPrice(currentProduct.srp)} / unit
+                  {formatPrice(currentProduct.srp)} <Text style={[styles.bannerPerUnit, { color: gitSubtleText }]}>/ unit</Text>
                 </Text>
               </View>
             </View>
           )}
 
-          {/* Color Selection */}
-          <View style={[styles.configCard, { backgroundColor: colors.surface, borderColor: colors.borderLight }]}>
-            <Text style={[styles.cardHeader, { color: colors.onSurface }]}>1. Choose Color Variant</Text>
-            <View style={styles.colorsGrid}>
+          {/* 1. SELECT COLOUR YOU WANT (Dart 1:1 Parity) */}
+          <View style={[styles.sectionGroup, { borderBottomColor: gitBorder }]}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={[styles.sectionTitle, { color: colors.onSurface }]}>SELECT COLOUR YOU WANT</Text>
+              <Text style={[styles.sectionBadge, { color: colors.primary }]}>
+                {availableColors.length} Option{availableColors.length !== 1 ? 's' : ''}
+              </Text>
+            </View>
+            <Text style={[styles.sectionHelper, { color: gitSubtleText }]}>
+              tap the color you want, then enter quantities for sizes
+            </Text>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.colorSwatchesRow}>
               {availableColors.map((c) => {
                 const isSelected = activeColor?.label === c.label;
                 return (
                   <TouchableOpacity
                     key={c.label}
-                    activeOpacity={0.75}
+                    activeOpacity={0.8}
                     onPress={() => setActiveColor(c)}
-                    style={[
-                      styles.colorPill,
-                      { borderColor: isSelected ? colors.primary : colors.borderLight },
-                      isSelected && { backgroundColor: 'rgba(18, 187, 240, 0.08)' },
-                    ]}
+                    style={styles.swatchWrapper}
                   >
-                    <View style={[styles.colorDot, { backgroundColor: c.color }]} />
-                    <Text style={[styles.colorLabel, { color: isSelected ? colors.primary : colors.onSurface }]}>
+                    <View
+                      style={[
+                        styles.swatchCircle,
+                        { backgroundColor: c.color },
+                        isSelected && {
+                          borderColor: colors.primary,
+                          borderWidth: 3,
+                          shadowColor: c.color,
+                          shadowOpacity: 0.5,
+                          shadowRadius: 8,
+                        },
+                      ]}
+                    >
+                      {isSelected && <MaterialIcon name="check" size={18} color="#FFFFFF" />}
+                    </View>
+                    <Text
+                      style={[
+                        styles.swatchLabel,
+                        { color: isSelected ? colors.primary : gitSubtleText },
+                        isSelected && { fontWeight: '700' },
+                      ]}
+                      numberOfLines={1}
+                    >
                       {c.label}
                     </Text>
                   </TouchableOpacity>
                 );
               })}
-            </View>
+            </ScrollView>
+          </View>
 
-            {/* Size & Quantities Inputs */}
-            <Text style={[styles.cardHeader, { color: colors.onSurface, marginTop: 18 }]}>
-              2. Enter Quantities for {activeColor?.label || 'Selected Variant'}
+          {/* 2. SIZES & QUANTITIES (Flat, No Box) */}
+          <View style={[styles.sectionGroup, { borderBottomColor: gitBorder }]}>
+            <Text style={[styles.sectionTitle, { color: colors.onSurface, marginBottom: 12 }]}>
+              ENTER QUANTITIES FOR {activeColor?.label ? activeColor.label.toUpperCase() : 'SELECTED COLOR'}
             </Text>
+
             <View style={styles.sizesList}>
               {availableSizes.map((size) => {
                 const qty = activeSizeQtys[size] || 0;
                 return (
-                  <View key={size} style={[styles.sizeRow, { borderBottomColor: colors.borderLight }]}>
+                  <View key={size} style={[styles.sizeRow, { borderBottomColor: gitBorder }]}>
                     <Text style={[styles.sizeLabel, { color: colors.onSurface }]}>{size}</Text>
                     <View style={styles.stepperContainer}>
                       <TouchableOpacity
                         activeOpacity={0.7}
-                        style={[styles.stepBtn, { borderColor: colors.borderLight }]}
+                        style={[styles.stepBtn, { borderColor: gitBorder, backgroundColor: gitHeaderBg }]}
                         onPress={() => handleQtyChange(size, -5)}
                       >
                         <Text style={[styles.stepBtnText, { color: colors.onSurface }]}>-5</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         activeOpacity={0.7}
-                        style={[styles.stepBtn, { borderColor: colors.borderLight }]}
+                        style={[styles.stepBtn, { borderColor: gitBorder, backgroundColor: gitHeaderBg }]}
                         onPress={() => handleQtyChange(size, -1)}
                       >
                         <Text style={[styles.stepBtnText, { color: colors.onSurface }]}>-</Text>
@@ -523,18 +669,18 @@ export default function MultiProductOrderPage() {
                           const n = parseInt(txt.replace(/[^0-9]/g, ''), 10) || 0;
                           setActiveSizeQtys((prev) => ({ ...prev, [size]: n }));
                         }}
-                        style={[styles.qtyInput, { color: colors.onSurface, borderColor: colors.borderLight }]}
+                        style={[styles.qtyInput, { color: colors.onSurface, borderColor: gitBorder, backgroundColor: gitHeaderBg }]}
                       />
                       <TouchableOpacity
                         activeOpacity={0.7}
-                        style={[styles.stepBtn, { borderColor: colors.borderLight }]}
+                        style={[styles.stepBtn, { borderColor: gitBorder, backgroundColor: gitHeaderBg }]}
                         onPress={() => handleQtyChange(size, 1)}
                       >
                         <Text style={[styles.stepBtnText, { color: colors.onSurface }]}>+</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         activeOpacity={0.7}
-                        style={[styles.stepBtn, { borderColor: colors.borderLight }]}
+                        style={[styles.stepBtn, { borderColor: gitBorder, backgroundColor: gitHeaderBg }]}
                         onPress={() => handleQtyChange(size, 5)}
                       >
                         <Text style={[styles.stepBtnText, { color: colors.onSurface }]}>+5</Text>
@@ -545,111 +691,261 @@ export default function MultiProductOrderPage() {
               })}
             </View>
 
+            {/* Add Color Variant Group Button */}
             <TouchableOpacity
-              activeOpacity={0.8}
-              style={[styles.addColorBtn, { backgroundColor: colors.primary }]}
+              activeOpacity={0.85}
+              style={[styles.addGroupBtn, { backgroundColor: colors.primary }]}
               onPress={handleAddColorGroup}
             >
               <MaterialIcon name="add" size={18} color="#FFFFFF" />
-              <Text style={styles.addColorBtnText}>Add Color Variant Group</Text>
+              <Text style={styles.addGroupBtnText}>Add Color Variant Group</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Configured Groups for Current Product */}
+          {/* Current Configured Groups for this Product */}
           {currentGroups.length > 0 && (
-            <View style={[styles.configCard, { backgroundColor: colors.surface, borderColor: colors.borderLight }]}>
-              <Text style={[styles.cardHeader, { color: colors.onSurface }]}>
-                Configured Groups for this Product ({currentGroups.length})
+            <View style={[styles.sectionGroup, { borderBottomColor: gitBorder }]}>
+              <Text style={[styles.sectionTitle, { color: colors.onSurface, marginBottom: 10 }]}>
+                CURRENT CONFIGURATION ({currentGroups.reduce((acc, g) => acc + Object.values(g.sizeQtys).reduce((a, b) => a + b, 0), 0)} UNITS)
               </Text>
-              {currentGroups.map((g, idx) => {
-                const totalUnits = Object.values(g.sizeQtys).reduce((a, b) => a + b, 0);
-                return (
-                  <View key={idx} style={[styles.groupCard, { borderColor: colors.borderLight, backgroundColor: colors.scaffoldBackground }]}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <View style={[styles.colorDot, { backgroundColor: g.color.color }]} />
-                        <Text style={[styles.groupColorName, { color: colors.onSurface }]}>{g.color.label}</Text>
-                        <Text style={styles.groupUnitsText}>• {totalUnits} units</Text>
-                      </View>
-                      <TouchableOpacity onPress={() => handleRemoveGroup(idx)}>
-                        <MaterialIcon name="close" size={16} color="#D32F2F" />
-                      </TouchableOpacity>
-                    </View>
-                    <Text style={styles.groupSizesBreakdown}>
-                      {Object.entries(g.sizeQtys)
-                        .filter(([_, q]) => q > 0)
-                        .map(([sz, q]) => `${sz}: ${q}`)
-                        .join(' | ')}
-                    </Text>
+              {currentGroups.map((group, idx) => (
+                <View key={idx} style={[styles.confirmedGroupRow, { borderBottomColor: gitBorder }]}>
+                  <View style={styles.groupColorLeft}>
+                    <View style={[styles.summaryColorDot, { backgroundColor: group.color.color }]} />
+                    <Text style={[styles.groupColorName, { color: colors.onSurface }]}>{group.color.label}</Text>
                   </View>
-                );
-              })}
+                  <View style={styles.groupSizesWrap}>
+                    {Object.entries(group.sizeQtys).map(([sz, q]) => (
+                      <View key={sz} style={[styles.summaryBadge, { borderColor: gitBorder, backgroundColor: gitHeaderBg }]}>
+                        <Text style={[styles.summaryBadgeText, { color: colors.onSurface }]}>
+                          {sz} <Text style={{ color: colors.primary, fontWeight: '700' }}>×{q}</Text>
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                  <TouchableOpacity onPress={() => handleRemoveGroup(idx)} style={{ padding: 4 }}>
+                    <MaterialIcon name="close" size={16} color={gitSubtleText} />
+                  </TouchableOpacity>
+                </View>
+              ))}
             </View>
           )}
 
-          {/* Next / Proceed Button */}
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={[styles.nextProductBtn, { backgroundColor: colors.primary }]}
-            onPress={handleNext}
-          >
-            <Text style={styles.nextProductBtnText}>
-              {currentStepIndex < productList.length - 1 ? `Proceed to Next Product (${currentStepIndex + 2}/${productList.length})` : 'Review Order Summary'}
-            </Text>
-            <MaterialIcon name="arrow_forward" size={16} color="#FFFFFF" />
-          </TouchableOpacity>
+          {/* Bottom Next/Finish Step Action */}
+          <View style={styles.stepFooter}>
+            <TouchableOpacity activeOpacity={0.88} style={[styles.nextBtn, { backgroundColor: colors.primary }]} onPress={handleNext}>
+              <Text style={styles.nextBtnText}>
+                {currentStepIndex < productList.length - 1
+                  ? `Proceed to Next Product (${currentStepIndex + 2}/${productList.length})`
+                  : 'Review Consolidated Order'}
+              </Text>
+              <MaterialIcon name="arrow_forward" size={16} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       )}
+
+      {/* ── Naming Bulk Modal (Dart 1:1 Parity) ── */}
+      <Modal
+        visible={showNamingModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowNamingModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: gitBorder }]}>
+            <Text style={[styles.modalTitle, { color: colors.onSurface }]}>Name This Bulk Order</Text>
+            <Text style={[styles.modalSub, { color: gitSubtleText }]}>
+              Enter a name for this consolidated configuration to save it in your Drafts tab.
+            </Text>
+
+            <TextInput
+              value={bulkDraftName}
+              onChangeText={setBulkDraftName}
+              placeholder="e.g. Suite cases, 2 stand rail net Bulk"
+              placeholderTextColor={gitSubtleText}
+              style={[
+                styles.modalInput,
+                { color: colors.onSurface, borderColor: gitBorder, backgroundColor: gitHeaderBg },
+              ]}
+              autoFocus
+            />
+
+            <View style={styles.modalButtonsRow}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setShowNamingModal(false)}
+                style={[styles.modalCancelBtn, { borderColor: gitBorder }]}
+              >
+                <Text style={[styles.modalCancelText, { color: colors.onSurface }]}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={handleExecuteSaveDraft}
+                style={[styles.modalSaveBtn, { backgroundColor: colors.primary }]}
+              >
+                <Text style={styles.modalSaveText}>Save Draft</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
+  safeArea: {
+    flex: 1,
+  },
+  centerContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  title: {
+    fontSize: 18,
+    fontFamily: 'Outfit_700Bold',
+  },
+  primaryBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  primaryBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: 'Outfit_700Bold',
+  },
   header: {
+    height: 60,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 14,
     borderBottomWidth: 1,
   },
-  headerBackBtn: { padding: 4, marginRight: 12 },
-  headerTitleCol: { flex: 1 },
-  headerTitle: { fontSize: 16, fontFamily: 'Outfit_700Bold' },
-  headerSubtitle: { fontSize: 12, fontFamily: 'PlusJakartaSans_500Medium', color: 'rgba(28, 27, 31, 0.5)' },
-  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  title: { fontSize: 18, fontFamily: 'Outfit_700Bold' },
-  primaryBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20 },
-  primaryBtnText: { color: '#FFFFFF', fontFamily: 'Outfit_700Bold', fontSize: 14 },
-  stepContent: { padding: 16, paddingBottom: 60, maxWidth: 800, width: '100%', alignSelf: 'center' },
-  summaryContent: { padding: 16, paddingBottom: 60, maxWidth: 800, width: '100%', alignSelf: 'center' },
-  productBannerCard: {
-    flexDirection: 'row',
+  headerBackBtn: {
+    width: 36,
+    height: 36,
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 16,
+    justifyContent: 'center',
+    marginRight: 10,
   },
-  bannerImg: { width: 72, height: 72, borderRadius: 8 },
-  bannerBrand: { fontSize: 11, fontFamily: 'Outfit_600SemiBold', color: 'rgba(28, 27, 31, 0.5)' },
-  bannerName: { fontSize: 14, fontFamily: 'Outfit_700Bold', marginTop: 2 },
-  bannerPrice: { fontSize: 13, fontFamily: 'Outfit_800ExtraBold', marginTop: 4 },
-  configCard: { padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 16 },
-  cardHeader: { fontSize: 14, fontFamily: 'Outfit_700Bold', marginBottom: 12 },
-  colorsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  colorPill: {
+  headerTitleCol: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontFamily: 'Outfit_700Bold',
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    fontFamily: 'PlusJakartaSans_500Medium',
+  },
+  progressRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
     gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
   },
-  colorDot: { width: 14, height: 14, borderRadius: 7 },
-  colorLabel: { fontSize: 12, fontFamily: 'Outfit_600SemiBold' },
-  sizesList: { marginTop: 8 },
+  progressSegment: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+  },
+  stepContent: {
+    paddingBottom: 48,
+    maxWidth: 960,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  productBannerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+  },
+  bannerImg: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
+  },
+  bannerBrand: {
+    fontSize: 11,
+    fontFamily: 'Outfit_700Bold',
+    letterSpacing: 0.5,
+  },
+  bannerName: {
+    fontSize: 16,
+    fontFamily: 'Outfit_700Bold',
+    marginVertical: 2,
+  },
+  bannerPrice: {
+    fontSize: 15,
+    fontFamily: 'Outfit_800ExtraBold',
+  },
+  bannerPerUnit: {
+    fontSize: 12,
+    fontWeight: 'normal',
+  },
+  sectionGroup: {
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    borderBottomWidth: 1,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontFamily: 'Outfit_700Bold',
+    letterSpacing: 0.5,
+  },
+  sectionBadge: {
+    fontSize: 12,
+    fontFamily: 'Outfit_600SemiBold',
+  },
+  sectionHelper: {
+    fontSize: 12,
+    fontFamily: 'PlusJakartaSans_500Medium',
+    marginBottom: 14,
+  },
+  colorSwatchesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 4,
+  },
+  swatchWrapper: {
+    alignItems: 'center',
+    width: 60,
+  },
+  swatchCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  swatchLabel: {
+    fontSize: 10,
+    fontFamily: 'PlusJakartaSans_500Medium',
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  sizesList: {
+    marginBottom: 12,
+  },
   sizeRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -657,85 +953,250 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderBottomWidth: 1,
   },
-  sizeLabel: { fontSize: 13, fontFamily: 'Outfit_600SemiBold' },
-  stepperContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  sizeLabel: {
+    fontSize: 14,
+    fontFamily: 'Outfit_600SemiBold',
+  },
+  stepperContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   stepBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 6,
     borderWidth: 1,
   },
-  stepBtnText: { fontSize: 12, fontFamily: 'Outfit_700Bold' },
+  stepBtnText: {
+    fontSize: 12,
+    fontFamily: 'Outfit_700Bold',
+  },
   qtyInput: {
     width: 44,
     height: 32,
-    textAlign: 'center',
-    fontSize: 13,
-    fontFamily: 'Outfit_700Bold',
     borderWidth: 1,
     borderRadius: 6,
-    padding: 0,
+    textAlign: 'center',
+    fontFamily: 'Outfit_700Bold',
+    fontSize: 14,
   },
-  addColorBtn: {
+  addGroupBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
+    gap: 8,
+    paddingVertical: 12,
     borderRadius: 8,
-    marginTop: 16,
+    marginTop: 14,
   },
-  addColorBtnText: { color: '#FFFFFF', fontFamily: 'Outfit_700Bold', fontSize: 13 },
-  groupCard: { padding: 10, borderRadius: 8, borderWidth: 1, marginTop: 8 },
-  groupColorName: { fontSize: 13, fontFamily: 'Outfit_700Bold' },
-  groupUnitsText: { fontSize: 12, color: 'rgba(28, 27, 31, 0.6)' },
-  groupSizesBreakdown: { fontSize: 11, color: 'rgba(28, 27, 31, 0.5)', marginTop: 4 },
-  nextProductBtn: {
+  addGroupBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: 'Outfit_700Bold',
+  },
+  confirmedGroupRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    gap: 10,
+  },
+  groupColorLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minWidth: 80,
+  },
+  groupColorName: {
+    fontSize: 13,
+    fontFamily: 'Outfit_700Bold',
+  },
+  groupSizesWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  stepFooter: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
+  },
+  nextBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 14,
-    borderRadius: 10,
-    marginTop: 8,
+    borderRadius: 8,
   },
-  nextProductBtnText: { color: '#FFFFFF', fontFamily: 'Outfit_700Bold', fontSize: 14 },
-  summaryCard: { padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 20 },
-  sectionTitle: { fontSize: 16, fontFamily: 'Outfit_700Bold', marginBottom: 16 },
-  summaryRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1 },
-  summaryThumb: { width: 56, height: 56, borderRadius: 8 },
-  summaryProdTitle: { fontSize: 14, fontFamily: 'Outfit_700Bold' },
-  summaryMeta: { fontSize: 12, color: 'rgba(28, 27, 31, 0.5)', marginTop: 2 },
-  summarySubtotal: { fontSize: 13, fontFamily: 'Outfit_700Bold', marginTop: 4 },
+  nextBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: 'Outfit_700Bold',
+  },
+  summaryContent: {
+    paddingBottom: 48,
+    maxWidth: 960,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  summaryListContainer: {
+    paddingHorizontal: 20,
+  },
+  summaryItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+  },
+  summaryThumb: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
+  },
+  summaryProdTitle: {
+    fontSize: 15,
+    fontFamily: 'Outfit_700Bold',
+  },
+  summaryMeta: {
+    fontSize: 13,
+    fontFamily: 'Outfit_600SemiBold',
+    marginVertical: 4,
+  },
+  summaryBadgesWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
+  },
+  summaryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  summaryColorDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  summaryBadgeText: {
+    fontSize: 11,
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+  },
   grandTotalRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 14,
-    borderRadius: 8,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
     marginTop: 16,
   },
-  grandLabel: { fontSize: 11, color: 'rgba(28, 27, 31, 0.5)', fontFamily: 'PlusJakartaSans_500Medium' },
-  grandVal: { fontSize: 15, fontFamily: 'Outfit_800ExtraBold', marginTop: 2 },
-  actionRow: { flexDirection: 'row', gap: 12 },
+  grandLabel: {
+    fontSize: 13,
+    fontFamily: 'PlusJakartaSans_500Medium',
+    marginBottom: 4,
+  },
+  grandVal: {
+    fontSize: 18,
+    fontFamily: 'Outfit_800ExtraBold',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 20,
+    marginTop: 24,
+  },
   saveDraftBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderRadius: 8,
     borderWidth: 1,
   },
-  saveDraftText: { fontSize: 13, fontFamily: 'Outfit_700Bold' },
+  saveDraftText: {
+    fontSize: 13,
+    fontFamily: 'Outfit_700Bold',
+  },
   confirmOrderBtn: {
-    flex: 2,
+    flex: 1.5,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
+    gap: 6,
+    paddingVertical: 12,
     borderRadius: 8,
   },
-  confirmOrderText: { color: '#FFFFFF', fontSize: 14, fontFamily: 'Outfit_700Bold' },
+  confirmOrderText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontFamily: 'Outfit_700Bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 440,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 24,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontFamily: 'Outfit_700Bold',
+    marginBottom: 6,
+  },
+  modalSub: {
+    fontSize: 13,
+    fontFamily: 'PlusJakartaSans_500Medium',
+    lineHeight: 18,
+    marginBottom: 18,
+  },
+  modalInput: {
+    height: 44,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    fontSize: 14,
+    fontFamily: 'PlusJakartaSans_500Medium',
+    marginBottom: 20,
+  },
+  modalButtonsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'flex-end',
+  },
+  modalCancelBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  modalCancelText: {
+    fontSize: 13,
+    fontFamily: 'Outfit_600SemiBold',
+  },
+  modalSaveBtn: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  modalSaveText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontFamily: 'Outfit_700Bold',
+  },
 });

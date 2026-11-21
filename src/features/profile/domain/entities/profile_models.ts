@@ -31,6 +31,8 @@ export interface DraftOrder {
   supplierName: string;
   productId?: string;
   entries?: any[];
+  images?: string[];
+  productNames?: string[];
 }
 
 export type OrderStatusCode = 'pending' | 'processing' | 'dispatched' | 'completed' | 'cancelled';
