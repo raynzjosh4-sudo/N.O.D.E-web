@@ -1,7 +1,7 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
-  <!-- Homepage -->
+  <!-- Core App Pages -->
   <url>
     <loc>https://node.crimchart.com/</loc>
     <image:image>
@@ -12,7 +12,6 @@
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
-  <!-- Explore Wholesale Products -->
   <url>
     <loc>https://node.crimchart.com/explore</loc>
     <image:image>
@@ -22,13 +21,11 @@
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
-  <!-- Search Wholesale Market -->
   <url>
     <loc>https://node.crimchart.com/search</loc>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
-  <!-- Verified Suppliers Directory -->
   <url>
     <loc>https://node.crimchart.com/suppliers</loc>
     <image:image>
@@ -38,7 +35,6 @@
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
-  <!-- Wholesale Trading Terms & Policies -->
   <url>
     <loc>https://node.crimchart.com/terms</loc>
     <image:image>
@@ -48,7 +44,6 @@
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
-  <!-- Privacy Policy & Escrow Guarantee -->
   <url>
     <loc>https://node.crimchart.com/privacy</loc>
     <image:image>
@@ -57,5 +52,820 @@
     </image:image>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
+  </url>
+  <!-- Wholesale Products -->
+  <url>
+    <loc>https://node.crimchart.com/product/specs/47dff613-a79d-4e85-90d6-212923e56e94</loc>
+    <lastmod>2026-11-21</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://nodemediafiles.crimchart.com/users/1a47f0fe-3f4d-487f-95b5-1f7cfe27b7b7/products/Chart_1795299880769.jpg</image:loc>
+      <image:title>Bed cover</image:title>
+      <image:caption>Wholesale price UGX 210,000 - nexus support on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/47dff613-a79d-4e85-90d6-212923e56e94</loc>
+    <lastmod>2026-11-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/order/47dff613-a79d-4e85-90d6-212923e56e94</loc>
+    <lastmod>2026-11-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/specs/b5e3421b-9d4e-4251-b234-b3d932effb1e</loc>
+    <lastmod>2026-11-20</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://nodemediafiles.crimchart.com/users/1a47f0fe-3f4d-487f-95b5-1f7cfe27b7b7/products/Chart_1795172959914.jpg</image:loc>
+      <image:title>Rail net</image:title>
+      <image:caption>Wholesale price UGX 750,000 - Test Legal Name on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/b5e3421b-9d4e-4251-b234-b3d932effb1e</loc>
+    <lastmod>2026-11-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/order/b5e3421b-9d4e-4251-b234-b3d932effb1e</loc>
+    <lastmod>2026-11-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/specs/019f3388-c18e-4246-844b-d06c4bb04b7f</loc>
+    <lastmod>2026-11-19</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://nodemediafiles.crimchart.com/users/1a47f0fe-3f4d-487f-95b5-1f7cfe27b7b7/products/Chart_1795123433487.jpg</image:loc>
+      <image:title>Suite cases</image:title>
+      <image:caption>Wholesale price UGX 800,000 - nexus support on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/019f3388-c18e-4246-844b-d06c4bb04b7f</loc>
+    <lastmod>2026-11-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/order/019f3388-c18e-4246-844b-d06c4bb04b7f</loc>
+    <lastmod>2026-11-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/specs/d5d674dd-205f-4522-b2a0-543e1826c748</loc>
+    <lastmod>2026-11-19</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://nodemediafiles.crimchart.com/users/1a47f0fe-3f4d-487f-95b5-1f7cfe27b7b7/products/Chart_1795109466401.jpg</image:loc>
+      <image:title>2 stand rail net</image:title>
+      <image:caption>Wholesale price UGX 120,000 - BEN on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/d5d674dd-205f-4522-b2a0-543e1826c748</loc>
+    <lastmod>2026-11-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/order/d5d674dd-205f-4522-b2a0-543e1826c748</loc>
+    <lastmod>2026-11-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/specs/45bd82bd-0b41-44b6-b95b-9fb612f408cf</loc>
+    <lastmod>2026-04-22</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://nodemediafiles.crimchart.com/users/1a47f0fe-3f4d-487f-95b5-1f7cfe27b7b7/products/Chart_1795093980617.jpg</image:loc>
+      <image:title>baby tent B</image:title>
+      <image:caption>Wholesale price UGX 10,000 - Ben Brand China on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/45bd82bd-0b41-44b6-b95b-9fb612f408cf</loc>
+    <lastmod>2026-04-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/order/45bd82bd-0b41-44b6-b95b-9fb612f408cf</loc>
+    <lastmod>2026-04-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/specs/0b4a9c74-1d22-466b-9a96-430394c73b34</loc>
+    <lastmod>2026-04-22</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://nodemediafiles.crimchart.com/users/1a47f0fe-3f4d-487f-95b5-1f7cfe27b7b7/products/Chart_1795094638566.jpg</image:loc>
+      <image:title>cooshions</image:title>
+      <image:caption>Wholesale price UGX 5,000 - Ben Brand China on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/0b4a9c74-1d22-466b-9a96-430394c73b34</loc>
+    <lastmod>2026-04-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/order/0b4a9c74-1d22-466b-9a96-430394c73b34</loc>
+    <lastmod>2026-04-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/specs/2057b9f9-b0a7-44ba-9b52-e7259f409151</loc>
+    <lastmod>2026-04-22</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://nodemediafiles.crimchart.com/users/1a47f0fe-3f4d-487f-95b5-1f7cfe27b7b7/products/Chart_1795094668694.jpg</image:loc>
+      <image:title>folding net</image:title>
+      <image:caption>Wholesale price UGX 25,000 - Ben Brand China on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/2057b9f9-b0a7-44ba-9b52-e7259f409151</loc>
+    <lastmod>2026-04-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/order/2057b9f9-b0a7-44ba-9b52-e7259f409151</loc>
+    <lastmod>2026-04-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/specs/1bdf7bef-4b60-471d-ab70-338630d32c8c</loc>
+    <lastmod>2026-04-22</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://nodemediafiles.crimchart.com/users/1a47f0fe-3f4d-487f-95b5-1f7cfe27b7b7/products/Chart_1795094701390.jpg</image:loc>
+      <image:title>small square soft</image:title>
+      <image:caption>Wholesale price UGX 10,000 - ben Brand China on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/1bdf7bef-4b60-471d-ab70-338630d32c8c</loc>
+    <lastmod>2026-04-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/order/1bdf7bef-4b60-471d-ab70-338630d32c8c</loc>
+    <lastmod>2026-04-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/specs/30cff7f7-4e61-4c43-92e6-b3bf5457a834</loc>
+    <lastmod>2026-04-22</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://nodemediafiles.crimchart.com/users/1a47f0fe-3f4d-487f-95b5-1f7cfe27b7b7/products/Chart_1795094733075.jpg</image:loc>
+      <image:title>zip c box t</image:title>
+      <image:caption>Wholesale price UGX 50,000 - Ben Brand China on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/30cff7f7-4e61-4c43-92e6-b3bf5457a834</loc>
+    <lastmod>2026-04-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/order/30cff7f7-4e61-4c43-92e6-b3bf5457a834</loc>
+    <lastmod>2026-04-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/specs/6981e268-0b6f-40e3-8bd1-07c09be80f6e</loc>
+    <lastmod>2026-04-22</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://nodemediafiles.crimchart.com/users/1a47f0fe-3f4d-487f-95b5-1f7cfe27b7b7/products/Chart_1795094763853.jpg</image:loc>
+      <image:title>s1 four stand</image:title>
+      <image:caption>Wholesale price UGX 30,000 - ben Brand China on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/6981e268-0b6f-40e3-8bd1-07c09be80f6e</loc>
+    <lastmod>2026-04-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/order/6981e268-0b6f-40e3-8bd1-07c09be80f6e</loc>
+    <lastmod>2026-04-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/specs/34ff5221-357d-46ad-95db-eac4ad93ed16</loc>
+    <lastmod>2026-04-22</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://nodemediafiles.crimchart.com/users/1a47f0fe-3f4d-487f-95b5-1f7cfe27b7b7/products/Chart_1795094799241.jpg</image:loc>
+      <image:title>adjustable</image:title>
+      <image:caption>Wholesale price UGX 60,000 - Ben Brand China on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/34ff5221-357d-46ad-95db-eac4ad93ed16</loc>
+    <lastmod>2026-04-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/order/34ff5221-357d-46ad-95db-eac4ad93ed16</loc>
+    <lastmod>2026-04-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/specs/5d2d5bda-14fb-49c4-bcb2-3ddab200ab14</loc>
+    <lastmod>2026-04-20</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://nodemediafiles.crimchart.com/users/1a47f0fe-3f4d-487f-95b5-1f7cfe27b7b7/products/Chart_1795094849873.jpg</image:loc>
+      <image:title>wall mount mosquito net</image:title>
+      <image:caption>Wholesale price UGX 750,000 - Ben Brand China on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/5d2d5bda-14fb-49c4-bcb2-3ddab200ab14</loc>
+    <lastmod>2026-04-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/order/5d2d5bda-14fb-49c4-bcb2-3ddab200ab14</loc>
+    <lastmod>2026-04-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/specs/4b5a449d-f838-425d-8006-be3e166d51a5</loc>
+    <lastmod>2026-04-14</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://node.nexassearch.com/users/1a47f0fe-3f4d-487f-95b5-1f7cfe27b7b7/products/Chart_1776166072805.webp</image:loc>
+      <image:title>2bsmand adjastable</image:title>
+      <image:caption>Wholesale price UGX 50,000 - Eagle Brand China on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/4b5a449d-f838-425d-8006-be3e166d51a5</loc>
+    <lastmod>2026-04-14</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/order/4b5a449d-f838-425d-8006-be3e166d51a5</loc>
+    <lastmod>2026-04-14</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/specs/2a171778-4d25-4cc2-a93a-9eea530e75ac</loc>
+    <lastmod>2026-04-14</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>https://node.nexassearch.com/users/1a47f0fe-3f4d-487f-95b5-1f7cfe27b7b7/products/Chart_1776164863699.jpg</image:loc>
+      <image:title>top square, r2</image:title>
+      <image:caption>Wholesale price UGX 50,000 - Ben Brand on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/2a171778-4d25-4cc2-a93a-9eea530e75ac</loc>
+    <lastmod>2026-04-14</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/product/order/2a171778-4d25-4cc2-a93a-9eea530e75ac</loc>
+    <lastmod>2026-04-14</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <!-- Wholesale Categories -->
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_fashion_footwear</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>Athletics Wholesale Lots</image:title>
+      <image:caption>Buy Athletics in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_electronics</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>Electronics Wholesale Lots</image:title>
+      <image:caption>Buy Electronics in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_industrial</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>Industrial Wholesale Lots</image:title>
+      <image:caption>Buy Industrial in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_home</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>Home &amp; Living Wholesale Lots</image:title>
+      <image:caption>Buy Home &amp; Living in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_fashion</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>Fashion Wholesale Lots</image:title>
+      <image:caption>Buy Fashion in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=sub_lifestyle</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>Lifestyle Wholesale Lots</image:title>
+      <image:caption>Buy Lifestyle in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=sub_audio</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>Audio Wholesale Lots</image:title>
+      <image:caption>Buy Audio in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=sub_drones</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>Drones Wholesale Lots</image:title>
+      <image:caption>Buy Drones in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_229fbc2f</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>t shirt Wholesale Lots</image:title>
+      <image:caption>Buy t shirt in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_4ce9d17e</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>shirts Wholesale Lots</image:title>
+      <image:caption>Buy shirts in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_96e8ac35</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>bed Wholesale Lots</image:title>
+      <image:caption>Buy bed in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_1fdcc806</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>mosquito net 🦟 Wholesale Lots</image:title>
+      <image:caption>Buy mosquito net 🦟 in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_62924bd3</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>tent net Wholesale Lots</image:title>
+      <image:caption>Buy tent net in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_f6a631a0</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>tent B Wholesale Lots</image:title>
+      <image:caption>Buy tent B in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_77cdc4b2</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>Yent Wholesale Lots</image:title>
+      <image:caption>Buy Yent in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_bb001c55</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>r2, top square Wholesale Lots</image:title>
+      <image:caption>Buy r2, top square in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_0ba17d0a</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>Fooo Wholesale Lots</image:title>
+      <image:caption>Buy Fooo in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_3a67f9c3</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>baby tent b Wholesale Lots</image:title>
+      <image:caption>Buy baby tent b in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_2517f884</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>two stand adjustable net Wholesale Lots</image:title>
+      <image:caption>Buy two stand adjustable net in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_d56766b9</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>zip c net Wholesale Lots</image:title>
+      <image:caption>Buy zip c net in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_e1b7c7a8</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>round nets Wholesale Lots</image:title>
+      <image:caption>Buy round nets in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_9d426a9e</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>Home acesories Wholesale Lots</image:title>
+      <image:caption>Buy Home acesories in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_c3f7d66f</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>wall mount Wholesale Lots</image:title>
+      <image:caption>Buy wall mount in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_a0cc52f1</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>shoez Wholesale Lots</image:title>
+      <image:caption>Buy shoez in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_e166d138</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>cooshions Wholesale Lots</image:title>
+      <image:caption>Buy cooshions in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_ad46ba8d</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>phone Wholesale Lots</image:title>
+      <image:caption>Buy phone in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_130afeae</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>shoe Wholesale Lots</image:title>
+      <image:caption>Buy shoe in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=sub_perf</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>Performance Wholesale Lots</image:title>
+      <image:caption>Buy Performance in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_9e070467</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>raile net Wholesale Lots</image:title>
+      <image:caption>Buy raile net in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_5232e774</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>round nets Wholesale Lots</image:title>
+      <image:caption>Buy round nets in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_daa10cda</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>baby tent Wholesale Lots</image:title>
+      <image:caption>Buy baby tent in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_25269aee</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>folding net Wholesale Lots</image:title>
+      <image:caption>Buy folding net in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_39b54a48</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>super tent Wholesale Lots</image:title>
+      <image:caption>Buy super tent in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_0ab0cd36</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>round net Wholesale Lots</image:title>
+      <image:caption>Buy round net in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_846e4237</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>catain net Wholesale Lots</image:title>
+      <image:caption>Buy catain net in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_eee1f641</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>zip c box tent Wholesale Lots</image:title>
+      <image:caption>Buy zip c box tent in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_54905eb3</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>four stand mosquito net Wholesale Lots</image:title>
+      <image:caption>Buy four stand mosquito net in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_5270c884</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>small square soft Wholesale Lots</image:title>
+      <image:caption>Buy small square soft in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_a0453012</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>tent net Wholesale Lots</image:title>
+      <image:caption>Buy tent net in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_9ba4273a</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>Catain zip c Wholesale Lots</image:title>
+      <image:caption>Buy Catain zip c in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_6ab8d49f</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>rail nets Wholesale Lots</image:title>
+      <image:caption>Buy rail nets in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_0717abd1</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>Bags Wholesale Lots</image:title>
+      <image:caption>Buy Bags in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_c0b9bd87</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>Suite cases bags Wholesale Lots</image:title>
+      <image:caption>Buy Suite cases bags in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_81130783</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>2 stand nets Wholesale Lots</image:title>
+      <image:caption>Buy 2 stand nets in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/explore?category=cat_01fa0cef</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>Bed cover Wholesale Lots</image:title>
+      <image:caption>Buy Bed cover in bulk directly from verified importers and suppliers on N.O.D.E.</image:caption>
+    </image:image>
+  </url>
+  <!-- Verified Suppliers -->
+  <url>
+    <loc>https://node.crimchart.com/suppliers?id=1a47f0fe-3f4d-487f-95b5-1f7cfe27b7b7</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>Jeff City</image:title>
+      <image:caption>Verified Wholesale Supplier in kampala , Uganda</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/suppliers?id=b5b55e84-ad8e-4447-874d-13ec32d915b4</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>Test Legal Name</image:title>
+      <image:caption>Verified Wholesale Supplier in kampala , Uganda</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/suppliers?id=924fd9e2-25b5-4147-bb45-fbc3e4a8e785</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>Gemi</image:title>
+      <image:caption>Verified Wholesale Supplier in right 😂😂, Uganda</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://node.crimchart.com/suppliers?id=c4c50c91-cbfe-40c0-8ac9-6d88538edf7d</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>nexus support</image:title>
+      <image:caption>Verified Wholesale Supplier in wakiso, Uganda</image:caption>
+    </image:image>
   </url>
 </urlset>
