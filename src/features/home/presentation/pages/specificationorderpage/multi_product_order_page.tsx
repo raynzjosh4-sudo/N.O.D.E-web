@@ -241,7 +241,7 @@ export default function MultiProductOrderPage() {
       try {
         profile = await ProfileApiService.getProfile();
       } catch {
-        profile = { legalBusinessName: 'Wholesale Buyer' };
+        profile = {};
       }
 
       const draftId = 'DRAFT-' + Date.now().toString(36).toUpperCase();
@@ -255,17 +255,17 @@ export default function MultiProductOrderPage() {
           unit_price: item.product.srp,
           total_units: Object.values(g.sizeQtys).reduce((a, b) => a + b, 0),
           supplier_id: item.product.supplierId || '',
-          business_name: profile.legalBusinessName || 'Wholesale Buyer',
+          business_name: profile.legalBusinessName || profile.fullName || '',
         }))
       );
 
       const draftPayload = {
         order_id: draftId,
-        supplier_id: productList[0]?.supplierId || 'supplier-main',
-        business_name: profile.legalBusinessName || 'Wholesale Buyer',
-        business_phone: profile.phone || '0700000000',
+        supplier_id: productList[0]?.supplierId || '',
+        business_name: profile.legalBusinessName || profile.fullName || '',
+        business_phone: profile.phone || '',
         business_city: 'Kampala',
-        business_address: profile.warehouseAddress || 'Kampala Logistics Hub',
+        business_address: profile.warehouseAddress || '',
         total_amount: grandTotalAmount,
         status: 'draft',
         entries_json: entries,
@@ -291,13 +291,13 @@ export default function MultiProductOrderPage() {
       try {
         profile = await ProfileApiService.getProfile();
       } catch {
-        profile = { legalBusinessName: 'Wholesale Buyer' };
+        profile = {};
       }
 
       // Group items by supplier_id so each supplier receives their own order
       const itemsBySupplier = new Map<string, typeof summaryItems>();
       summaryItems.forEach((item) => {
-        const sid = item.product.supplierId || productList[0]?.supplierId || 'supplier-main';
+        const sid = item.product.supplierId || productList[0]?.supplierId || '';
         const list = itemsBySupplier.get(sid) || [];
         list.push(item);
         itemsBySupplier.set(sid, list);
@@ -305,7 +305,7 @@ export default function MultiProductOrderPage() {
 
       const orderIds: string[] = [];
       for (const [supplierId, supItems] of itemsBySupplier.entries()) {
-        const supOrderId = 'ORD-' + Date.now().toString(36).toUpperCase() + '-' + supplierId.slice(0, 4);
+        const supOrderId = 'ORD-' + Date.now().toString(36).toUpperCase() + '-' + (supplierId ? supplierId.slice(0, 4) : 'BULK');
         const supEntries = supItems.flatMap((item) =>
           item.groups.map((g) => ({
             product_id: item.product.id,
@@ -315,7 +315,7 @@ export default function MultiProductOrderPage() {
             unit_price: item.product.srp,
             total_units: Object.values(g.sizeQtys).reduce((a, b) => a + b, 0),
             supplier_id: supplierId,
-            business_name: profile.legalBusinessName || 'Wholesale Buyer',
+            business_name: profile.legalBusinessName || profile.fullName || '',
           }))
         );
         const supTotalAmount = supItems.reduce((acc, item) => acc + item.subtotal, 0);
@@ -323,10 +323,10 @@ export default function MultiProductOrderPage() {
         const orderPayload = {
           order_id: supOrderId,
           supplier_id: supplierId,
-          business_name: profile.legalBusinessName || 'Wholesale Buyer',
-          business_phone: profile.phone || '0700000000',
+          business_name: profile.legalBusinessName || profile.fullName || '',
+          business_phone: profile.phone || '',
           business_city: 'Kampala',
-          business_address: profile.warehouseAddress || 'Kampala Logistics Hub',
+          business_address: profile.warehouseAddress || '',
           total_amount: supTotalAmount,
           entries_json: supEntries,
         };

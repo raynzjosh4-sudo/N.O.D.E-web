@@ -18,7 +18,6 @@ import {
   NotificationItem,
   NotificationCategory,
   NOTIFICATION_CATEGORIES,
-  MOCK_NOTIFICATIONS,
 } from './models/notification_model';
 import { NotificationCard } from './widgets/notification_card';
 import { NotificationApiService } from './services/notification_api_service';
@@ -44,15 +43,14 @@ export function NotificationPage() {
 
     try {
       const res = await NotificationApiService.getNotifications();
-      if (res && res.items && res.items.length > 0) {
+      if (res && res.items) {
         setNotifications(res.items);
       } else {
-        // Fallback to sample mock notifications if backend returns empty/unconfigured
-        setNotifications(MOCK_NOTIFICATIONS);
+        setNotifications([]);
       }
     } catch (err) {
-      console.warn('[NotificationPage] Failed to fetch live notifications, falling back to mock:', err);
-      setNotifications(MOCK_NOTIFICATIONS);
+      console.warn('[NotificationPage] Failed to fetch live notifications:', err);
+      setNotifications([]);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);

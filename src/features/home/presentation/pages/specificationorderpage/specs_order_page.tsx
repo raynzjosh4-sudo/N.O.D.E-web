@@ -165,11 +165,7 @@ export default function SpecsOrderPage() {
       try {
         profile = await ProfileApiService.getProfile();
       } catch {
-        profile = {
-          legalBusinessName: 'Wholesale Buyer',
-          phone: '',
-          warehouseAddress: 'Kampala Logistics Hub',
-        };
+        profile = {};
       }
 
       const orderId =
@@ -181,10 +177,10 @@ export default function SpecsOrderPage() {
       const orderPayload = {
         order_id: orderId,
         supplier_id: product.supplierId || '',
-        business_name: profile.legalBusinessName || profile.fullName || 'Wholesale Buyer',
-        business_phone: profile.phone || '0700000000',
+        business_name: profile.legalBusinessName || profile.fullName || '',
+        business_phone: profile.phone || '',
         business_city: 'Kampala',
-        business_address: profile.warehouseAddress || 'Kampala Logistics Hub',
+        business_address: profile.warehouseAddress || '',
         total_amount: subtotal,
         entries_json: confirmedGroups.map((g) => ({
           name: product.name,
@@ -216,11 +212,7 @@ export default function SpecsOrderPage() {
       try {
         profile = await ProfileApiService.getProfile();
       } catch {
-        profile = {
-          legalBusinessName: 'Wholesale Buyer',
-          phone: '',
-          warehouseAddress: 'Kampala Logistics Hub',
-        };
+        profile = {};
       }
 
       const draftId =
@@ -231,11 +223,11 @@ export default function SpecsOrderPage() {
 
       const draftPayload = {
         order_id: draftId,
-        supplier_id: product.supplierId || 'supplier-main',
-        business_name: profile.legalBusinessName || profile.fullName || 'Wholesale Buyer',
-        business_phone: profile.phone || '0700000000',
+        supplier_id: product.supplierId || '',
+        business_name: profile.legalBusinessName || profile.fullName || '',
+        business_phone: profile.phone || '',
         business_city: 'Kampala',
-        business_address: profile.warehouseAddress || 'Kampala Logistics Hub',
+        business_address: profile.warehouseAddress || '',
         total_amount: subtotal,
         status: 'draft',
         entries_json: confirmedGroups.map((g) => ({

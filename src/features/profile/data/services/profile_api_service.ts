@@ -327,7 +327,7 @@ export class ProfileApiService {
         status,
         totalUnits: totalUnits || 1,
         totalAmount: o.total_amount || 0,
-        warehouseDestination: [o.business_address, o.business_city].filter(Boolean).join(', ') || 'Kampala Logistics Hub',
+        warehouseDestination: [o.business_address, o.business_city].filter(Boolean).join(', '),
         pdfId: o.pdf_id || undefined,
         itemSummary: summaryText,
       };
