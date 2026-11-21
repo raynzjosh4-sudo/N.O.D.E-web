@@ -1,14 +1,14 @@
 import { apiClient } from '@/core/api/api_client';
 import { API_ENDPOINTS } from '@/core/api/api_endpoints';
-import {
-  UserProfile,
-  SavedProductItem,
-  DraftOrder,
-  WholesaleOrderItem,
-  PdfDocumentItem,
-  OrderStatusCode,
-} from '../../domain/entities/profile_models';
 import { ProductMapper } from '@/features/inventory/data/mappers/product_mapper';
+import {
+  DraftOrder,
+  OrderStatusCode,
+  PdfDocumentItem,
+  SavedProductItem,
+  UserProfile,
+  WholesaleOrderItem,
+} from '../../domain/entities/profile_models';
 
 export interface BackendProfileResponse {
   user: {
@@ -155,47 +155,47 @@ export class ProfileApiService {
       const snap = item.product_snapshot || {};
       const baseProduct = snap.id
         ? ProductMapper.fromListItemDto({
-            id: snap.id || item.product_id,
-            name: snap.name || 'Saved Product',
-            sku: snap.sku || '',
-            brand: snap.brand || 'General',
-            srp: snap.srp || 0,
-            image_url: snap.imageUrl || snap.image_url || '',
-            supplier_id: snap.supplierId,
-            supplier_name: snap.supplierName,
-          })
+          id: snap.id || item.product_id,
+          name: snap.name || 'Saved Product',
+          sku: snap.sku || '',
+          brand: snap.brand || 'General',
+          srp: snap.srp || 0,
+          image_url: snap.imageUrl || snap.image_url || '',
+          supplier_id: snap.supplierId,
+          supplier_name: snap.supplierName,
+        })
         : null;
 
       const product = baseProduct
         ? {
-            ...baseProduct,
-            srp: snap.srp || baseProduct.srp || 0,
-            imageUrl: snap.imageUrl || snap.image_url || baseProduct.imageUrl || '',
-            warehouseLoc: snap.warehouseLoc || baseProduct.warehouseLoc || 'Uganda',
-            priceTiers: snap.priceTiers && snap.priceTiers.length > 0 ? snap.priceTiers : baseProduct.priceTiers,
-            colors: snap.colors && snap.colors.length > 0 ? snap.colors : baseProduct.colors,
-            sizes: snap.sizes && snap.sizes.length > 0 ? snap.sizes : baseProduct.sizes,
-            moq: snap.moq || baseProduct.moq || 1,
-          }
+          ...baseProduct,
+          srp: snap.srp || baseProduct.srp || 0,
+          imageUrl: snap.imageUrl || snap.image_url || baseProduct.imageUrl || '',
+          warehouseLoc: snap.warehouseLoc || baseProduct.warehouseLoc || 'Uganda',
+          priceTiers: snap.priceTiers && snap.priceTiers.length > 0 ? snap.priceTiers : baseProduct.priceTiers,
+          colors: snap.colors && snap.colors.length > 0 ? snap.colors : baseProduct.colors,
+          sizes: snap.sizes && snap.sizes.length > 0 ? snap.sizes : baseProduct.sizes,
+          moq: snap.moq || baseProduct.moq || 1,
+        }
         : {
-            id: item.product_id,
-            name: snap.name || 'Wholesale Product',
-            brand: snap.brand || 'Verified',
-            sku: snap.sku || '',
-            srp: snap.srp || 0,
-            imageUrl: snap.imageUrl || snap.image_url || '',
-            aspectRatio: 1,
-            supplierId: snap.supplierId || '',
-            supplierName: snap.supplierName || 'Direct Supplier',
-            warehouseLoc: snap.warehouseLoc || 'Uganda',
-            priceTiers: snap.priceTiers || [{ minQuantity: 1, price: snap.srp || 0 }],
-            colors: snap.colors || [],
-            sizes: snap.sizes || [],
-            status: 'active' as const,
-            stockQuantity: 100,
-            moq: snap.moq || 1,
-            moqText: `${snap.moq || 1} min order`,
-          };
+          id: item.product_id,
+          name: snap.name || 'Wholesale Product',
+          brand: snap.brand || 'Verified',
+          sku: snap.sku || '',
+          srp: snap.srp || 0,
+          imageUrl: snap.imageUrl || snap.image_url || '',
+          aspectRatio: 1,
+          supplierId: snap.supplierId || '',
+          supplierName: snap.supplierName || 'Direct Supplier',
+          warehouseLoc: snap.warehouseLoc || 'Uganda',
+          priceTiers: snap.priceTiers || [{ minQuantity: 1, price: snap.srp || 0 }],
+          colors: snap.colors || [],
+          sizes: snap.sizes || [],
+          status: 'active' as const,
+          stockQuantity: 100,
+          moq: snap.moq || 1,
+          moqText: `${snap.moq || 1} min order`,
+        };
 
       return {
         id: item.id,

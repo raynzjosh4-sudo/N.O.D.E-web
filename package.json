@@ -1,7 +1,7 @@
 {
   "name": "node-app",
   "version": "1.0.0",
-  "homepage": "https://raynzjosh4-sudo.github.io/N.O.D.E-web",
+  "homepage": "https://node.crimchart.com",
   "main": "expo-router/entry",
   "dependencies": {
     "@expo-google-fonts/material-symbols": "^0.4.54",
@@ -51,7 +51,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "predeploy": "npx expo export --platform web --output-dir dist",
+    "predeploy": "npx expo export --platform web --output-dir dist && node -e \"require('fs').writeFileSync('dist/CNAME','node.crimchart.com')\"",
     "deploy": "gh-pages -d dist -t true"
   },
   "private": true
