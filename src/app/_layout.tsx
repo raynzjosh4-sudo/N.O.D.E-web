@@ -132,6 +132,8 @@ export default function RootLayout() {
       ? {}
       : {
           MaterialSymbols: MaterialSymbols_400Regular,
+          'Comic Relief': require('../../assets/fonts/Comic_Relief/ComicRelief-Regular.ttf'),
+          'ComicRelief-Bold': require('../../assets/fonts/Comic_Relief/ComicRelief-Bold.ttf'),
           Outfit_400Regular,
           Outfit_500Medium,
           Outfit_600SemiBold,

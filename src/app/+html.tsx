@@ -28,13 +28,84 @@ export default function Root({ children }: PropsWithChildren) {
 
         <style dangerouslySetInnerHTML={{
           __html: `
-            html, body, #root {
+            /* Comic Relief Font from Dart Flutter App */
+            @font-face {
+              font-family: 'Comic Relief';
+              src: url('/fonts/Comic_Relief/ComicRelief-Regular.ttf') format('truetype');
+              font-weight: normal;
+              font-style: normal;
+              font-display: swap;
+            }
+            @font-face {
+              font-family: 'Comic Relief';
+              src: url('/fonts/Comic_Relief/ComicRelief-Bold.ttf') format('truetype');
+              font-weight: 700;
+              font-style: normal;
+              font-display: swap;
+            }
+
+            /* React Native Web font aliases to Google Fonts */
+            @font-face {
+              font-family: 'Outfit_400Regular';
+              src: local('Outfit'), url('https://fonts.googleapis.com/css2?family=Outfit:wght@400');
+              font-weight: 400;
+            }
+            @font-face {
+              font-family: 'Outfit_500Medium';
+              src: local('Outfit Medium'), local('Outfit');
+              font-weight: 500;
+            }
+            @font-face {
+              font-family: 'Outfit_600SemiBold';
+              src: local('Outfit SemiBold'), local('Outfit');
+              font-weight: 600;
+            }
+            @font-face {
+              font-family: 'Outfit_700Bold';
+              src: local('Outfit Bold'), local('Outfit');
+              font-weight: 700;
+            }
+            @font-face {
+              font-family: 'Outfit_800ExtraBold';
+              src: local('Outfit ExtraBold'), local('Outfit');
+              font-weight: 800;
+            }
+            @font-face {
+              font-family: 'Outfit_900Black';
+              src: local('Outfit Black'), local('Outfit');
+              font-weight: 900;
+            }
+            @font-face {
+              font-family: 'PlusJakartaSans_400Regular';
+              src: local('Plus Jakarta Sans'), local('PlusJakartaSans');
+              font-weight: 400;
+            }
+            @font-face {
+              font-family: 'PlusJakartaSans_500Medium';
+              src: local('Plus Jakarta Sans Medium'), local('PlusJakartaSans');
+              font-weight: 500;
+            }
+            @font-face {
+              font-family: 'PlusJakartaSans_600SemiBold';
+              src: local('Plus Jakarta Sans SemiBold'), local('PlusJakartaSans');
+              font-weight: 600;
+            }
+            @font-face {
+              font-family: 'PlusJakartaSans_700Bold';
+              src: local('Plus Jakarta Sans Bold'), local('PlusJakartaSans');
+              font-weight: 700;
+            }
+
+            /* Default Typography matching Dart/Flutter app */
+            html, body, #root, input, textarea, button, select {
               height: 100%;
               width: 100%;
               background-color: #0D1117 !important;
               color: #C9D1D9;
+              font-family: 'Plus Jakarta Sans', 'Outfit', 'Comic Relief', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
               overscroll-behavior-y: none;
               -webkit-font-smoothing: antialiased;
+              -moz-osx-font-smoothing: grayscale;
               padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
             }
           `,
