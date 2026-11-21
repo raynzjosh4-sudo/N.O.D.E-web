@@ -180,7 +180,7 @@ export default function SpecsOrderPage() {
 
       const orderPayload = {
         order_id: orderId,
-        supplier_id: product.supplierId || 'supplier-main',
+        supplier_id: product.supplierId || undefined,
         business_name: profile.legalBusinessName || profile.fullName || 'Wholesale Buyer',
         business_phone: profile.phone || '0700000000',
         business_city: 'Kampala',
