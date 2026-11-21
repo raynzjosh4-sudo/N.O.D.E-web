@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://node.crimchart.com/sitemap.xml

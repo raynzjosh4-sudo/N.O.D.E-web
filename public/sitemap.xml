@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <!-- Homepage -->
+  <url>
+    <loc>https://node.crimchart.com/</loc>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>N.O.D.E. Wholesale — National Online Distribution &amp; Enterprise</image:title>
+      <image:caption>Uganda B2B Wholesale Marketplace &amp; Verified Supplier Network in Kampala</image:caption>
+    </image:image>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <!-- Explore Wholesale Products -->
+  <url>
+    <loc>https://node.crimchart.com/explore</loc>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>Explore Wholesale Categories and Direct Supplier Inventories</image:title>
+    </image:image>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <!-- Search Wholesale Market -->
+  <url>
+    <loc>https://node.crimchart.com/search</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <!-- Verified Suppliers Directory -->
+  <url>
+    <loc>https://node.crimchart.com/suppliers</loc>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>Verified Wholesale Suppliers &amp; Importers Directory</image:title>
+    </image:image>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <!-- Wholesale Trading Terms & Policies -->
+  <url>
+    <loc>https://node.crimchart.com/terms</loc>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>N.O.D.E. Wholesale Trading Terms, Escrow &amp; Compliance</image:title>
+    </image:image>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <!-- Privacy Policy & Escrow Guarantee -->
+  <url>
+    <loc>https://node.crimchart.com/privacy</loc>
+    <image:image>
+      <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
+      <image:title>N.O.D.E. Privacy Policy &amp; Escrow Guarantee</image:title>
+    </image:image>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+</urlset>
