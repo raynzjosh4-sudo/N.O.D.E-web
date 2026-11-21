@@ -54,6 +54,36 @@ export default function Root({ children }: PropsWithChildren) {
           "price": "0",
           "priceCurrency": "UGX"
         }
+      },
+      {
+        "@type": "ItemList",
+        "name": "N.O.D.E. Wholesale Navigation",
+        "itemListElement": [
+          {
+            "@type": "SiteNavigationElement",
+            "position": 1,
+            "name": "Explore Wholesale Products",
+            "url": `${APP_URL}/explore`
+          },
+          {
+            "@type": "SiteNavigationElement",
+            "position": 2,
+            "name": "Verified Suppliers Directory",
+            "url": `${APP_URL}/suppliers`
+          },
+          {
+            "@type": "SiteNavigationElement",
+            "position": 3,
+            "name": "Wholesale Trading Terms & MOQs",
+            "url": `${APP_URL}/terms`
+          },
+          {
+            "@type": "SiteNavigationElement",
+            "position": 4,
+            "name": "Privacy Policy & Escrow Guarantee",
+            "url": `${APP_URL}/privacy`
+          }
+        ]
       }
     ]
   };
