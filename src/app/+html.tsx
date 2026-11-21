@@ -71,6 +71,7 @@ export default function Root({ children }: PropsWithChildren) {
         <title>{APP_TITLE}</title>
         <meta name="title" content={APP_TITLE} />
         <meta name="description" content={APP_DESC} />
+        <meta name="google-site-verification" content="uteCDPNtn4l-xAMk1xTZ1qOP8zDoABq96chhXfdMqKc" />
         <meta name="keywords" content="NODE, N.O.D.E., NODE Wholesale, National Online Distribution and Enterprise, wholesale Uganda, Kampala wholesale, bulk buying, B2B wholesale marketplace, verified suppliers, wholesale prices, trading terms, escrow" />
         <link rel="canonical" href={APP_URL} />
 
