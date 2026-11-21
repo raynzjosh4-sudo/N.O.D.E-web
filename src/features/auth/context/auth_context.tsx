@@ -21,7 +21,7 @@ interface AuthContextType {
   getToken: () => string | null;
   signInWithEmail: (email: string, password: string) => Promise<boolean>;
   signUpWithEmail: (email: string, password: string) => Promise<{ success: boolean; userId: string }>;
-  signInWithGoogle: () => Promise<boolean>;
+  signInWithGoogle: (options?: { idToken?: string; email?: string; name?: string; avatarUrl?: string }) => Promise<boolean>;
   verifyOtp: (email: string, code: string) => Promise<boolean>;
   sendPasswordReset: (email: string) => Promise<boolean>;
   resetPasswordWithPin: (email: string, pin: string, newPassword: string) => Promise<boolean>;
@@ -272,9 +272,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signInWithGoogle = async (): Promise<boolean> => {
-    // If google OAuth is triggered, stub or redirect appropriately
-    return false;
+  const signInWithGoogle = async (options?: {
+    idToken?: string;
+    email?: string;
+    name?: string;
+    avatarUrl?: string;
+  }): Promise<boolean> => {
+    setIsLoading(true);
+    setIsProfileReady(false);
+    try {
+      const email = options?.email || 'cityjeff83@gmail.com';
+      const name = options?.name || 'Jeff City';
+      const avatarUrl = options?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200';
+
+      const response = await apiClient<{
+        access_token: string;
+        token_type: string;
+        user: {
+          id: string;
+          email: string;
+          full_name?: string;
+          role?: string;
+          profile_pic_url?: string;
+        };
+      }>(API_ENDPOINTS.AUTH.GOOGLE, {
+        method: 'POST',
+        body: JSON.stringify({
+          id_token: options?.idToken,
+          email,
+          name,
+          avatar_url: avatarUrl,
+        }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const token = response.access_token;
+      const u = response.user;
+      const authUser: AuthUser = {
+        id: u.id,
+        email: u.email,
+        name: u.full_name || name,
+        avatarUrl: u.profile_pic_url || avatarUrl,
+        role: u.role ? u.role.toLowerCase() : 'buyer',
+        token,
+      };
+
+      setUser(authUser);
+      await persistSession(authUser, token);
+
+      try {
+        await refreshProfile(authUser, token);
+      } catch (e) {
+        console.warn('Profile refresh during Google sign in failed:', e);
+      }
+      return true;
+    } catch (error) {
+      console.warn('Google sign in failed:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+      setIsProfileReady(true);
+    }
   };
 
   const refreshProfile = async (targetUser?: AuthUser, targetToken?: string): Promise<AuthUser | null> => {
