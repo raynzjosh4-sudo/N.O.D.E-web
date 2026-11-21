@@ -1,7 +1,63 @@
 import { ScrollViewStyleReset } from 'expo-router/html';
 import { type PropsWithChildren } from 'react';
 
+const APP_NAME = "N.O.D.E. Wholesale";
+const APP_FULL_NAME = "National Online Distribution & Enterprise";
+const APP_TITLE = `${APP_NAME} — ${APP_FULL_NAME} | Uganda B2B Wholesale Marketplace`;
+const APP_DESC = "N.O.D.E. (National Online Distribution & Enterprise) connects retailers, institutions, and traders across Uganda directly with verified wholesale suppliers, manufacturers, and importers in Kampala. Access bulk tier pricing, verified inventory, escrow protection, and minimum order quantities.";
+const APP_URL = "https://node.crimchart.com";
+const APP_ICON = `${APP_URL}/nodeicon_full.png`;
+
 export default function Root({ children }: PropsWithChildren) {
+  const schemaOrg = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": `${APP_URL}/#website`,
+        "url": APP_URL,
+        "name": APP_NAME,
+        "alternateName": ["N.O.D.E.", "NODE Wholesale", APP_FULL_NAME],
+        "description": APP_DESC,
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": `${APP_URL}/search?q={search_term_string}`,
+          "query-input": "required name=search_term_string"
+        }
+      },
+      {
+        "@type": "Organization",
+        "@id": `${APP_URL}/#organization`,
+        "name": "N.O.D.E. Wholesale Network",
+        "alternateName": APP_FULL_NAME,
+        "url": APP_URL,
+        "logo": APP_ICON,
+        "image": APP_ICON,
+        "description": "B2B wholesale distribution platform linking retail businesses with manufacturers and wholesale distributors across Uganda.",
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "Kampala",
+          "addressCountry": "Uganda"
+        }
+      },
+      {
+        "@type": "SoftwareApplication",
+        "name": "N.O.D.E. Wholesale App",
+        "operatingSystem": "Web, Android, iOS",
+        "applicationCategory": "BusinessApplication",
+        "applicationSubCategory": "ShoppingApplication",
+        "image": APP_ICON,
+        "screenshot": APP_ICON,
+        "description": "Official wholesale marketplace application for National Online Distribution & Enterprise (N.O.D.E.).",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "UGX"
+        }
+      }
+    ]
+  };
+
   return (
     <html lang="en">
       <head>
@@ -11,6 +67,41 @@ export default function Root({ children }: PropsWithChildren) {
           name="viewport"
           content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1.00001, viewport-fit=cover"
         />
+
+        <title>{APP_TITLE}</title>
+        <meta name="title" content={APP_TITLE} />
+        <meta name="description" content={APP_DESC} />
+        <meta name="keywords" content="NODE, N.O.D.E., NODE Wholesale, National Online Distribution and Enterprise, wholesale Uganda, Kampala wholesale, bulk buying, B2B wholesale marketplace, verified suppliers, wholesale prices, trading terms, escrow" />
+        <link rel="canonical" href={APP_URL} />
+
+        {/* Favicons & App Icons */}
+        <link rel="icon" type="image/png" href="/nodeicon_full.png" />
+        <link rel="apple-touch-icon" href="/nodeicon_full.png" />
+        <link rel="shortcut icon" href="/favicon.ico" />
+
+        {/* Open Graph / Facebook / WhatsApp */}
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content={`${APP_NAME} — ${APP_FULL_NAME}`} />
+        <meta property="og:url" content={APP_URL} />
+        <meta property="og:title" content={APP_TITLE} />
+        <meta property="og:description" content={APP_DESC} />
+        <meta property="og:image" content={APP_ICON} />
+        <meta property="og:image:width" content="512" />
+        <meta property="og:image:height" content="512" />
+        <meta property="og:image:alt" content="N.O.D.E. Wholesale Icon" />
+
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={APP_TITLE} />
+        <meta name="twitter:description" content={APP_DESC} />
+        <meta name="twitter:image" content={APP_ICON} />
+
+        {/* Google Schema.org JSON-LD */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaOrg) }}
+        />
+
         {/* Android Chrome Theme Color & Navigation Bar Color */}
         <meta name="theme-color" content="#0D1117" />
         {/* iOS Web App Status Bar Style */}
