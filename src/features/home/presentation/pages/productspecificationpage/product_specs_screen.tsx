@@ -2,13 +2,14 @@ import { useAppTheme } from '@/core/theme/theme_context';
 import { useAppNavigation } from '@/core/utils/use_app_navigation';
 import { MaterialIcon } from '@/core/widgets/material_icon';
 import { useToast } from '@/core/widgets/whatsapp_dialog';
+import { shareProduct } from '@/core/utils/share_product';
 import { ProductGridSection } from '@/features/home/presentation/widgets/product_grid_section';
 import { useProducts } from '@/features/inventory/context/products_context';
 import { ProductApiService } from '@/features/inventory/data/services/product_api_service';
 import { Product } from '@/features/inventory/domain/entities/product';
 import { ProfileApiService } from '@/features/profile/data/services/profile_api_service';
 import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -39,6 +40,21 @@ export default function ProductSpecsScreen() {
   const [quantity, setQuantity] = useState(product?.moq || 2);
   const [isSavingToBag, setIsSavingToBag] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+
+  const desktopLeftScrollRef = useRef<any>(null);
+  const desktopRightScrollRef = useRef<any>(null);
+  const mobileScrollRef = useRef<any>(null);
+
+  // When tapping a similar product, change product data on the same page instead of navigating away
+  const handleSelectSimilarProduct = (selected: Product) => {
+    setProduct(selected);
+    setSelectedMediaIndex(0);
+    setQuantity(selected.moq || 1);
+    desktopLeftScrollRef.current?.scrollTo({ y: 0, animated: true });
+    desktopRightScrollRef.current?.scrollTo({ y: 0, animated: true });
+    mobileScrollRef.current?.scrollTo({ y: 0, animated: true });
+    router.replace(`/product/specs/${selected.id}`);
+  };
 
   // GitHub-style border and surface palette
   const gitBorder = isDark ? '#30363D' : '#D0D7DE';
@@ -195,18 +211,32 @@ export default function ProductSpecsScreen() {
 
     return (
       <View style={styles.detailsContainer}>
-        {/* Brand & Supplier Header Line */}
+        {/* Brand & Supplier Header Line with Share Button */}
         <View style={[styles.gitSection, { borderBottomColor: gitBorder }]}>
-          <View style={styles.brandRow}>
-            <View style={[styles.brandChip, { borderColor: gitBorder, backgroundColor: gitHeaderBg }]}>
-              <Text style={[styles.brandChipText, { color: colors.onSurface }]}>{product.brand || 'Verified Brand'}</Text>
-            </View>
-            <Text style={[styles.warehouseText, { color: gitSubtleText }]}>
-              {product.supplierName || 'Verified Supplier'} • {product.warehouseLoc || 'Uganda Central Warehouse'}
-            </Text>
-          </View>
+          <View style={styles.titleAndShareRow}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <View style={styles.brandRow}>
+                <View style={[styles.brandChip, { borderColor: gitBorder, backgroundColor: gitHeaderBg }]}>
+                  <Text style={[styles.brandChipText, { color: colors.onSurface }]}>{product.brand || 'Verified Brand'}</Text>
+                </View>
+                <Text style={[styles.warehouseText, { color: gitSubtleText }]}>
+                  {product.supplierName || 'Verified Supplier'} • {product.warehouseLoc || 'Uganda Central Warehouse'}
+                </Text>
+              </View>
 
-          <Text style={[styles.productTitle, { color: colors.onSurface }]}>{product.name}</Text>
+              <Text style={[styles.productTitle, { color: colors.onSurface }]}>{product.name}</Text>
+            </View>
+
+            {/* Share Action Button (Image 3 marked with red box) */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={[styles.shareActionButton, { borderColor: gitBorder, backgroundColor: gitHeaderBg }]}
+              onPress={() => shareProduct(product, (msg) => showSuccess(msg))}
+            >
+              <MaterialIcon name="share" size={18} color={colors.onSurface} />
+              <Text style={[styles.shareBtnLabel, { color: colors.onSurface }]}>Share</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Logistics & Stock Status Line */}
@@ -476,7 +506,7 @@ export default function ProductSpecsScreen() {
             <Text style={[styles.gitSectionHeader, { color: gitSubtleText, marginBottom: 12 }]}>SIMILAR PRODUCTS</Text>
             <ProductGridSection
               products={similarProducts}
-              onProductPress={(selected) => router.push(`/product/${selected.id}`)}
+              onProductPress={handleSelectSimilarProduct}
             />
           </View>
         )}
@@ -488,7 +518,7 @@ export default function ProductSpecsScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>
-      {/* Top App Bar with back button */}
+      {/* Top App Bar with back and share actions */}
       <View style={[styles.topBar, { backgroundColor: colors.surface, borderBottomColor: gitBorder }]}>
         <TouchableOpacity
           style={styles.backButton}
@@ -498,7 +528,13 @@ export default function ProductSpecsScreen() {
           <MaterialIcon name="arrow_back" size={20} color={colors.onSurface} />
         </TouchableOpacity>
         <Text style={[styles.topBarTitle, { color: colors.onSurface }]}>Product Details & Specifications</Text>
-        <View style={{ width: 36 }} />
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => shareProduct(product, (msg) => showSuccess(msg))}
+          activeOpacity={0.7}
+        >
+          <MaterialIcon name="share" size={20} color={colors.onSurface} />
+        </TouchableOpacity>
       </View>
 
       {/* Responsive layout: Desktop 5:7 split vs Mobile vertical scroll */}
@@ -506,20 +542,20 @@ export default function ProductSpecsScreen() {
         <View style={styles.desktopContainer}>
           {/* Left Sticky Media Pane */}
           <View style={[styles.desktopLeftPane, { borderRightColor: gitBorder }]}>
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView ref={desktopLeftScrollRef} showsVerticalScrollIndicator={false}>
               {renderMediaPane()}
             </ScrollView>
           </View>
 
           {/* Right Scrolling Specs Pane */}
           <View style={styles.desktopRightPane}>
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView ref={desktopRightScrollRef} showsVerticalScrollIndicator={false}>
               {renderDetailsPane()}
             </ScrollView>
           </View>
         </View>
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.mobileContent}>
+        <ScrollView ref={mobileScrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={styles.mobileContent}>
           {renderMediaPane()}
           {renderDetailsPane()}
         </ScrollView>
@@ -647,6 +683,25 @@ const styles = StyleSheet.create({
   gitSection: {
     paddingVertical: 14,
     borderBottomWidth: 1,
+  },
+  titleAndShareRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  shareActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderRadius: 6,
+    marginTop: 2,
+  },
+  shareBtnLabel: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   brandRow: {
     flexDirection: 'row',

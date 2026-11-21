@@ -1,6 +1,7 @@
 import { useAppTheme } from '@/core/theme/theme_context';
 import { useAppNavigation } from '@/core/utils/use_app_navigation';
 import { MaterialIcon } from '@/core/widgets/material_icon';
+import { shareProduct } from '@/core/utils/share_product';
 import { ProductGridSection } from '@/features/home/presentation/widgets/product_grid_section';
 import { useProducts } from '@/features/inventory/context/products_context';
 import { ProductApiService } from '@/features/inventory/data/services/product_api_service';
@@ -28,6 +29,7 @@ export default function ProductDetailScreen() {
     supplierId?: string;
   }>();
   const { width, height } = useWindowDimensions();
+  const isDesktop = width >= 960;
   const { colors, isDark } = useAppTheme();
   const { products, getProductById } = useProducts();
 
@@ -40,6 +42,13 @@ export default function ProductDetailScreen() {
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [isLoadingProduct, setIsLoadingProduct] = useState(false);
   const [isMediaExpanded, setIsMediaExpanded] = useState(false);
+
+  // Desktop redirection to specs screen so desktop users always get the full 2-pane specifications layout
+  useEffect(() => {
+    if (isDesktop && id && !isSpecialPlaceholder) {
+      router.replace(`/product/specs/${id}`);
+    }
+  }, [isDesktop, id, isSpecialPlaceholder]);
 
   useEffect(() => {
     let isMounted = true;
@@ -155,7 +164,6 @@ export default function ProductDetailScreen() {
     );
   }
 
-  const isDesktop = width >= 960;
   const heroHeight = Math.min(height * 0.7, isDesktop ? 680 : 540);
 
   const mediaUrls: string[] = Array.from(
@@ -208,6 +216,22 @@ export default function ProductDetailScreen() {
               onPress={() => router.safeGoBack()}
             >
               <MaterialIcon name="arrow_back_ios_new" size={16} color={colors.onSurface} />
+            </TouchableOpacity>
+
+            {/* 🔗 SHARE BUTTON (Top-Right Circle - Share Product) */}
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={[
+                styles.circleButton,
+                styles.shareBtnPos,
+                {
+                  backgroundColor: isDark ? 'rgba(0,0,0,0.65)' : 'rgba(255,255,255,0.88)',
+                  borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
+                },
+              ]}
+              onPress={() => shareProduct(product)}
+            >
+              <MaterialIcon name="share" size={18} color={colors.onSurface} />
             </TouchableOpacity>
 
             {/* ❌ CLOSE BUTTON (Top-Right Circle - Back to Home) */}
@@ -315,7 +339,14 @@ export default function ProductDetailScreen() {
         <View style={[styles.exploreGridWrapper, isDesktop && styles.desktopContainer]}>
           <ProductGridSection
             products={exploreProducts}
-            onProductPress={(selected) => router.push(`/product/${selected.id}`)}
+            onProductPress={(selected) => {
+              if (isDesktop) {
+                router.replace(`/product/specs/${selected.id}`);
+              } else {
+                setProduct(selected);
+                setIsMediaExpanded(false);
+              }
+            }}
           />
         </View>
 
@@ -388,6 +419,10 @@ const styles = StyleSheet.create({
   backButtonPos: {
     top: 14,
     left: 14,
+  },
+  shareBtnPos: {
+    top: 14,
+    right: 58,
   },
   closeButtonPos: {
     top: 14,

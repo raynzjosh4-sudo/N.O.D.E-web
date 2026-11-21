@@ -8,6 +8,8 @@ import {
 } from 'react-native';
 import { AppColors } from '@/core/theme/app_theme';
 import { useAppTheme } from '@/core/theme/theme_context';
+import { MaterialIcon } from '@/core/widgets/material_icon';
+import { shareProduct } from '@/core/utils/share_product';
 import { Product } from '@/features/inventory/domain/entities/product';
 
 interface ProductGridCardProps {
@@ -39,6 +41,13 @@ export function ProductGridCard({
     return 'UGX ' + val.toLocaleString('en-US');
   };
 
+  const handleCardShare = (e: any) => {
+    if (e && e.stopPropagation) {
+      e.stopPropagation();
+    }
+    shareProduct(product);
+  };
+
   return (
     <TouchableOpacity
       activeOpacity={0.88}
@@ -56,19 +65,31 @@ export function ProductGridCard({
 
       {/* Product Details */}
       <View style={styles.details}>
-        {/* Dual Pricing */}
-        <View style={styles.pricingContainer}>
-          <View style={styles.wholesaleRow}>
-            <Text style={[styles.wholesalePrice, { color: colors.primary }]}>
-              {formatPrice(wholesalePrice)}
+        {/* Dual Pricing Row with Share Action */}
+        <View style={styles.pricingRow}>
+          <View style={styles.pricingContainer}>
+            <View style={styles.wholesaleRow}>
+              <Text style={[styles.wholesalePrice, { color: colors.primary }]}>
+                {formatPrice(wholesalePrice)}
+              </Text>
+              {qtySuffix.length > 0 && (
+                <Text style={[styles.qtySuffix, { color: colors.primary }]}>{qtySuffix}</Text>
+              )}
+            </View>
+            <Text style={[styles.retailPrice, { color: colors.onSurfaceMuted }]}>
+              Retail {formatPrice(product.srp)}
             </Text>
-            {qtySuffix.length > 0 && (
-              <Text style={[styles.qtySuffix, { color: colors.primary }]}>{qtySuffix}</Text>
-            )}
           </View>
-          <Text style={[styles.retailPrice, { color: colors.onSurfaceMuted }]}>
-            Retail {formatPrice(product.srp)}
-          </Text>
+
+          {/* Share Button (Image 1 circled in red) */}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={[styles.shareBtn, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}
+            onPress={handleCardShare}
+          >
+            <MaterialIcon name="share" size={14} color={colors.onSurfaceMuted} />
+          </TouchableOpacity>
         </View>
 
         {/* Product Name */}
@@ -107,8 +128,23 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 4,
   },
-  pricingContainer: {
+  pricingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 3,
+  },
+  pricingContainer: {
+    flex: 1,
+  },
+  shareBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    marginLeft: 6,
   },
   wholesaleRow: {
     flexDirection: 'row',

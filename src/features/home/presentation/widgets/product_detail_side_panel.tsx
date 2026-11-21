@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 import { AppColors } from '@/core/theme/app_theme';
 import { useAppTheme } from '@/core/theme/theme_context';
 import { MaterialIcon } from '@/core/widgets/material_icon';
+import { shareProduct } from '@/core/utils/share_product';
 import { Product } from '@/features/inventory/domain/entities/product';
 
 interface ProductDetailSidePanelProps {
@@ -25,6 +26,12 @@ export function ProductDetailSidePanel({
 }: ProductDetailSidePanelProps) {
   const { colors } = useAppTheme();
   const [selectedImage, setSelectedImage] = useState<string>(product.imageUrl);
+
+  // Sync selected image whenever product changes (fixes bug where tapping product in waterfall changed text but image stayed old)
+  useEffect(() => {
+    setSelectedImage(product.imageUrl);
+  }, [product.id, product.imageUrl]);
+
   const mediaList = product.mediaUrls && product.mediaUrls.length > 0
     ? product.mediaUrls
     : [product.imageUrl];
@@ -43,13 +50,25 @@ export function ProductDetailSidePanel({
           <Text style={[styles.locationText, { color: colors.onSurfaceMuted }]}>{product.warehouseLoc}</Text>
         </View>
 
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={onClose}
-          style={[styles.closeButton, { backgroundColor: colors.cardColor }]}
-        >
-          <MaterialIcon name="close" size={20} color={colors.onSurface} />
-        </TouchableOpacity>
+        <View style={styles.topActionsRow}>
+          {/* Share Button */}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => shareProduct(product)}
+            style={[styles.actionHeaderBtn, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}
+          >
+            <MaterialIcon name="share" size={18} color={colors.onSurface} />
+          </TouchableOpacity>
+
+          {/* Close Button */}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={onClose}
+            style={[styles.actionHeaderBtn, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}
+          >
+            <MaterialIcon name="close" size={20} color={colors.onSurface} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -183,6 +202,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'PlusJakartaSans_500Medium',
     color: 'rgba(28, 27, 31, 0.5)',
+  },
+  topActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  actionHeaderBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   closeButton: {
     width: 32,
