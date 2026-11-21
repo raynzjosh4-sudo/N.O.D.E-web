@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiClient } from '@/core/api/api_client';
 import { API_ENDPOINTS } from '@/core/api/api_endpoints';
@@ -281,9 +282,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     setIsProfileReady(false);
     try {
-      const email = options?.email || 'cityjeff83@gmail.com';
-      const name = options?.name || 'Jeff City';
-      const avatarUrl = options?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200';
+      // If no credentials passed on web, trigger Google OAuth / GSI prompt
+      if (!options?.idToken && !options?.email) {
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          const google = (window as any).google;
+          if (google?.accounts?.id) {
+            google.accounts.id.prompt();
+            return false;
+          }
+          const redirectUri = window.location.origin;
+          window.location.href = `https://lihoygvdnnfqodjjxqnz.supabase.co/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectUri)}`;
+          return false;
+        }
+      }
 
       const response = await apiClient<{
         access_token: string;
@@ -299,9 +310,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         method: 'POST',
         body: JSON.stringify({
           id_token: options?.idToken,
-          email,
-          name,
-          avatar_url: avatarUrl,
+          email: options?.email,
+          name: options?.name,
+          avatar_url: options?.avatarUrl,
         }),
         headers: { 'Content-Type': 'application/json' },
       });
@@ -311,8 +322,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const authUser: AuthUser = {
         id: u.id,
         email: u.email,
-        name: u.full_name || name,
-        avatarUrl: u.profile_pic_url || avatarUrl,
+        name: u.full_name || options?.name || u.email.split('@')[0],
+        avatarUrl: u.profile_pic_url || options?.avatarUrl,
         role: u.role ? u.role.toLowerCase() : 'buyer',
         token,
       };

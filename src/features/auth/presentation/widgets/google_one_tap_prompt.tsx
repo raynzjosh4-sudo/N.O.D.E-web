@@ -22,8 +22,8 @@ interface GoogleOneTapPromptProps {
 }
 
 export function GoogleOneTapPrompt({
-  accountName = 'Jeff City',
-  accountEmail = 'cityjeff83@gmail.com',
+  accountName,
+  accountEmail,
   avatarUrl,
   onSuccess,
 }: GoogleOneTapPromptProps) {
@@ -150,8 +150,9 @@ export function GoogleOneTapPrompt({
     return null;
   }
 
-  const firstName = accountName.split(' ')[0] || 'User';
-  const initial = (accountName[0] || 'J').toUpperCase();
+  const hasDetectedAccount = Boolean(accountEmail);
+  const firstName = accountName ? accountName.split(' ')[0] : 'User';
+  const initial = accountName ? (accountName[0] || 'U').toUpperCase() : 'G';
 
   return (
     <Animated.View
@@ -175,7 +176,7 @@ export function GoogleOneTapPrompt({
             resizeMode="contain"
           />
           <Text style={[styles.headerTitle, { color: colors.onSurface }]} numberOfLines={1}>
-            Sign in to node.app with google.com
+            Sign in to node.crimchart.com
           </Text>
         </View>
 
@@ -189,27 +190,33 @@ export function GoogleOneTapPrompt({
         </TouchableOpacity>
       </View>
 
-      {/* ── User Account Card Row ── */}
-      <View style={styles.accountRow}>
-        {avatarUrl ? (
-          <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
-        ) : (
-          <View style={styles.avatarCircle}>
-            <Text style={styles.avatarInitial}>{initial}</Text>
+      {/* ── User Account Card Row (if user account detected) ── */}
+      {hasDetectedAccount ? (
+        <View style={styles.accountRow}>
+          {avatarUrl ? (
+            <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
+          ) : (
+            <View style={styles.avatarCircle}>
+              <Text style={styles.avatarInitial}>{initial}</Text>
+            </View>
+          )}
+
+          <View style={styles.accountDetails}>
+            <Text style={[styles.accountName, { color: colors.onSurface }]} numberOfLines={1}>
+              {accountName}
+            </Text>
+            <Text style={[styles.accountEmail, { color: colors.onSurfaceMuted }]} numberOfLines={1}>
+              {accountEmail}
+            </Text>
           </View>
-        )}
-
-        <View style={styles.accountDetails}>
-          <Text style={[styles.accountName, { color: colors.onSurface }]} numberOfLines={1}>
-            {accountName}
-          </Text>
-          <Text style={[styles.accountEmail, { color: colors.onSurfaceMuted }]} numberOfLines={1}>
-            {accountEmail}
-          </Text>
         </View>
-      </View>
+      ) : (
+        <Text style={[styles.bodySubtitle, { color: colors.onSurfaceMuted }]}>
+          Sign in with Google to access your wholesale dashboard, manage inventory, and track orders.
+        </Text>
+      )}
 
-      {/* ── Blue "Continue as [FirstName]" Button ── */}
+      {/* ── Blue Action Button ── */}
       <TouchableOpacity
         activeOpacity={0.88}
         onPress={handleContinue}
@@ -219,7 +226,9 @@ export function GoogleOneTapPrompt({
         {isSubmitting ? (
           <ActivityIndicator size="small" color="#FFFFFF" />
         ) : (
-          <Text style={styles.continueButtonText}>Continue as {firstName}</Text>
+          <Text style={styles.continueButtonText}>
+            {hasDetectedAccount ? `Continue as ${firstName}` : 'Continue with Google'}
+          </Text>
         )}
       </TouchableOpacity>
 
@@ -317,6 +326,12 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontFamily: 'PlusJakartaSans_500Medium',
     marginTop: 1,
+  },
+  bodySubtitle: {
+    fontSize: 12.5,
+    fontFamily: 'PlusJakartaSans_400Regular',
+    lineHeight: 18,
+    marginBottom: 16,
   },
   continueButton: {
     backgroundColor: '#1A73E8',
