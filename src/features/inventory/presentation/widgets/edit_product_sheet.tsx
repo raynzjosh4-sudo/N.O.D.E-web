@@ -24,8 +24,7 @@ import { ProductApiService } from '../../data/services/product_api_service';
 import { CategoryDto } from '../../data/dto/product_dto';
 import { useAuth } from '@/features/auth/context/auth_context';
 import { CategoryBranchPicker, CategorySelectionResult } from './category_branch_picker';
-import { useCopilot } from '@/core/copilot/copilot_context';
-import { FieldSpotlight } from '@/core/copilot/widgets/field_spotlight';
+import { CoachmarkFieldSpotlight } from '@/core/coachmarks/coachmark_field_spotlight';
 
 /** A self-contained toast that renders INSIDE the Modal so it always appears on top. */
 function SheetToast({
@@ -217,50 +216,7 @@ export function EditProductSheet({
     []
   );
 
-  const { targetFieldId, isGuidedMode, setOnScrollToStep, setOnAutoFillSampleData } = useCopilot();
   const formScrollRef = useRef<any>(null);
-
-  useEffect(() => {
-    setOnScrollToStep((y) => {
-      formScrollRef.current?.scrollTo({ y, animated: true });
-    });
-
-    setOnAutoFillSampleData(() => {
-      setName('100W Monocrystalline Solar Panel Kit');
-      setBrand('Prime Solar Pro');
-      setSku('SOLAR-100W-UG');
-      setSlug('100w-monocrystalline-solar-panel-kit');
-      setSrp('135000');
-      setMoq('5');
-      setWarehouseLoc('Industrial Area, 7th Street, Kampala');
-      setStockQuantity('150');
-      setPriceTiers([
-        { minQuantity: 5, price: 110000 },
-        { minQuantity: 10, price: 95000 },
-      ]);
-      setDescription(
-        'High-efficiency wholesale 100W monocrystalline solar panel kit with tempered glass, IP68 junction box, and 25-year manufacturer performance guarantee.'
-      );
-      showSheetToast('success', 'Demo Data Loaded! ✨', 'Sample wholesale listing ready. Follow the guide to publish.');
-    });
-
-    return () => {
-      setOnScrollToStep(undefined);
-      setOnAutoFillSampleData(undefined);
-    };
-  }, [setOnScrollToStep, setOnAutoFillSampleData, showSheetToast]);
-
-  // Synchronize active tab with guided step
-  useEffect(() => {
-    if (!isGuidedMode) return;
-    if (targetFieldId === 'images' || targetFieldId === 'name_brand' || targetFieldId === 'category') {
-      setActiveSection('identity');
-    } else if (targetFieldId === 'pricing_moq') {
-      setActiveSection('pricing');
-    } else if (targetFieldId === 'stock_location') {
-      setActiveSection('logistics');
-    }
-  }, [isGuidedMode, targetFieldId]);
 
   const isEditing = Boolean(product);
   const [isSaving, setIsSaving] = useState(false);
@@ -998,7 +954,7 @@ export function EditProductSheet({
             {activeSection === 'identity' && (
               <View>
                 {/* Image Preview & URL */}
-                <FieldSpotlight fieldId="images">
+                <CoachmarkFieldSpotlight fieldId="images">
                   <View style={styles.imagePreviewRow}>
                     <TouchableOpacity
                       onPress={handlePickPrimaryImage}
@@ -1070,10 +1026,10 @@ export function EditProductSheet({
                       </Text>
                     </View>
                   </View>
-                </FieldSpotlight>
+                </CoachmarkFieldSpotlight>
 
                 {/* Product Name & Brand */}
-                <FieldSpotlight fieldId="name_brand">
+                <CoachmarkFieldSpotlight fieldId="name_brand">
                   {/* Product Name */}
                   <View style={styles.formGroup}>
                     <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Product Name *</Text>
@@ -1116,7 +1072,7 @@ export function EditProductSheet({
                       </View>
                     </View>
                   </View>
-                </FieldSpotlight>
+                </CoachmarkFieldSpotlight>
 
                 {/* SEO Slug & Category */}
                 <View style={styles.twoColRow}>
@@ -1133,7 +1089,7 @@ export function EditProductSheet({
                     </View>
                   </View>
                   <View style={styles.halfCol}>
-                    <FieldSpotlight fieldId="category">
+                    <CoachmarkFieldSpotlight fieldId="category">
                       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                         <Text style={[styles.fieldLabel, { color: colors.onSurface, marginBottom: 0 }]}>Category & Branch *</Text>
                         <TouchableOpacity onPress={() => setIsCategoryPickerOpen(true)}>
@@ -1180,7 +1136,7 @@ export function EditProductSheet({
                           Branch: {categoryPath}
                         </Text>
                       ) : null}
-                    </FieldSpotlight>
+                    </CoachmarkFieldSpotlight>
                   </View>
                 </View>
 
@@ -1559,7 +1515,7 @@ export function EditProductSheet({
                ═══════════════════════════════════════════════════ */}
             {activeSection === 'pricing' && (
               <View>
-                <FieldSpotlight fieldId="pricing_moq" titleOverride="Wholesale Bulk Pricing & Tiers">
+                <CoachmarkFieldSpotlight fieldId="pricing_moq" titleOverride="Wholesale Bulk Pricing & Tiers">
                   {/* Retail Price SRP */}
                   <View style={styles.formGroup}>
                     <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Retail Price (UGX) *</Text>
@@ -1636,7 +1592,7 @@ export function EditProductSheet({
                       </TouchableOpacity>
                     </View>
                   </View>
-                </FieldSpotlight>
+                </CoachmarkFieldSpotlight>
 
                 {/* Product Media Gallery Photos */}
                 <View style={styles.formGroup}>
@@ -1797,7 +1753,7 @@ export function EditProductSheet({
                     </View>
                   </View>
                   <View style={styles.halfCol}>
-                    <FieldSpotlight fieldId="stock_location" titleOverride="Available Stock & Warehouse">
+                    <CoachmarkFieldSpotlight fieldId="stock_location" titleOverride="Available Stock & Warehouse">
                       <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Current Warehouse Stock</Text>
                       <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
                         <TextInput
@@ -1809,7 +1765,7 @@ export function EditProductSheet({
                           style={[styles.inputField, { color: colors.onSurface }]}
                         />
                       </View>
-                    </FieldSpotlight>
+                    </CoachmarkFieldSpotlight>
                   </View>
                 </View>
 
@@ -1829,7 +1785,7 @@ export function EditProductSheet({
                     </View>
                   </View>
                   <View style={styles.halfCol}>
-                    <FieldSpotlight fieldId="stock_location" titleOverride="Warehouse Hub in Kampala">
+                    <CoachmarkFieldSpotlight fieldId="stock_location" titleOverride="Warehouse Hub in Kampala">
                       <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Warehouse Location</Text>
                       <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
                         <MaterialIcon name="place" size={18} color={colors.primary} />
@@ -1841,7 +1797,7 @@ export function EditProductSheet({
                           style={[styles.inputField, { color: colors.onSurface }]}
                         />
                       </View>
-                    </FieldSpotlight>
+                    </CoachmarkFieldSpotlight>
                   </View>
                 </View>
 
@@ -2021,7 +1977,7 @@ export function EditProductSheet({
             ) : null}
 
             {/* Action Buttons */}
-            <FieldSpotlight fieldId="publish" titleOverride="Publish to Live Wholesale Catalog">
+            <CoachmarkFieldSpotlight fieldId="publish" titleOverride="Publish to Live Wholesale Catalog">
               <TouchableOpacity
                 activeOpacity={0.85}
                 onPress={handleSave}
@@ -2042,7 +1998,7 @@ export function EditProductSheet({
                   </>
                 )}
               </TouchableOpacity>
-            </FieldSpotlight>
+            </CoachmarkFieldSpotlight>
 
             {isEditing && (
               <TouchableOpacity activeOpacity={0.7} onPress={handleDelete} style={styles.deleteButton}>

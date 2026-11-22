@@ -32,6 +32,7 @@ import { useAuth } from '@/features/auth/context/auth_context';
 import { AuthPromptSheet } from '@/features/auth/presentation/widgets/auth_prompt_sheet';
 import { BecomeSupplierSheet } from '@/features/profile/presentation/widgets/become_supplier_sheet';
 import { useScrollAppbar } from '@/core/hooks/use_scroll_appbar';
+import { useCoachmark } from '@/core/coachmarks/coachmark_context';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -56,6 +57,7 @@ export default function HomeScreen() {
 
   // Authentication State
   const { user, isAuthenticated } = useAuth();
+  const { startPostProductFlow } = useCoachmark();
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [showBecomeSupplierModal, setShowBecomeSupplierModal] = useState(false);
 
@@ -65,13 +67,13 @@ export default function HomeScreen() {
 
   const handleSupplierBannerPress = () => {
     if (!isAuthenticated) {
-      setShowAuthPrompt(true);
+      startPostProductFlow();
       return;
     }
     if (isSupplierOrAdmin) {
       router.push('/supplier-products');
     } else {
-      setShowBecomeSupplierModal(true);
+      startPostProductFlow();
     }
   };
 

@@ -7,6 +7,7 @@ import { MaterialIcon } from '@/core/widgets/material_icon';
 import { SupplierProductsScreen } from '@/features/inventory/presentation/pages/supplier_products_screen';
 import { BecomeSupplierSheet } from '@/features/profile/presentation/widgets/become_supplier_sheet';
 import { SupplierProductsShimmer } from '@/features/inventory/presentation/pages/shimmer/supplier_products_shimmer';
+import { CoachmarkAnchor } from '@/core/coachmarks/coachmark_anchor';
 
 export default function PostsRoute() {
   const { user, isAuthenticated, isLoading, isProfileReady } = useAuth();
@@ -34,12 +35,14 @@ export default function PostsRoute() {
           <Text style={[styles.cardSubtitle, { color: colors.onSurfaceMuted }]}>
             Please sign in to access your wholesale supplier catalog and manage inventory.
           </Text>
-          <TouchableOpacity
-            style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
-            onPress={() => router.push('/login')}
-          >
-            <Text style={styles.primaryBtnText}>Log In to Account</Text>
-          </TouchableOpacity>
+          <CoachmarkAnchor id="login_prompt_btn" style={{ width: '100%', marginBottom: 12 }}>
+            <TouchableOpacity
+              style={[styles.primaryBtn, { backgroundColor: colors.primary, marginBottom: 0 }]}
+              onPress={() => router.push('/login')}
+            >
+              <Text style={styles.primaryBtnText}>Log In to Account</Text>
+            </TouchableOpacity>
+          </CoachmarkAnchor>
           <TouchableOpacity
             style={styles.textBtn}
             onPress={() => router.replace('/')}
@@ -66,12 +69,14 @@ export default function PostsRoute() {
           <Text style={[styles.cardSubtitle, { color: colors.onSurfaceMuted }]}>
             Your account ({user.email}) is currently registered as a buyer. To list products and manage wholesale inventory, apply to become a verified supplier.
           </Text>
-          <TouchableOpacity
-            style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
-            onPress={() => setShowBecomeSupplier(true)}
-          >
-            <Text style={styles.primaryBtnText}>Apply to Become a Supplier</Text>
-          </TouchableOpacity>
+          <CoachmarkAnchor id="apply_supplier_btn" style={{ width: '100%', marginBottom: 12 }}>
+            <TouchableOpacity
+              style={[styles.primaryBtn, { backgroundColor: colors.primary, marginBottom: 0 }]}
+              onPress={() => setShowBecomeSupplier(true)}
+            >
+              <Text style={styles.primaryBtnText}>Apply to Become a Supplier</Text>
+            </TouchableOpacity>
+          </CoachmarkAnchor>
           <TouchableOpacity
             style={styles.textBtn}
             onPress={() => router.replace('/')}
