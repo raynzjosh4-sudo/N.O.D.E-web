@@ -10,6 +10,7 @@ import {
   useWindowDimensions,
   RefreshControl,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { AppColors } from '@/core/theme/app_theme';
@@ -30,6 +31,7 @@ import { useProducts } from '@/features/inventory/context/products_context';
 import { useAuth } from '@/features/auth/context/auth_context';
 import { AuthPromptSheet } from '@/features/auth/presentation/widgets/auth_prompt_sheet';
 import { BecomeSupplierSheet } from '@/features/profile/presentation/widgets/become_supplier_sheet';
+import { useScrollAppbar } from '@/core/hooks/use_scroll_appbar';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -37,6 +39,7 @@ export default function HomeScreen() {
   const isDesktop = width >= 960;
   const { colors } = useAppTheme();
   const { products, isLoading, isRefreshing, refreshProducts } = useProducts();
+  const { headerCollapseStyle, onScroll: onFeedScroll } = useScrollAppbar({ headerHeight: 125 });
 
   // Search States
   const [isSearching, setIsSearching] = useState(false);
@@ -128,40 +131,43 @@ export default function HomeScreen() {
         <View style={styles.mainLayoutRow}>
           {/* ── Left / Center Waterfall Feed ── */}
           <View style={[styles.contentWrapper, activeSideProduct ? styles.contentWithPanel : null]}>
-            {/* 1. Header */}
-            <View style={styles.sectionHeader}>
-              <HomeHeader
-                displayName={user?.name ?? 'Guest'}
-                isAuthenticated={isAuthenticated}
-                profilePicUrl={user?.avatarUrl}
-                hasUnreadNotifications={true}
-                onProfilePress={() => {
-                  if (isAuthenticated) {
-                    router.push('/profile');
-                  } else {
-                    setShowAuthPrompt(true);
-                  }
-                }}
-                onNotificationPress={() => router.push('/notifications')}
-              />
-            </View>
+            {/* 1 & 2. Collapsible Header & Search Bar (Disappears smoothly on scroll) */}
+            <Animated.View style={headerCollapseStyle}>
+              {/* 1. Header */}
+              <View style={styles.sectionHeader}>
+                <HomeHeader
+                  displayName={user?.name ?? 'Guest'}
+                  isAuthenticated={isAuthenticated}
+                  profilePicUrl={user?.avatarUrl}
+                  hasUnreadNotifications={true}
+                  onProfilePress={() => {
+                    if (isAuthenticated) {
+                      router.push('/profile');
+                    } else {
+                      setShowAuthPrompt(true);
+                    }
+                  }}
+                  onNotificationPress={() => router.push('/notifications')}
+                />
+              </View>
 
-            {/* 2. Search Bar */}
-            <View style={styles.sectionSearch}>
-              <HomeSearchBar
-                value={searchQuery}
-                onSearchPress={() => setIsSearching(true)}
-                onChangeText={(text) => {
-                  setSearchQuery(text);
-                  if (!text) {
-                    setIsSearching(true);
-                  }
-                }}
-                onSubmitEditing={handleExecuteSearch}
-                onFilterPress={() => router.push('/explore')}
-                onCartPress={() => console.log('Cart pressed')}
-              />
-            </View>
+              {/* 2. Search Bar */}
+              <View style={styles.sectionSearch}>
+                <HomeSearchBar
+                  value={searchQuery}
+                  onSearchPress={() => setIsSearching(true)}
+                  onChangeText={(text) => {
+                    setSearchQuery(text);
+                    if (!text) {
+                      setIsSearching(true);
+                    }
+                  }}
+                  onSubmitEditing={handleExecuteSearch}
+                  onFilterPress={() => router.push('/explore')}
+                  onCartPress={() => console.log('Cart pressed')}
+                />
+              </View>
+            </Animated.View>
 
             {/* ── 3. SEARCH MODE / RESULTS / NORMAL HOME FEED ── */}
             {isSearching ? (
@@ -178,6 +184,8 @@ export default function HomeScreen() {
               <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
+                onScroll={onFeedScroll}
+                scrollEventThrottle={16}
               >
                 {/* Back to Explore / Search Indicator Banner */}
                 <View style={[styles.searchStatusHeader, { borderBottomColor: colors.borderLight }]}>
@@ -233,6 +241,8 @@ export default function HomeScreen() {
               <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
+                onScroll={onFeedScroll}
+                scrollEventThrottle={16}
                 refreshControl={
                   <RefreshControl
                     refreshing={isRefreshing}

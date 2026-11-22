@@ -24,6 +24,8 @@ import { ProductApiService } from '../../data/services/product_api_service';
 import { CategoryDto } from '../../data/dto/product_dto';
 import { useAuth } from '@/features/auth/context/auth_context';
 import { CategoryBranchPicker, CategorySelectionResult } from './category_branch_picker';
+import { useCopilot } from '@/core/copilot/copilot_context';
+import { FieldSpotlight } from '@/core/copilot/widgets/field_spotlight';
 
 /** A self-contained toast that renders INSIDE the Modal so it always appears on top. */
 function SheetToast({
@@ -214,6 +216,51 @@ export function EditProductSheet({
     },
     []
   );
+
+  const { targetFieldId, isGuidedMode, setOnScrollToStep, setOnAutoFillSampleData } = useCopilot();
+  const formScrollRef = useRef<any>(null);
+
+  useEffect(() => {
+    setOnScrollToStep((y) => {
+      formScrollRef.current?.scrollTo({ y, animated: true });
+    });
+
+    setOnAutoFillSampleData(() => {
+      setName('100W Monocrystalline Solar Panel Kit');
+      setBrand('Prime Solar Pro');
+      setSku('SOLAR-100W-UG');
+      setSlug('100w-monocrystalline-solar-panel-kit');
+      setSrp('135000');
+      setMoq('5');
+      setWarehouseLoc('Industrial Area, 7th Street, Kampala');
+      setStockQuantity('150');
+      setPriceTiers([
+        { minQuantity: 5, price: 110000 },
+        { minQuantity: 10, price: 95000 },
+      ]);
+      setDescription(
+        'High-efficiency wholesale 100W monocrystalline solar panel kit with tempered glass, IP68 junction box, and 25-year manufacturer performance guarantee.'
+      );
+      showSheetToast('success', 'Demo Data Loaded! ✨', 'Sample wholesale listing ready. Follow the guide to publish.');
+    });
+
+    return () => {
+      setOnScrollToStep(undefined);
+      setOnAutoFillSampleData(undefined);
+    };
+  }, [setOnScrollToStep, setOnAutoFillSampleData, showSheetToast]);
+
+  // Synchronize active tab with guided step
+  useEffect(() => {
+    if (!isGuidedMode) return;
+    if (targetFieldId === 'images' || targetFieldId === 'name_brand' || targetFieldId === 'category') {
+      setActiveSection('identity');
+    } else if (targetFieldId === 'pricing_moq') {
+      setActiveSection('pricing');
+    } else if (targetFieldId === 'stock_location') {
+      setActiveSection('logistics');
+    }
+  }, [isGuidedMode, targetFieldId]);
 
   const isEditing = Boolean(product);
   const [isSaving, setIsSaving] = useState(false);
@@ -932,6 +979,7 @@ export function EditProductSheet({
 
           {/* Main Scroll Content */}
           <ScrollView
+            ref={formScrollRef}
             style={styles.scrollArea}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
@@ -950,120 +998,125 @@ export function EditProductSheet({
             {activeSection === 'identity' && (
               <View>
                 {/* Image Preview & URL */}
-                <View style={styles.imagePreviewRow}>
-                  <TouchableOpacity
-                    onPress={handlePickPrimaryImage}
-                    activeOpacity={0.7}
-                    style={[
-                      styles.imageThumbnailBox,
-                      {
-                        backgroundColor: isDark ? colors.cardColor : '#F0F2F5',
-                        borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)',
-                      },
-                    ]}
-                  >
-                    {imageUrl ? (
-                      <>
-                        <Image source={{ uri: imageUrl }} style={styles.previewImage} resizeMode="cover" />
-                        {isUploadingImage && (
-                          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
-                            <ActivityIndicator size="small" color="#FFFFFF" />
-                          </View>
-                        )}
-                      </>
-                    ) : isUploadingImage ? (
-                      <ActivityIndicator size="small" color={colors.primary} />
-                    ) : (
-                      <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-                        <MaterialIcon name="add_a_photo" size={28} color={colors.primary} />
-                        <Text style={{ fontSize: 10, color: colors.primary, marginTop: 4, fontFamily: 'PlusJakartaSans_600SemiBold' }}>Pick Photo</Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                  <View style={styles.imageUrlInputCol}>
-                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Primary Product Image *</Text>
-                    <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                      <TouchableOpacity
-                        onPress={handlePickPrimaryImage}
-                        style={[
-                          styles.addBtnSmall,
-                          {
-                            backgroundColor: colors.primary,
-                            flexDirection: 'row',
-                            gap: 6,
-                            paddingHorizontal: 16,
-                          },
-                        ]}
-                      >
-                        <MaterialIcon name="photo_camera" size={18} color="#FFFFFF" />
-                        <Text style={styles.addBtnSmallText}>{imageUrl ? 'Change Image' : 'Pick Image'}</Text>
-                      </TouchableOpacity>
+                <FieldSpotlight fieldId="images">
+                  <View style={styles.imagePreviewRow}>
+                    <TouchableOpacity
+                      onPress={handlePickPrimaryImage}
+                      activeOpacity={0.7}
+                      style={[
+                        styles.imageThumbnailBox,
+                        {
+                          backgroundColor: isDark ? colors.cardColor : '#F0F2F5',
+                          borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)',
+                        },
+                      ]}
+                    >
                       {imageUrl ? (
+                        <>
+                          <Image source={{ uri: imageUrl }} style={styles.previewImage} resizeMode="cover" />
+                          {isUploadingImage && (
+                            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
+                              <ActivityIndicator size="small" color="#FFFFFF" />
+                            </View>
+                          )}
+                        </>
+                      ) : isUploadingImage ? (
+                        <ActivityIndicator size="small" color={colors.primary} />
+                      ) : (
+                        <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+                          <MaterialIcon name="add_a_photo" size={28} color={colors.primary} />
+                          <Text style={{ fontSize: 10, color: colors.primary, marginTop: 4, fontFamily: 'PlusJakartaSans_600SemiBold' }}>Pick Photo</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                    <View style={styles.imageUrlInputCol}>
+                      <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Primary Product Image *</Text>
+                      <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
                         <TouchableOpacity
-                          onPress={() => {
-                            setImageUrl('');
-                            setPendingPrimaryImage(null);
-                          }}
+                          onPress={handlePickPrimaryImage}
                           style={[
                             styles.addBtnSmall,
                             {
-                              backgroundColor: 'rgba(255, 77, 79, 0.12)',
-                              paddingHorizontal: 12,
+                              backgroundColor: colors.primary,
+                              flexDirection: 'row',
+                              gap: 6,
+                              paddingHorizontal: 16,
                             },
                           ]}
                         >
-                          <MaterialIcon name="delete_outline" size={18} color="#FF4D4F" />
+                          <MaterialIcon name="photo_camera" size={18} color="#FFFFFF" />
+                          <Text style={styles.addBtnSmallText}>{imageUrl ? 'Change Image' : 'Pick Image'}</Text>
                         </TouchableOpacity>
-                      ) : null}
+                        {imageUrl ? (
+                          <TouchableOpacity
+                            onPress={() => {
+                              setImageUrl('');
+                              setPendingPrimaryImage(null);
+                            }}
+                            style={[
+                              styles.addBtnSmall,
+                              {
+                                backgroundColor: 'rgba(255, 77, 79, 0.12)',
+                                paddingHorizontal: 12,
+                              },
+                            ]}
+                          >
+                            <MaterialIcon name="delete_outline" size={18} color="#FF4D4F" />
+                          </TouchableOpacity>
+                        ) : null}
+                      </View>
+                      <Text style={[styles.fieldHelper, { color: isDark ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.4)', marginTop: 6 }]}>
+                        Pick from device camera roll or gallery.
+                      </Text>
                     </View>
-                    <Text style={[styles.fieldHelper, { color: isDark ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.4)', marginTop: 6 }]}>
-                      Pick from device camera roll or gallery.
-                    </Text>
                   </View>
-                </View>
+                </FieldSpotlight>
 
-                {/* Product Name */}
-                <View style={styles.formGroup}>
-                  <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Product Name *</Text>
-                  <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
-                    <MaterialIcon name="label" size={18} color={colors.onSurfaceMuted} />
-                    <TextInput
-                      value={name}
-                      onChangeText={setName}
-                      placeholder="e.g. 100W Solar Kit / Industrial Rice Cooker"
-                      placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
-                      style={[styles.inputField, { color: colors.onSurface }]}
-                    />
-                  </View>
-                </View>
-
-                {/* SKU & Brand */}
-                <View style={styles.twoColRow}>
-                  <View style={styles.halfCol}>
-                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>SKU / Unique ID</Text>
+                {/* Product Name & Brand */}
+                <FieldSpotlight fieldId="name_brand">
+                  {/* Product Name */}
+                  <View style={styles.formGroup}>
+                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Product Name *</Text>
                     <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                      <MaterialIcon name="label" size={18} color={colors.onSurfaceMuted} />
                       <TextInput
-                        value={sku}
-                        onChangeText={setSku}
-                        placeholder="SKU-001-ADMIN"
+                        value={name}
+                        onChangeText={setName}
+                        placeholder="e.g. 100W Solar Kit / Industrial Rice Cooker"
                         placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
                         style={[styles.inputField, { color: colors.onSurface }]}
                       />
                     </View>
                   </View>
-                  <View style={styles.halfCol}>
-                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Brand Name</Text>
-                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
-                      <TextInput
-                        value={brand}
-                        onChangeText={setBrand}
-                        placeholder="e.g. Eagle Brand / Prime Tools"
-                        placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
-                        style={[styles.inputField, { color: colors.onSurface }]}
-                      />
+
+                  {/* SKU & Brand */}
+                  <View style={styles.twoColRow}>
+                    <View style={styles.halfCol}>
+                      <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>SKU / Unique ID</Text>
+                      <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                        <TextInput
+                          value={sku}
+                          onChangeText={setSku}
+                          placeholder="SKU-001-ADMIN"
+                          placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
+                          style={[styles.inputField, { color: colors.onSurface }]}
+                        />
+                      </View>
+                    </View>
+                    <View style={styles.halfCol}>
+                      <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Brand Name</Text>
+                      <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                        <TextInput
+                          value={brand}
+                          onChangeText={setBrand}
+                          placeholder="e.g. Eagle Brand / Prime Tools"
+                          placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
+                          style={[styles.inputField, { color: colors.onSurface }]}
+                        />
+                      </View>
                     </View>
                   </View>
-                </View>
+                </FieldSpotlight>
 
                 {/* SEO Slug & Category */}
                 <View style={styles.twoColRow}>
@@ -1080,52 +1133,54 @@ export function EditProductSheet({
                     </View>
                   </View>
                   <View style={styles.halfCol}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                      <Text style={[styles.fieldLabel, { color: colors.onSurface, marginBottom: 0 }]}>Category & Branch *</Text>
-                      <TouchableOpacity onPress={() => setIsCategoryPickerOpen(true)}>
-                        <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '700' }}>Browse Tree</Text>
-                      </TouchableOpacity>
-                    </View>
-                    <TouchableOpacity
-                      activeOpacity={0.8}
-                      onPress={() => setIsCategoryPickerOpen(true)}
-                      style={[
-                        styles.inputWrapper,
-                        {
-                          backgroundColor: isDark ? colors.cardColor : '#F6F8FA',
-                          borderColor: categoryId ? colors.primary : (isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)'),
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          paddingHorizontal: 12,
-                          gap: 8,
-                          height: 44,
-                        },
-                      ]}
-                    >
-                      <MaterialIcon
-                        name={categoryId ? 'folder_open' : 'add_circle_outline'}
-                        size={18}
-                        color={categoryId ? colors.primary : colors.onSurfaceMuted}
-                      />
-                      <View style={{ flex: 1 }}>
-                        <Text
-                          numberOfLines={1}
-                          style={{
-                            fontSize: 13,
-                            fontWeight: categoryId ? '600' : '400',
-                            color: categoryId ? colors.onSurface : (isDark ? 'rgba(255, 255, 255, 0.35)' : 'rgba(0, 0, 0, 0.35)'),
-                          }}
-                        >
-                          {categoryPath || categoryName || 'Choose or Create Category...'}
-                        </Text>
+                    <FieldSpotlight fieldId="category">
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <Text style={[styles.fieldLabel, { color: colors.onSurface, marginBottom: 0 }]}>Category & Branch *</Text>
+                        <TouchableOpacity onPress={() => setIsCategoryPickerOpen(true)}>
+                          <Text style={{ fontSize: 11, color: colors.primary, fontWeight: '700' }}>Browse Tree</Text>
+                        </TouchableOpacity>
                       </View>
-                      <MaterialIcon name="chevron_right" size={18} color={colors.onSurfaceMuted} />
-                    </TouchableOpacity>
-                    {categoryPath ? (
-                      <Text style={{ fontSize: 10, color: colors.primary, marginTop: 4, fontWeight: '600' }}>
-                        Branch: {categoryPath}
-                      </Text>
-                    ) : null}
+                      <TouchableOpacity
+                        activeOpacity={0.8}
+                        onPress={() => setIsCategoryPickerOpen(true)}
+                        style={[
+                          styles.inputWrapper,
+                          {
+                            backgroundColor: isDark ? colors.cardColor : '#F6F8FA',
+                            borderColor: categoryId ? colors.primary : (isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)'),
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            paddingHorizontal: 12,
+                            gap: 8,
+                            height: 44,
+                          },
+                        ]}
+                      >
+                        <MaterialIcon
+                          name={categoryId ? 'folder_open' : 'add_circle_outline'}
+                          size={18}
+                          color={categoryId ? colors.primary : colors.onSurfaceMuted}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            numberOfLines={1}
+                            style={{
+                              fontSize: 13,
+                              fontWeight: categoryId ? '600' : '400',
+                              color: categoryId ? colors.onSurface : (isDark ? 'rgba(255, 255, 255, 0.35)' : 'rgba(0, 0, 0, 0.35)'),
+                            }}
+                          >
+                            {categoryPath || categoryName || 'Choose or Create Category...'}
+                          </Text>
+                        </View>
+                        <MaterialIcon name="chevron_right" size={18} color={colors.onSurfaceMuted} />
+                      </TouchableOpacity>
+                      {categoryPath ? (
+                        <Text style={{ fontSize: 10, color: colors.primary, marginTop: 4, fontWeight: '600' }}>
+                          Branch: {categoryPath}
+                        </Text>
+                      ) : null}
+                    </FieldSpotlight>
                   </View>
                 </View>
 
@@ -1504,82 +1559,84 @@ export function EditProductSheet({
                ═══════════════════════════════════════════════════ */}
             {activeSection === 'pricing' && (
               <View>
-                {/* Retail Price SRP */}
-                <View style={styles.formGroup}>
-                  <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Retail Price (UGX) *</Text>
-                  <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
-                    <MaterialIcon name="account_balance_wallet" size={18} color={colors.onSurfaceMuted} />
-                    <TextInput
-                      value={srp}
-                      onChangeText={setSrp}
-                      placeholder="0.00"
-                      keyboardType="numeric"
-                      placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
-                      style={[styles.inputField, { color: colors.onSurface }]}
-                    />
+                <FieldSpotlight fieldId="pricing_moq" titleOverride="Wholesale Bulk Pricing & Tiers">
+                  {/* Retail Price SRP */}
+                  <View style={styles.formGroup}>
+                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Retail Price (UGX) *</Text>
+                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                      <MaterialIcon name="account_balance_wallet" size={18} color={colors.onSurfaceMuted} />
+                      <TextInput
+                        value={srp}
+                        onChangeText={setSrp}
+                        placeholder="0.00"
+                        keyboardType="numeric"
+                        placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
+                        style={[styles.inputField, { color: colors.onSurface }]}
+                      />
+                    </View>
                   </View>
-                </View>
 
-                {/* Wholesale Price Tiers */}
-                <View style={styles.formGroup}>
-                  <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Wholesale Price Tiers ({priceTiers.length})</Text>
-                  <Text style={[styles.fieldHelper, { color: isDark ? 'rgba(255, 255, 255, 0.45)' : 'rgba(0, 0, 0, 0.45)' }]}>
-                    Buyers purchasing above the tier quantity get the discounted rate.
-                  </Text>
+                  {/* Wholesale Price Tiers */}
+                  <View style={styles.formGroup}>
+                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Wholesale Price Tiers ({priceTiers.length})</Text>
+                    <Text style={[styles.fieldHelper, { color: isDark ? 'rgba(255, 255, 255, 0.45)' : 'rgba(0, 0, 0, 0.45)' }]}>
+                      Buyers purchasing above the tier quantity get the discounted rate.
+                    </Text>
 
-                  {priceTiers.map((tier, idx) => (
-                    <View
-                      key={idx}
-                      style={[
-                        styles.tierRow,
-                        {
-                          backgroundColor: isDark ? colors.cardColor : '#F8F9FA',
-                          borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.06)',
-                        },
-                      ]}
-                    >
-                      <View style={styles.tierInfo}>
-                        <View style={[styles.tierBadge, { backgroundColor: colors.primary + '20' }]}>
-                          <Text style={[styles.tierQty, { color: colors.primary }]}>{tier.minQuantity}+ units</Text>
+                    {priceTiers.map((tier, idx) => (
+                      <View
+                        key={idx}
+                        style={[
+                          styles.tierRow,
+                          {
+                            backgroundColor: isDark ? colors.cardColor : '#F8F9FA',
+                            borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.06)',
+                          },
+                        ]}
+                      >
+                        <View style={styles.tierInfo}>
+                          <View style={[styles.tierBadge, { backgroundColor: colors.primary + '20' }]}>
+                            <Text style={[styles.tierQty, { color: colors.primary }]}>{tier.minQuantity}+ units</Text>
+                          </View>
+                          <Text style={[styles.tierPrice, { color: colors.onSurface }]}>
+                            UGX {tier.price.toLocaleString()} / unit
+                          </Text>
                         </View>
-                        <Text style={[styles.tierPrice, { color: colors.onSurface }]}>
-                          UGX {tier.price.toLocaleString()} / unit
-                        </Text>
+                        <TouchableOpacity onPress={() => handleRemoveTier(idx)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                          <MaterialIcon name="delete_outline" size={18} color="#FF4D4F" />
+                        </TouchableOpacity>
                       </View>
-                      <TouchableOpacity onPress={() => handleRemoveTier(idx)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                        <MaterialIcon name="delete_outline" size={18} color="#FF4D4F" />
+                    ))}
+
+                    {/* Add New Tier */}
+                    <View style={styles.addTierRow}>
+                      <View style={[styles.addTierInputBox, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                        <TextInput
+                          value={newTierQty}
+                          onChangeText={setNewTierQty}
+                          placeholder="Min Qty (e.g. 10)"
+                          keyboardType="numeric"
+                          placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
+                          style={[styles.inputField, { color: colors.onSurface }]}
+                        />
+                      </View>
+                      <View style={[styles.addTierInputBox, { flex: 1.5, backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                        <TextInput
+                          value={newTierPrice}
+                          onChangeText={setNewTierPrice}
+                          placeholder="Discounted UGX / Unit"
+                          keyboardType="numeric"
+                          placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
+                          style={[styles.inputField, { color: colors.onSurface }]}
+                        />
+                      </View>
+                      <TouchableOpacity onPress={handleAddTier} style={[styles.addTierBtn, { backgroundColor: colors.primary }]}>
+                        <MaterialIcon name="add" size={18} color="#FFFFFF" />
+                        <Text style={styles.addTierBtnText}>Add Tier</Text>
                       </TouchableOpacity>
                     </View>
-                  ))}
-
-                  {/* Add New Tier */}
-                  <View style={styles.addTierRow}>
-                    <View style={[styles.addTierInputBox, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
-                      <TextInput
-                        value={newTierQty}
-                        onChangeText={setNewTierQty}
-                        placeholder="Min Qty (e.g. 10)"
-                        keyboardType="numeric"
-                        placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
-                        style={[styles.inputField, { color: colors.onSurface }]}
-                      />
-                    </View>
-                    <View style={[styles.addTierInputBox, { flex: 1.5, backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
-                      <TextInput
-                        value={newTierPrice}
-                        onChangeText={setNewTierPrice}
-                        placeholder="Discounted UGX / Unit"
-                        keyboardType="numeric"
-                        placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
-                        style={[styles.inputField, { color: colors.onSurface }]}
-                      />
-                    </View>
-                    <TouchableOpacity onPress={handleAddTier} style={[styles.addTierBtn, { backgroundColor: colors.primary }]}>
-                      <MaterialIcon name="add" size={18} color="#FFFFFF" />
-                      <Text style={styles.addTierBtnText}>Add Tier</Text>
-                    </TouchableOpacity>
                   </View>
-                </View>
+                </FieldSpotlight>
 
                 {/* Product Media Gallery Photos */}
                 <View style={styles.formGroup}>
@@ -1740,17 +1797,19 @@ export function EditProductSheet({
                     </View>
                   </View>
                   <View style={styles.halfCol}>
-                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Current Warehouse Stock</Text>
-                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
-                      <TextInput
-                        value={stockQuantity}
-                        onChangeText={setStockQuantity}
-                        placeholder="0"
-                        keyboardType="numeric"
-                        placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
-                        style={[styles.inputField, { color: colors.onSurface }]}
-                      />
-                    </View>
+                    <FieldSpotlight fieldId="stock_location" titleOverride="Available Stock & Warehouse">
+                      <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Current Warehouse Stock</Text>
+                      <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                        <TextInput
+                          value={stockQuantity}
+                          onChangeText={setStockQuantity}
+                          placeholder="0"
+                          keyboardType="numeric"
+                          placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
+                          style={[styles.inputField, { color: colors.onSurface }]}
+                        />
+                      </View>
+                    </FieldSpotlight>
                   </View>
                 </View>
 
@@ -1770,17 +1829,19 @@ export function EditProductSheet({
                     </View>
                   </View>
                   <View style={styles.halfCol}>
-                    <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Warehouse Location</Text>
-                    <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
-                      <MaterialIcon name="place" size={18} color={colors.primary} />
-                      <TextInput
-                        value={warehouseLoc}
-                        onChangeText={setWarehouseLoc}
-                        placeholder="e.g. Kampala Hub A"
-                        placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
-                        style={[styles.inputField, { color: colors.onSurface }]}
-                      />
-                    </View>
+                    <FieldSpotlight fieldId="stock_location" titleOverride="Warehouse Hub in Kampala">
+                      <Text style={[styles.fieldLabel, { color: colors.onSurface }]}>Warehouse Location</Text>
+                      <View style={[styles.inputWrapper, { backgroundColor: isDark ? colors.cardColor : '#F6F8FA', borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)' }]}>
+                        <MaterialIcon name="place" size={18} color={colors.primary} />
+                        <TextInput
+                          value={warehouseLoc}
+                          onChangeText={setWarehouseLoc}
+                          placeholder="e.g. Kampala Hub A"
+                          placeholderTextColor={isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.25)'}
+                          style={[styles.inputField, { color: colors.onSurface }]}
+                        />
+                      </View>
+                    </FieldSpotlight>
                   </View>
                 </View>
 
@@ -1960,26 +2021,28 @@ export function EditProductSheet({
             ) : null}
 
             {/* Action Buttons */}
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={handleSave}
-              disabled={isSaving}
-              style={[
-                styles.saveButton,
-                { backgroundColor: colors.primary, opacity: isSaving ? 0.75 : 1 },
-              ]}
-            >
-              {isSaving ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <>
-                  <MaterialIcon name="check" size={20} color="#FFFFFF" />
-                  <Text style={styles.saveButtonText}>
-                    {isEditing ? 'Save All Changes' : 'Publish Product to Catalog'}
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
+            <FieldSpotlight fieldId="publish" titleOverride="Publish to Live Wholesale Catalog">
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={handleSave}
+                disabled={isSaving}
+                style={[
+                  styles.saveButton,
+                  { backgroundColor: colors.primary, opacity: isSaving ? 0.75 : 1 },
+                ]}
+              >
+                {isSaving ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <MaterialIcon name="check" size={20} color="#FFFFFF" />
+                    <Text style={styles.saveButtonText}>
+                      {isEditing ? 'Save All Changes' : 'Publish Product to Catalog'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </FieldSpotlight>
 
             {isEditing && (
               <TouchableOpacity activeOpacity={0.7} onPress={handleDelete} style={styles.deleteButton}>

@@ -24,6 +24,8 @@ import { AppThemeProvider, useAppTheme } from '@/core/theme/theme_context';
 import { AuthProvider, useAuth } from '@/features/auth/context/auth_context';
 import { ProductsProvider } from '@/features/inventory/context/products_context';
 import { ToastProvider } from '@/core/widgets/whatsapp_dialog';
+import { CopilotProvider } from '@/core/copilot/copilot_context';
+import { CopilotBotWidget } from '@/core/copilot/widgets/copilot_bot_widget';
 import { GoogleOneTapPrompt } from '@/features/auth/presentation/widgets/google_one_tap_prompt';
 import { setAuthTokenGetter } from '@/core/api/api_client';
 
@@ -154,8 +156,11 @@ export default function RootLayout() {
           <AuthTokenBridge />
           <ProductsProvider>
             <ToastProvider>
-              <NavigationStack />
-              <GoogleOneTapPrompt />
+              <CopilotProvider>
+                <NavigationStack />
+                <CopilotBotWidget />
+                <GoogleOneTapPrompt />
+              </CopilotProvider>
             </ToastProvider>
           </ProductsProvider>
         </AuthProvider>
