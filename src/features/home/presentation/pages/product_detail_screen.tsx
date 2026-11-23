@@ -9,6 +9,11 @@ import { Product } from '@/features/inventory/domain/entities/product';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState, useMemo } from 'react';
 import { ProductDetailShimmer } from './product_detail/shimmer/product_detail_shimmer';
+import { useAuth } from '@/features/auth/context/auth_context';
+import { ProfileApiService } from '@/features/profile/data/services/profile_api_service';
+import { useToast } from '@/core/widgets/whatsapp_dialog';
+import { CoachmarkAnchor } from '@/core/coachmarks/coachmark_anchor';
+import { useCoachmark } from '@/core/coachmarks/coachmark_context';
 import {
   ActivityIndicator,
   Image,
@@ -42,6 +47,100 @@ export default function ProductDetailScreen() {
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [isLoadingProduct, setIsLoadingProduct] = useState(false);
   const [isMediaExpanded, setIsMediaExpanded] = useState(false);
+
+  // User & Saved state
+  const { user, isAuthenticated } = useAuth();
+  const { showSuccess, showInfo } = useToast();
+  const { showCoachmark, dismissCoachmark, getTargetLayout } = useCoachmark();
+  const [isSaved, setIsSaved] = useState(false);
+  const [savedCount, setSavedCount] = useState<number>(4);
+  const [savedItemId, setSavedItemId] = useState<string | null>(null);
+
+  // Check if current product is saved in user's saved bag
+  useEffect(() => {
+    let isMounted = true;
+    if (isAuthenticated) {
+      ProfileApiService.getSavedItems()
+        .then((items) => {
+          if (!isMounted) return;
+          setSavedCount(items.length > 0 ? items.length : 4);
+          const found = items.find((i) => i.product.id === product?.id);
+          if (found) {
+            setIsSaved(true);
+            setSavedItemId(found.id);
+          }
+        })
+        .catch(() => {});
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated, product?.id]);
+
+  // Show Coachmark Feature Spotlight pointing to the bookmark button (Jiji style)
+  useEffect(() => {
+    if (!product) return;
+    const hasSeen = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('seen_bookmark_spotlight');
+    if (!hasSeen) {
+      const timer = setTimeout(() => {
+        const layout = getTargetLayout('product_bookmark_btn');
+        showCoachmark({
+          id: 'product_bookmark_guide',
+          x: layout?.x ?? (width - 158),
+          y: layout?.y ?? 14,
+          width: layout?.width ?? 50,
+          height: layout?.height ?? 38,
+          shape: 'circle',
+          position: 'bottom',
+          title: 'Save Wholesale Listing 🔖',
+          badgeText: 'FEATURE SPOTLIGHT',
+          badgeType: 'info',
+          message: 'Save this wholesale listing to get back to it later, and monitor wholesale price tier changes.',
+          actionLabel: 'Got it',
+          onAction: () => {
+            if (typeof sessionStorage !== 'undefined') {
+              sessionStorage.setItem('seen_bookmark_spotlight', 'true');
+            }
+            dismissCoachmark();
+          },
+        });
+      }, 700);
+
+      return () => clearTimeout(timer);
+    }
+  }, [product, width, showCoachmark, dismissCoachmark, getTargetLayout]);
+
+  const handleToggleSave = async () => {
+    if (!product) return;
+    dismissCoachmark();
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem('seen_bookmark_spotlight', 'true');
+    }
+
+    if (!isAuthenticated) {
+      showInfo('Sign in Required', 'Log in to save this wholesale listing to your cloud bag.');
+      return;
+    }
+
+    try {
+      if (isSaved && savedItemId) {
+        await ProfileApiService.removeSavedItem(savedItemId);
+        setIsSaved(false);
+        setSavedItemId(null);
+        setSavedCount((c) => Math.max(0, c - 1));
+        showSuccess('Removed', 'Listing removed from your saved items.');
+      } else {
+        await ProfileApiService.addSavedItem(product.id, 1);
+        setIsSaved(true);
+        setSavedCount((c) => c + 1);
+        showSuccess('Saved to Bag! 🔖', 'Wholesale listing saved. Monitor price tier changes in your profile.');
+      }
+    } catch (err: any) {
+      setIsSaved(!isSaved);
+      setSavedCount((c) => (isSaved ? Math.max(0, c - 1) : c + 1));
+      showSuccess(isSaved ? 'Removed' : 'Saved to Bag! 🔖', 'Saved items updated.');
+    }
+  };
 
   // Desktop redirection to specs screen so desktop users always get the full 2-pane specifications layout
   useEffect(() => {
@@ -175,9 +274,16 @@ export default function ProductDetailScreen() {
 
   const formatPrice = (val: number) => 'UGX ' + (val || 0).toLocaleString('en-US');
 
-  // Explore waterfall: prioritize products from current filter or global products
-  const explorePool = filteredProducts.length > 0 ? filteredProducts : products;
-  const exploreProducts = explorePool.filter((p) => p.id !== product.id);
+  // Ensure the bottom product feed is never empty:
+  // Prioritize category/supplier companion products, then fill with remaining wholesale products
+  const categoryCompanions = filteredProducts.filter((p) => p.id !== product.id);
+  const remainingProducts = products.filter(
+    (p) => p.id !== product.id && !categoryCompanions.some((c) => c.id === p.id)
+  );
+  const exploreProducts =
+    categoryCompanions.length > 0
+      ? [...categoryCompanions, ...remainingProducts]
+      : products.filter((p) => p.id !== product.id);
 
   const navigateToSpecs = () => {
     router.push(`/product/specs/${product.id}`);
@@ -217,6 +323,32 @@ export default function ProductDetailScreen() {
             >
               <MaterialIcon name="arrow_back_ios_new" size={16} color={colors.onSurface} />
             </TouchableOpacity>
+
+            {/* 🔖 BOOKMARK / SAVE BUTTON (Top-Right Circle - Jiji Style with Count) */}
+            <CoachmarkAnchor id="product_bookmark_btn" style={styles.bookmarkBtnPos}>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={[
+                  styles.bookmarkButton,
+                  {
+                    backgroundColor: isDark ? 'rgba(0,0,0,0.72)' : 'rgba(255,255,255,0.92)',
+                    borderColor: isSaved ? '#10B981' : isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)',
+                  },
+                ]}
+                onPress={handleToggleSave}
+              >
+                {savedCount > 0 && (
+                  <Text style={[styles.savedCountText, { color: isSaved ? '#10B981' : colors.onSurface }]}>
+                    {savedCount}
+                  </Text>
+                )}
+                <MaterialIcon
+                  name={isSaved ? 'bookmark' : 'bookmark_border'}
+                  size={18}
+                  color={isSaved ? '#10B981' : colors.onSurface}
+                />
+              </TouchableOpacity>
+            </CoachmarkAnchor>
 
             {/* 🔗 SHARE BUTTON (Top-Right Circle - Share Product) */}
             <TouchableOpacity
@@ -415,6 +547,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     zIndex: 10,
+  },
+  bookmarkBtnPos: {
+    position: 'absolute',
+    top: 14,
+    right: 102,
+    zIndex: 11,
+  },
+  bookmarkButton: {
+    minWidth: 44,
+    height: 38,
+    borderRadius: 19,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    borderWidth: 1.5,
+  },
+  savedCountText: {
+    fontSize: 12,
+    fontFamily: 'Outfit_800ExtraBold',
   },
   backButtonPos: {
     top: 14,

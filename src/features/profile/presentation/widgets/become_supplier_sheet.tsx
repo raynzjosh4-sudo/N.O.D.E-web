@@ -17,6 +17,7 @@ import { ProfileApiService } from '../../data/services/profile_api_service';
 import { useAuth } from '@/features/auth/context/auth_context';
 import { useToast } from '@/core/widgets/whatsapp_dialog';
 import { LocationPickerModal, SelectedLocation } from '@/core/widgets/location_picker_modal';
+import { CoachmarkFieldSpotlight } from '@/core/coachmarks/coachmark_field_spotlight';
 
 interface BecomeSupplierSheetProps {
   visible: boolean;
@@ -201,53 +202,57 @@ export function BecomeSupplierSheet({
                 ) : null}
 
                 {/* 1. Legal Name */}
-                <View style={styles.formGroup}>
-                  <View style={styles.labelRow}>
-                    <Text style={[styles.label, { color: colors.onSurface }]}>
-                      Business Legal / Registered Name
-                    </Text>
-                    {!legalName.trim() && <Text style={styles.requiredTag}>Required</Text>}
+                <CoachmarkFieldSpotlight fieldId="legal_name">
+                  <View style={styles.formGroup}>
+                    <View style={styles.labelRow}>
+                      <Text style={[styles.label, { color: colors.onSurface }]}>
+                        Business Legal / Registered Name
+                      </Text>
+                      {!legalName.trim() && <Text style={styles.requiredTag}>Required</Text>}
+                    </View>
+                    <TextInput
+                      value={legalName}
+                      onChangeText={setLegalName}
+                      placeholder="e.g. Apex Wholesale Uganda Ltd"
+                      placeholderTextColor={colors.onSurfaceMuted}
+                      style={[
+                        styles.input,
+                        {
+                          backgroundColor: colors.cardColor,
+                          borderColor: !legalName.trim() ? '#F59E0B' : colors.borderLight,
+                          color: colors.onSurface,
+                        },
+                      ]}
+                    />
                   </View>
-                  <TextInput
-                    value={legalName}
-                    onChangeText={setLegalName}
-                    placeholder="e.g. Apex Wholesale Uganda Ltd"
-                    placeholderTextColor={colors.onSurfaceMuted}
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: colors.cardColor,
-                        borderColor: !legalName.trim() ? '#F59E0B' : colors.borderLight,
-                        color: colors.onSurface,
-                      },
-                    ]}
-                  />
-                </View>
+                </CoachmarkFieldSpotlight>
 
                 {/* 2. Business Phone Number */}
-                <View style={styles.formGroup}>
-                  <View style={styles.labelRow}>
-                    <Text style={[styles.label, { color: colors.onSurface }]}>
-                      Business Phone Number
-                    </Text>
-                    {!phoneNumber.trim() && <Text style={styles.requiredTag}>Required</Text>}
+                <CoachmarkFieldSpotlight fieldId="phone_number">
+                  <View style={styles.formGroup}>
+                    <View style={styles.labelRow}>
+                      <Text style={[styles.label, { color: colors.onSurface }]}>
+                        Business Phone Number
+                      </Text>
+                      {!phoneNumber.trim() && <Text style={styles.requiredTag}>Required</Text>}
+                    </View>
+                    <TextInput
+                      value={phoneNumber}
+                      onChangeText={setPhoneNumber}
+                      placeholder="e.g. +256 700 000 000"
+                      placeholderTextColor={colors.onSurfaceMuted}
+                      keyboardType="phone-pad"
+                      style={[
+                        styles.input,
+                        {
+                          backgroundColor: colors.cardColor,
+                          borderColor: !phoneNumber.trim() ? '#F59E0B' : colors.borderLight,
+                          color: colors.onSurface,
+                        },
+                      ]}
+                    />
                   </View>
-                  <TextInput
-                    value={phoneNumber}
-                    onChangeText={setPhoneNumber}
-                    placeholder="e.g. +256 700 000 000"
-                    placeholderTextColor={colors.onSurfaceMuted}
-                    keyboardType="phone-pad"
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: colors.cardColor,
-                        borderColor: !phoneNumber.trim() ? '#F59E0B' : colors.borderLight,
-                        color: colors.onSurface,
-                      },
-                    ]}
-                  />
-                </View>
+                </CoachmarkFieldSpotlight>
 
                 {/* 3. Real Location Picker Section */}
                 <View style={[styles.locationCard, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}>
@@ -296,28 +301,30 @@ export function BecomeSupplierSheet({
                   </View>
 
                   {/* Physical Address Field */}
-                  <View style={[styles.formGroup, { marginTop: 10 }]}>
-                    <View style={styles.labelRow}>
-                      <Text style={[styles.label, { color: colors.onSurface }]}>
-                        Physical Warehouse Address
-                      </Text>
-                      {!physicalAddress.trim() && <Text style={styles.requiredTag}>Required</Text>}
+                  <CoachmarkFieldSpotlight fieldId="physical_address">
+                    <View style={[styles.formGroup, { marginTop: 10 }]}>
+                      <View style={styles.labelRow}>
+                        <Text style={[styles.label, { color: colors.onSurface }]}>
+                          Physical Warehouse Address
+                        </Text>
+                        {!physicalAddress.trim() && <Text style={styles.requiredTag}>Required</Text>}
+                      </View>
+                      <TextInput
+                        value={physicalAddress}
+                        onChangeText={setPhysicalAddress}
+                        placeholder="e.g. Plot 14, Industrial Area, 7th Street"
+                        placeholderTextColor={colors.onSurfaceMuted}
+                        style={[
+                          styles.input,
+                          {
+                            backgroundColor: colors.surface,
+                            borderColor: !physicalAddress.trim() ? '#F59E0B' : colors.borderLight,
+                            color: colors.onSurface,
+                          },
+                        ]}
+                      />
                     </View>
-                    <TextInput
-                      value={physicalAddress}
-                      onChangeText={setPhysicalAddress}
-                      placeholder="e.g. Plot 14, Industrial Area, 7th Street"
-                      placeholderTextColor={colors.onSurfaceMuted}
-                      style={[
-                        styles.input,
-                        {
-                          backgroundColor: colors.surface,
-                          borderColor: !physicalAddress.trim() ? '#F59E0B' : colors.borderLight,
-                          color: colors.onSurface,
-                        },
-                      ]}
-                    />
-                  </View>
+                  </CoachmarkFieldSpotlight>
 
                   {/* City & Region */}
                   <View style={styles.row}>
@@ -363,21 +370,23 @@ export function BecomeSupplierSheet({
                 </View>
 
                 {/* Submit CTA */}
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  disabled={isSubmitting}
-                  style={[styles.submitBtn, { backgroundColor: colors.primary }]}
-                  onPress={handleSubmit}
-                >
-                  {isSubmitting ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  ) : (
-                    <>
-                      <MaterialIcon name="send" size={18} color="#FFFFFF" />
-                      <Text style={styles.submitBtnText}>Submit Supplier Application</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
+                <CoachmarkFieldSpotlight fieldId="publish" titleOverride="Submit Supplier Application">
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    disabled={isSubmitting}
+                    style={[styles.submitBtn, { backgroundColor: colors.primary, marginTop: 4 }]}
+                    onPress={handleSubmit}
+                  >
+                    {isSubmitting ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <>
+                        <MaterialIcon name="send" size={18} color="#FFFFFF" />
+                        <Text style={styles.submitBtnText}>Submit Supplier Application</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </CoachmarkFieldSpotlight>
               </ScrollView>
             )}
           </View>

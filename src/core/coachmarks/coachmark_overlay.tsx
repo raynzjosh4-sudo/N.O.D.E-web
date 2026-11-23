@@ -215,12 +215,12 @@ const styles = StyleSheet.create({
   spotlightRing: {
     position: 'absolute',
     borderWidth: 2.5,
-    borderColor: '#00E5FF',
-    backgroundColor: 'rgba(0, 229, 255, 0.12)',
-    shadowColor: '#00E5FF',
+    borderColor: '#10B981',
+    backgroundColor: 'rgba(16, 185, 129, 0.22)',
+    shadowColor: '#10B981',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 20,
+    shadowOpacity: 0.95,
+    shadowRadius: 24,
   },
   targetHole: {
     position: 'absolute',
@@ -231,9 +231,9 @@ const styles = StyleSheet.create({
   tooltipBubble: {
     position: 'absolute',
     width: 310,
-    backgroundColor: '#0F2636',
+    backgroundColor: '#0A251E',
     borderWidth: 1.5,
-    borderColor: '#12BBF0',
+    borderColor: '#10B981',
     borderRadius: 14,
     padding: 14,
     shadowColor: '#000',
@@ -254,12 +254,12 @@ const styles = StyleSheet.create({
   arrowTop: {
     top: -10,
     borderBottomWidth: 10,
-    borderBottomColor: '#12BBF0',
+    borderBottomColor: '#10B981',
   },
   arrowBottom: {
     bottom: -10,
     borderTopWidth: 10,
-    borderTopColor: '#12BBF0',
+    borderTopColor: '#10B981',
   },
   tooltipHeader: {
     flexDirection: 'row',
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   tooltipTitle: {
-    color: '#00E5FF',
+    color: '#34D399',
     fontSize: 13,
     fontFamily: 'Outfit_800ExtraBold',
     letterSpacing: -0.2,
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#12BBF0',
+    backgroundColor: '#10B981',
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 8,

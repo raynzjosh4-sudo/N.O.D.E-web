@@ -20,6 +20,8 @@ import { useToast } from '@/core/widgets/whatsapp_dialog';
 import { ProfileApiService } from '@/features/profile/data/services/profile_api_service';
 import { ProductApiService } from '@/features/inventory/data/services/product_api_service';
 import { Product } from '@/features/inventory/domain/entities/product';
+import { getWholesaleUnitPrice } from '@/features/inventory/utils/wholesale_pricing';
+import { useAuth } from '@/features/auth/context/auth_context';
 import { useProducts } from '@/features/inventory/context/products_context';
 import {
   ColorVariant,
@@ -272,11 +274,13 @@ export default function MultiProductOrderPage() {
         (sum, g) => sum + Object.values(g.sizeQtys).reduce((a, b) => a + b, 0),
         0
       );
-      const subtotal = totalUnits * p.srp;
+      const unitPrice = getWholesaleUnitPrice(p, totalUnits);
+      const subtotal = totalUnits * unitPrice;
       return {
         product: p,
         groups,
         totalUnits,
+        unitPrice,
         subtotal,
       };
     });
@@ -388,26 +392,38 @@ export default function MultiProductOrderPage() {
           item.groups.map((g) => ({
             product_id: item.product.id,
             name: item.product.name,
+            product: {
+              id: item.product.id,
+              name: item.product.name,
+              brand: item.product.brand,
+              sku: item.product.sku,
+              srp: item.product.srp,
+              imageUrl: item.product.imageUrl,
+              price_tiers: item.product.priceTiers,
+              moq: item.product.moq,
+            },
             imageUrl: item.product.imageUrl,
             image_url: item.product.imageUrl,
             color: g.color.label,
             colorHex: g.color.color,
             size_quantities: g.sizeQtys,
-            unit_price: item.product.srp,
+            confirmedGroups: [g],
+            unit_price: item.unitPrice,
             total_units: Object.values(g.sizeQtys).reduce((a, b) => a + b, 0),
-            supplier_id: supplierId,
-            business_name: profile.legalBusinessName || profile.fullName || '',
+            subtotal: Object.values(g.sizeQtys).reduce((a, b) => a + b, 0) * item.unitPrice,
+            supplier_id: supplierId || '1a47f0fe-3f4d-487f-95b5-1f7cfe27b7b7',
+            business_name: profile.legalBusinessName || profile.fullName || 'Wholesale Buyer',
           }))
         );
         const supTotalAmount = supItems.reduce((acc, item) => acc + item.subtotal, 0);
 
         const orderPayload = {
           order_id: supOrderId,
-          supplier_id: supplierId,
-          business_name: profile.legalBusinessName || profile.fullName || '',
-          business_phone: profile.phone || '',
+          supplier_id: supplierId || '1a47f0fe-3f4d-487f-95b5-1f7cfe27b7b7',
+          business_name: profile.legalBusinessName || profile.fullName || 'Wholesale Buyer',
+          business_phone: profile.phone || '0700000000',
           business_city: 'Kampala',
-          business_address: profile.warehouseAddress || '',
+          business_address: profile.warehouseAddress || 'Kampala Wholesale Hub, Uganda',
           total_amount: supTotalAmount,
           entries_json: supEntries,
         };

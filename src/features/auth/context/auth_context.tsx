@@ -61,6 +61,116 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let isMounted = true;
     (async () => {
       try {
+        // 1. Check for Google OAuth redirect tokens in URL hash or query params (Supabase OAuth flow on Web)
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          const hash = window.location.hash ? window.location.hash.substring(1) : '';
+          const search = window.location.search ? window.location.search.substring(1) : '';
+          const params = new URLSearchParams(hash || search);
+          const accessToken = params.get('access_token');
+
+          if (accessToken) {
+            try {
+              let email = '';
+              let name = '';
+              let avatarUrl = '';
+
+              // Decode user info from JWT payload
+              try {
+                const base64Url = accessToken.split('.')[1];
+                if (base64Url) {
+                  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                  const jsonPayload = decodeURIComponent(
+                    atob(base64)
+                      .split('')
+                      .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                      .join('')
+                  );
+                  const payload = JSON.parse(jsonPayload);
+                  email = payload.email || '';
+                  name = payload.user_metadata?.full_name || payload.user_metadata?.name || '';
+                  avatarUrl = payload.user_metadata?.avatar_url || payload.user_metadata?.picture || '';
+                }
+              } catch (decodeErr) {
+                console.warn('JWT payload decode fallback:', decodeErr);
+              }
+
+              // Also query Supabase user endpoint directly as backup
+              if (!email) {
+                try {
+                  const sbRes = await fetch('https://lihoygvdnnfqodjjxqnz.supabase.co/auth/v1/user', {
+                    headers: {
+                      Authorization: `Bearer ${accessToken}`,
+                      apikey: 'sb_publishable_xknRF_gqAzQqznqNvSONRg_j6GkQdrS',
+                    },
+                  });
+                  if (sbRes.ok) {
+                    const sbData = await sbRes.json();
+                    email = sbData.email || email;
+                    name = sbData.user_metadata?.full_name || sbData.user_metadata?.name || name;
+                    avatarUrl = sbData.user_metadata?.avatar_url || sbData.user_metadata?.picture || avatarUrl;
+                  }
+                } catch (sbErr) {
+                  console.warn('Supabase auth user query error:', sbErr);
+                }
+              }
+
+              if (email) {
+                // Exchange with backend /api/v1/auth/google to create/sync account and get app session token
+                const response = await apiClient<{
+                  access_token: string;
+                  token_type: string;
+                  user: {
+                    id: string;
+                    email: string;
+                    full_name?: string;
+                    role?: string;
+                    profile_pic_url?: string;
+                  };
+                }>(API_ENDPOINTS.AUTH.GOOGLE, {
+                  method: 'POST',
+                  body: JSON.stringify({
+                    id_token: accessToken,
+                    email,
+                    name,
+                    avatar_url: avatarUrl,
+                  }),
+                  headers: { 'Content-Type': 'application/json' },
+                });
+
+                const token = response.access_token || accessToken;
+                const u = response.user || { id: email, email, full_name: name, role: 'customer' };
+                const authUser: AuthUser = {
+                  id: u.id,
+                  email: u.email,
+                  name: u.full_name || name || u.email.split('@')[0],
+                  avatarUrl: u.profile_pic_url || avatarUrl,
+                  role: u.role ? u.role.toLowerCase() : 'buyer',
+                  token,
+                };
+
+                if (isMounted) setUser(authUser);
+                await persistSession(authUser, token);
+
+                // Clean the URL hash in the browser address bar
+                if (window.history && window.history.replaceState) {
+                  window.history.replaceState(null, '', window.location.pathname);
+                }
+
+                try {
+                  await refreshProfile(authUser, token);
+                } catch (e) {
+                  console.warn('Profile refresh after Google OAuth error:', e);
+                }
+
+                return; // Successfully restored from Google OAuth
+              }
+            } catch (googleOAuthErr) {
+              console.warn('Handling Google OAuth redirect failed:', googleOAuthErr);
+            }
+          }
+        }
+
+        // 2. Standard AsyncStorage session restoration
         const storedUser = await AsyncStorage.getItem(STORAGE_KEYS.USER);
         const storedToken = await AsyncStorage.getItem(STORAGE_KEYS.TOKEN);
         if (storedUser && storedToken) {

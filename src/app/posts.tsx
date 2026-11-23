@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/features/auth/context/auth_context';
@@ -14,6 +14,17 @@ export default function PostsRoute() {
   const router = useRouter();
   const { colors } = useAppTheme();
   const [showBecomeSupplier, setShowBecomeSupplier] = useState(false);
+
+  // If user navigates to post but is not a verified supplier, directly launch supplier application sheet
+  useEffect(() => {
+    if (isAuthenticated && isProfileReady && user) {
+      const role = (user.role || '').toLowerCase();
+      const isSupplierOrAdmin = role === 'supplier' || role === 'admin';
+      if (!isSupplierOrAdmin) {
+        setShowBecomeSupplier(true);
+      }
+    }
+  }, [isAuthenticated, isProfileReady, user]);
 
   if (isLoading || !isProfileReady) {
     return (

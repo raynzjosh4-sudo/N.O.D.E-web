@@ -39,8 +39,19 @@ export default function HomeScreen() {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 960;
   const { colors } = useAppTheme();
-  const { products, isLoading, isRefreshing, refreshProducts } = useProducts();
+  const { products, isLoading, isRefreshing, refreshProducts, hasMore, loadMore } = useProducts();
   const { headerCollapseStyle, onScroll: onFeedScroll } = useScrollAppbar({ headerHeight: 125 });
+
+  const handleFeedScroll = (event: any) => {
+    onFeedScroll(event);
+    const { layoutMeasurement, contentOffset, contentSize } = event?.nativeEvent || {};
+    if (layoutMeasurement && contentOffset && contentSize) {
+      const isNearBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 350;
+      if (isNearBottom && hasMore && !isLoading && !isRefreshing) {
+        loadMore();
+      }
+    }
+  };
 
   // Search States
   const [isSearching, setIsSearching] = useState(false);
@@ -126,6 +137,15 @@ export default function HomeScreen() {
     }
   };
 
+  // Prevent blank black screen during initial launch before products load: show skeleton shimmer
+  if (isLoading && products.length === 0) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>
+        <HomeFeedShimmer />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>
       <View style={[styles.container, { backgroundColor: colors.scaffoldBackground }]}>
@@ -186,7 +206,7 @@ export default function HomeScreen() {
               <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
-                onScroll={onFeedScroll}
+                onScroll={handleFeedScroll}
                 scrollEventThrottle={16}
               >
                 {/* Back to Explore / Search Indicator Banner */}
@@ -243,7 +263,7 @@ export default function HomeScreen() {
               <ScrollView
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
-                onScroll={onFeedScroll}
+                onScroll={handleFeedScroll}
                 scrollEventThrottle={16}
                 refreshControl={
                   <RefreshControl
