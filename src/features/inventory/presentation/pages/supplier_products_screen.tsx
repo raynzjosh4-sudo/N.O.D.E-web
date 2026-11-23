@@ -856,7 +856,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     gap: 14,
   },
   gitThumb: {
@@ -869,6 +869,7 @@ const styles = StyleSheet.create({
   gitItemBody: {
     flex: 1,
     justifyContent: 'center',
+    marginRight: 8,
   },
   gitTitleRow: {
     flexDirection: 'row',
@@ -915,9 +916,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
+    flexShrink: 0,
   },
   gitPriceWrap: {
     alignItems: 'flex-end',
+    minWidth: 80,
   },
   gitPriceText: {
     fontSize: 13.5,
@@ -936,8 +939,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 6,
     borderWidth: 1,
   },
