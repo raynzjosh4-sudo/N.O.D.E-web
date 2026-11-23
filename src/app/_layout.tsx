@@ -27,6 +27,7 @@ import { ToastProvider } from '@/core/widgets/whatsapp_dialog';
 import { CoachmarkProvider } from '@/core/coachmarks/coachmark_context';
 import { CoachmarkOverlay } from '@/core/coachmarks/coachmark_overlay';
 import { GoogleOneTapPrompt } from '@/features/auth/presentation/widgets/google_one_tap_prompt';
+import { WebUpdateReloader } from '@/core/widgets/web_update_reloader';
 import { setAuthTokenGetter } from '@/core/api/api_client';
 
 /**
@@ -159,6 +160,7 @@ export default function RootLayout() {
               <CoachmarkProvider>
                 <NavigationStack />
                 <CoachmarkOverlay />
+                <WebUpdateReloader />
                 <GoogleOneTapPrompt />
               </CoachmarkProvider>
             </ToastProvider>

@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Platform } from 'react-native';
 import { AppColors } from '@/core/theme/app_theme';
 import { useAppTheme } from '@/core/theme/theme_context';
 import { NodeIcon } from '@/core/widgets/node_icon';
 import { MaterialIcon } from '@/core/widgets/material_icon';
+import { forceAppReload } from '@/core/widgets/web_update_reloader';
 
 interface HomeHeaderProps {
   isAuthenticated?: boolean;
@@ -70,21 +71,40 @@ export function HomeHeader({
         <Text style={[styles.brandTitle, { color: colors.onSurface }]}>N.O.D.E.</Text>
       </View>
 
-      {/* Notification Bell */}
-      <TouchableOpacity
-        style={styles.notificationButton}
-        activeOpacity={0.7}
-        onPress={onNotificationPress}
-      >
-        <View style={[styles.bellIconWrapper, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}>
-          <MaterialIcon
-            name="notifications_none"
-            size={18}
-            color={colors.onSurface}
-          />
-        </View>
-        {hasUnreadNotifications && <View style={styles.unreadBadge} />}
-      </TouchableOpacity>
+      {/* Actions (Reload on Web + Notification Bell) */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        {Platform.OS === 'web' && (
+          <TouchableOpacity
+            style={styles.notificationButton}
+            activeOpacity={0.7}
+            onPress={() => forceAppReload()}
+            accessibilityLabel="Refresh app & sync latest updates"
+          >
+            <View style={[styles.bellIconWrapper, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}>
+              <MaterialIcon
+                name="refresh"
+                size={18}
+                color={colors.primary}
+              />
+            </View>
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity
+          style={styles.notificationButton}
+          activeOpacity={0.7}
+          onPress={onNotificationPress}
+        >
+          <View style={[styles.bellIconWrapper, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}>
+            <MaterialIcon
+              name="notifications_none"
+              size={18}
+              color={colors.onSurface}
+            />
+          </View>
+          {hasUnreadNotifications && <View style={styles.unreadBadge} />}
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
