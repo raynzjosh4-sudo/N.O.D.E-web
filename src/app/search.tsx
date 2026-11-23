@@ -8,6 +8,7 @@ import {
   Platform,
   TouchableOpacity,
   useWindowDimensions,
+  RefreshControl,
 } from 'react-native';
 import { useAppNavigation } from '@/core/utils/use_app_navigation';
 import { useAppTheme } from '@/core/theme/theme_context';
@@ -38,6 +39,12 @@ export default function SearchPage() {
   ]);
 
   const [activeSideProduct, setActiveSideProduct] = useState<Product | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    setTimeout(() => setIsRefreshing(false), 500);
+  };
 
   const handleExecuteSearch = (query: string) => {
     const trimmed = query.trim();
@@ -129,6 +136,14 @@ export default function SearchPage() {
               <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollContent}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={isRefreshing}
+                    onRefresh={handleRefresh}
+                    tintColor={colors.primary}
+                    colors={[colors.primary]}
+                  />
+                }
               >
                 <View style={[styles.resultsHeader, { borderBottomColor: colors.borderLight }]}>
                   <TouchableOpacity

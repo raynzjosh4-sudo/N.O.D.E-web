@@ -9,6 +9,10 @@ import {
   Image,
   Platform,
   useWindowDimensions,
+  ActivityIndicator,
+  RefreshControl,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAppTheme } from '@/core/theme/theme_context';
@@ -55,6 +59,10 @@ export function SupplierProductsScreen() {
   // Own products state — loaded from /my-products
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -65,18 +73,39 @@ export function SupplierProductsScreen() {
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
 
-  const loadMyProducts = useCallback(async () => {
-    setIsLoadingProducts(true);
+  const loadMyProducts = useCallback(async (pageNum: number = 1, append: boolean = false) => {
+    if (pageNum === 1 && !append) {
+      setIsLoadingProducts(true);
+    } else {
+      setIsLoadingMore(true);
+    }
     try {
-      const res = await ProductApiService.getMyProducts({ limit: 100 });
-      setProducts(res.products);
+      const res = await ProductApiService.getMyProducts({ page: pageNum, limit: 15 });
+      if (append) {
+        setProducts((prev) => {
+          const map = new Map<string, Product>();
+          prev.forEach((p) => map.set(p.id, p));
+          res.products.forEach((p) => map.set(p.id, p));
+          return Array.from(map.values());
+        });
+      } else {
+        setProducts(res.products);
+      }
+      setPage(pageNum);
+      setHasMore(res.products.length >= 15);
     } catch (err: any) {
       console.warn('Failed to load my products:', err.message);
-      setProducts([]);
+      if (!append) setProducts([]);
     } finally {
       setIsLoadingProducts(false);
+      setIsLoadingMore(false);
     }
   }, []);
+
+  const loadMore = useCallback(() => {
+    if (isLoadingMore || !hasMore || isLoadingProducts) return;
+    loadMyProducts(page + 1, true);
+  }, [isLoadingMore, hasMore, isLoadingProducts, page, loadMyProducts]);
 
   const loadIncomingOrders = useCallback(async () => {
     setIsLoadingOrders(true);
@@ -91,8 +120,22 @@ export function SupplierProductsScreen() {
     }
   }, []);
 
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([
+        loadMyProducts(1, false),
+        loadIncomingOrders(),
+      ]);
+    } catch (e) {
+      console.warn('Refresh failed:', e);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [loadMyProducts, loadIncomingOrders]);
+
   useEffect(() => {
-    loadMyProducts();
+    loadMyProducts(1, false);
     loadIncomingOrders();
   }, [loadMyProducts, loadIncomingOrders]);
 
@@ -238,6 +281,22 @@ export function SupplierProductsScreen() {
           <ScrollView
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={handleRefresh}
+                tintColor={gitColors.greenBtn}
+                colors={[gitColors.greenBtn]}
+              />
+            }
+            onScroll={({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) => {
+              const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+              const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 150;
+              if (isCloseToBottom) {
+                loadMore();
+              }
+            }}
+            scrollEventThrottle={300}
           >
             <View style={styles.contentWrapper}>
               {/* GitHub Table Box Container with 6px radius and 1px border */}
@@ -577,6 +636,39 @@ export function SupplierProductsScreen() {
                   })
                 ))}
               </View>
+
+              {/* ── Pagination Footer & Load More ── */}
+              {activeTab !== 'incoming_orders' && (
+                <View style={styles.paginationFooter}>
+                  {isLoadingMore ? (
+                    <View style={styles.loadingMoreRow}>
+                      <ActivityIndicator size="small" color={gitColors.greenBtn} />
+                      <Text style={[styles.loadingMoreText, { color: gitColors.textSecondary }]}>
+                        Loading more wholesale listings...
+                      </Text>
+                    </View>
+                  ) : hasMore && filteredProducts.length >= 15 ? (
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      style={[styles.loadMoreBtn, { backgroundColor: gitColors.btnBg, borderColor: gitColors.btnBorder }]}
+                      onPress={loadMore}
+                    >
+                      <MaterialIcon name="expand_more" size={16} color={gitColors.textPrimary} />
+                      <Text style={[styles.loadMoreBtnText, { color: gitColors.textPrimary }]}>
+                        Load More Products ({filteredProducts.length} loaded)
+                      </Text>
+                    </TouchableOpacity>
+                  ) : filteredProducts.length > 0 ? (
+                    <View style={styles.endOfFeedRow}>
+                      <View style={[styles.endOfFeedLine, { backgroundColor: gitColors.borderMuted }]} />
+                      <Text style={[styles.endOfFeedText, { color: gitColors.textSecondary }]}>
+                        All {filteredProducts.length} listings loaded
+                      </Text>
+                      <View style={[styles.endOfFeedLine, { backgroundColor: gitColors.borderMuted }]} />
+                    </View>
+                  ) : null}
+                </View>
+              )}
             </View>
           </ScrollView>
         )}
@@ -964,5 +1056,46 @@ const styles = StyleSheet.create({
   actionBtnText: {
     fontSize: 11,
     fontWeight: '700',
+  },
+  paginationFooter: {
+    paddingVertical: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingMoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+  },
+  loadingMoreText: {
+    fontSize: 13,
+  },
+  loadMoreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  loadMoreBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  endOfFeedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 20,
+    width: '100%',
+  },
+  endOfFeedLine: {
+    flex: 1,
+    height: 1,
+  },
+  endOfFeedText: {
+    fontSize: 12,
   },
 });

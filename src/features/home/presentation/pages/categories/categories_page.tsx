@@ -9,6 +9,7 @@ import {
   useWindowDimensions,
   ScrollView,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { useAppNavigation } from '@/core/utils/use_app_navigation';
 import { AppColors } from '@/core/theme/app_theme';
@@ -58,70 +59,73 @@ export function CategoriesPage() {
 
   // Mobile navigation stack
   const [mobileStack, setMobileStack] = useState<CategoryItem[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const fetchCategoryTree = async () => {
+    try {
+      const cats = await ProductApiService.getCategories();
+      const catMap = new Map<string, CategoryItem>();
+      (cats || []).forEach((c) => {
+        const matchingProducts = products.filter(
+          (p) =>
+            p.categoryId === c.id ||
+            (p.categoryId && p.categoryId.toLowerCase() === c.name.toLowerCase())
+        );
+        const computedCount = Math.max((c as any).item_count || 0, matchingProducts.length);
+
+        catMap.set(c.id, {
+          id: c.id,
+          name: c.name,
+          imageUrl: resolveImageUrl(c.image_url),
+          itemCount: computedCount,
+          subCategories: [],
+        });
+      });
+
+      const roots: CategoryItem[] = [];
+      (cats || []).forEach((c) => {
+        const item = catMap.get(c.id);
+        if (!item) return;
+
+        if (!c.parent_id || c.level === 0 || !catMap.has(c.parent_id)) {
+          roots.push(item);
+        } else {
+          const parent = catMap.get(c.parent_id);
+          if (parent) {
+            parent.subCategories = parent.subCategories || [];
+            parent.subCategories.push(item);
+            parent.itemCount = (parent.itemCount || 0) + (item.itemCount || 0);
+          } else {
+            roots.push(item);
+          }
+        }
+      });
+
+      setCategoriesTree(roots);
+      if (roots.length > 0 && activePath.length === 0) {
+        setActivePath([roots[0]]);
+      }
+    } catch (err: any) {
+      console.warn('Failed to fetch categories:', err.message);
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
     setIsLoading(true);
-
-    ProductApiService.getCategories()
-      .then((cats) => {
-        if (!isMounted) return;
-
-        // Build hierarchical tree from flat CategoryDto list
-        const catMap = new Map<string, CategoryItem>();
-        (cats || []).forEach((c) => {
-          const matchingProducts = products.filter(
-            (p) =>
-              p.categoryId === c.id ||
-              (p.categoryId && p.categoryId.toLowerCase() === c.name.toLowerCase())
-          );
-          const computedCount = Math.max((c as any).item_count || 0, matchingProducts.length);
-
-          catMap.set(c.id, {
-            id: c.id,
-            name: c.name,
-            imageUrl: resolveImageUrl(c.image_url),
-            itemCount: computedCount,
-            subCategories: [],
-          });
-        });
-
-        const roots: CategoryItem[] = [];
-        (cats || []).forEach((c) => {
-          const item = catMap.get(c.id);
-          if (!item) return;
-
-          if (!c.parent_id || c.level === 0 || !catMap.has(c.parent_id)) {
-            roots.push(item);
-          } else {
-            const parent = catMap.get(c.parent_id);
-            if (parent) {
-              parent.subCategories = parent.subCategories || [];
-              parent.subCategories.push(item);
-              // Accumulate sub-category count into parent
-              parent.itemCount = (parent.itemCount || 0) + (item.itemCount || 0);
-            } else {
-              roots.push(item);
-            }
-          }
-        });
-
-        setCategoriesTree(roots);
-        if (roots.length > 0) {
-          setActivePath([roots[0]]);
-        }
-      })
-      .catch((err) => {
-        console.warn('Failed to fetch categories:', err.message);
-      })
-      .finally(() => {
-        if (isMounted) setIsLoading(false);
-      });
-
+    fetchCategoryTree().finally(() => {
+      if (isMounted) setIsLoading(false);
+    });
     return () => {
       isMounted = false;
     };
   }, [products]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchCategoryTree();
+    setIsRefreshing(false);
+  };
 
   // Product tap handler (Adaptive desktop vs mobile)
   const handleProductTap = (product: Product) => {
@@ -522,6 +526,14 @@ export function CategoriesPage() {
             data={currentCategories}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={handleRefresh}
+                tintColor={gitColors.textLink}
+                colors={[gitColors.textLink]}
+              />
+            }
             ItemSeparatorComponent={() => <View style={[styles.separator, { backgroundColor: colors.borderLight }]} />}
             renderItem={({ item }) => {
               const hasSub = item.subCategories && item.subCategories.length > 0;

@@ -66,7 +66,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const hash = window.location.hash ? window.location.hash.substring(1) : '';
           const search = window.location.search ? window.location.search.substring(1) : '';
           const params = new URLSearchParams(hash || search);
-          const accessToken = params.get('access_token');
+          let accessToken = params.get('access_token') || params.get('id_token') || params.get('token');
+          const code = params.get('code');
+
+          if (!accessToken && code) {
+            try {
+              const tokenRes = await fetch('https://lihoygvdnnfqodjjxqnz.supabase.co/auth/v1/token?grant_type=pkce', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  apikey: 'sb_publishable_xknRF_gqAzQqznqNvSONRg_j6GkQdrS',
+                },
+                body: JSON.stringify({
+                  auth_code: code,
+                  code_verifier: window.sessionStorage?.getItem('supabase.auth.token-code-verifier') || '',
+                }),
+              });
+              if (tokenRes.ok) {
+                const tokenData = await tokenRes.json();
+                accessToken = tokenData.access_token || tokenData.id_token;
+              }
+            } catch (pkceErr) {
+              console.warn('PKCE exchange error:', pkceErr);
+            }
+          }
 
           if (accessToken) {
             try {
@@ -392,12 +415,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     setIsProfileReady(false);
     try {
-      // If no credentials passed on web, trigger direct Google OAuth flow
-      if (!options?.idToken && !options?.email) {
+      let email = options?.email;
+      let name = options?.name;
+      let avatarUrl = options?.avatarUrl;
+      let idToken = options?.idToken;
+
+      // If no credentials passed on web, trigger direct Google Identity Services popup client
+      if (!idToken && !email) {
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
-          const redirectUri = window.location.origin;
-          window.location.href = `https://lihoygvdnnfqodjjxqnz.supabase.co/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectUri)}`;
-          return false;
+          const gsiPromise = new Promise<{ idToken?: string; email?: string; name?: string; avatarUrl?: string } | null>((resolve) => {
+            const google = (window as any).google;
+            if (google?.accounts?.oauth2) {
+              const client = google.accounts.oauth2.initTokenClient({
+                client_id: '222218933371-rug9cjnfcc8hgirbjvdd6do8p6akf37n.apps.googleusercontent.com',
+                scope: 'email profile openid',
+                callback: async (tokenResponse: any) => {
+                  if (tokenResponse?.access_token) {
+                    try {
+                      const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                        headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+                      });
+                      if (userInfoRes.ok) {
+                        const info = await userInfoRes.json();
+                        resolve({
+                          email: info.email,
+                          name: info.name,
+                          avatarUrl: info.picture,
+                        });
+                        return;
+                      }
+                    } catch (e) {
+                      console.warn('Google userinfo fetch failed:', e);
+                    }
+                  }
+                  resolve(null);
+                },
+              });
+              client.requestAccessToken();
+            } else {
+              // Fallback redirect if GSI script is not yet loaded
+              const redirectUri = window.location.origin;
+              window.location.href = `https://lihoygvdnnfqodjjxqnz.supabase.co/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectUri)}`;
+              resolve(null);
+            }
+          });
+
+          const credentials = await gsiPromise;
+          if (!credentials || !credentials.email) {
+            setIsLoading(false);
+            return false;
+          }
+          email = credentials.email;
+          name = credentials.name;
+          avatarUrl = credentials.avatarUrl;
+          idToken = credentials.idToken;
         }
       }
 
@@ -414,10 +485,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }>(API_ENDPOINTS.AUTH.GOOGLE, {
         method: 'POST',
         body: JSON.stringify({
-          id_token: options?.idToken,
-          email: options?.email,
-          name: options?.name,
-          avatar_url: options?.avatarUrl,
+          id_token: idToken,
+          email,
+          name,
+          avatar_url: avatarUrl,
         }),
         headers: { 'Content-Type': 'application/json' },
       });
@@ -427,8 +498,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const authUser: AuthUser = {
         id: u.id,
         email: u.email,
-        name: u.full_name || options?.name || u.email.split('@')[0],
-        avatarUrl: u.profile_pic_url || options?.avatarUrl,
+        name: u.full_name || name || u.email.split('@')[0],
+        avatarUrl: u.profile_pic_url || avatarUrl,
         role: u.role ? u.role.toLowerCase() : 'buyer',
         token,
       };

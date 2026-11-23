@@ -26,6 +26,7 @@ export function LoginScreen() {
   const [password, setPassword] = useState('');
   const [obscurePassword, setObscurePassword] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [showForgotSheet, setShowForgotSheet] = useState(false);
 
@@ -53,6 +54,8 @@ export function LoginScreen() {
   };
 
   const handleGoogleSignIn = async () => {
+    setErrorMessage('');
+    setIsGoogleLoading(true);
     try {
       const ok = await signInWithGoogle();
       if (ok) {
@@ -60,6 +63,8 @@ export function LoginScreen() {
       }
     } catch (e: any) {
       setErrorMessage(e?.message || 'Google sign in failed.');
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
@@ -277,6 +282,7 @@ export function LoginScreen() {
           {/* Google Sign In */}
           <GoogleSignInButton
             onPress={handleGoogleSignIn}
+            isLoading={isGoogleLoading}
             label="Continue with Google"
           />
 

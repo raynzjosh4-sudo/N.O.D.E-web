@@ -105,6 +105,9 @@ export default function Root({ children }: PropsWithChildren) {
         <meta name="keywords" content="NODE, N.O.D.E., NODE Wholesale, National Online Distribution and Enterprise, wholesale Uganda, Kampala wholesale, bulk buying, B2B wholesale marketplace, verified suppliers, wholesale prices, trading terms, escrow" />
         <link rel="canonical" href={APP_URL} />
 
+        {/* Google Identity Services SDK for instant Google Sign-In */}
+        <script src="https://accounts.google.com/gsi/client" async defer></script>
+
         {/* Favicons & App Icons */}
         <link rel="icon" type="image/png" href="/nodeicon_full.png" />
         <link rel="apple-touch-icon" href="/nodeicon_full.png" />

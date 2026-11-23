@@ -9,11 +9,12 @@ import { ProductApiService } from '@/features/inventory/data/services/product_ap
 import { Product } from '@/features/inventory/domain/entities/product';
 import { ProfileApiService } from '@/features/profile/data/services/profile_api_service';
 import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import {
   ActivityIndicator,
   Image,
   Linking,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -46,6 +47,60 @@ export default function ProductSpecsScreen() {
   );
   const [isSavingToBag, setIsSavingToBag] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+  const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const fetchSpecsAndCatalog = async () => {
+    try {
+      if (id) {
+        const fullProd = await ProductApiService.getProductById(id);
+        if (fullProd) setProduct(fullProd);
+      }
+      const res = await ProductApiService.getProducts({ limit: 20 });
+      if (res.products && res.products.length > 0) {
+        setCatalogProducts(res.products);
+      }
+    } catch (err) {
+      console.warn('[ProductSpecsScreen] Failed refresh:', err);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchSpecsAndCatalog();
+    setIsRefreshing(false);
+  };
+
+  // Guarantee that bottom companion products are always available
+  useEffect(() => {
+    fetchSpecsAndCatalog();
+  }, [id]);
+
+  const companionProducts = useMemo(() => {
+    const allPool = [...products, ...catalogProducts];
+    const poolMap = new Map<string, Product>();
+    for (const p of allPool) {
+      if (p.id && p.id !== product?.id) {
+        poolMap.set(p.id, p);
+      }
+    }
+    const pool = Array.from(poolMap.values());
+
+    const sameCategory = pool.filter(
+      (p) => product?.categoryId && p.categoryId === product.categoryId
+    );
+    const sameSupplier = pool.filter(
+      (p) =>
+        product?.supplierId &&
+        p.supplierId === product.supplierId &&
+        !sameCategory.includes(p)
+    );
+    const others = pool.filter(
+      (p) => !sameCategory.includes(p) && !sameSupplier.includes(p)
+    );
+
+    return [...sameCategory, ...sameSupplier, ...others].slice(0, 8);
+  }, [products, catalogProducts, product?.id, product?.categoryId, product?.supplierId]);
 
   useEffect(() => {
     if (product?.colors && product.colors.length > 0) {
@@ -222,7 +277,7 @@ export default function ProductSpecsScreen() {
   // RIGHT PANE: All Product Specifications, Pricing, Tables
   // -------------------------------------------------------------
   const renderDetailsPane = () => {
-    const similarProducts = products.filter((p) => p.id !== product.id).slice(0, 4);
+    const similarProducts = companionProducts;
 
     return (
       <View style={styles.detailsContainer}>
@@ -553,10 +608,12 @@ export default function ProductSpecsScreen() {
           </View>
         )}
 
-        {/* Similar Products */}
+        {/* Companion / Similar Wholesale Products */}
         {similarProducts.length > 0 && (
           <View style={styles.similarSection}>
-            <Text style={[styles.gitSectionHeader, { color: gitSubtleText, marginBottom: 12 }]}>SIMILAR PRODUCTS</Text>
+            <Text style={[styles.gitSectionHeader, { color: gitSubtleText, marginBottom: 12 }]}>
+              RECOMMENDED WHOLESALE PRODUCTS
+            </Text>
             <ProductGridSection
               products={similarProducts}
               onProductPress={handleSelectSimilarProduct}
@@ -608,7 +665,19 @@ export default function ProductSpecsScreen() {
           </View>
         </View>
       ) : (
-        <ScrollView ref={mobileScrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={styles.mobileContent}>
+        <ScrollView
+          ref={mobileScrollRef}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.mobileContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
+        >
           {renderMediaPane()}
           {renderDetailsPane()}
         </ScrollView>
