@@ -28,7 +28,6 @@ import { CoachmarkProvider } from '@/core/coachmarks/coachmark_context';
 import { CoachmarkOverlay } from '@/core/coachmarks/coachmark_overlay';
 import { GoogleOneTapPrompt } from '@/features/auth/presentation/widgets/google_one_tap_prompt';
 import { WebUpdateReloader } from '@/core/widgets/web_update_reloader';
-import { FloatingRobotGuide } from '@/core/widgets/floating_robot_guide';
 import { setAuthTokenGetter } from '@/core/api/api_client';
 
 /**
@@ -162,7 +161,6 @@ export default function RootLayout() {
                 <NavigationStack />
                 <CoachmarkOverlay />
                 <WebUpdateReloader />
-                <FloatingRobotGuide />
                 <GoogleOneTapPrompt />
               </CoachmarkProvider>
             </ToastProvider>
