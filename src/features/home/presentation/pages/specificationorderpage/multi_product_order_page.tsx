@@ -149,7 +149,7 @@ export default function MultiProductOrderPage() {
         color: c.hexCode || '#1C1B1F',
       }));
     }
-    return [{ label: 'Standard / As Shown', color: '#1C1B1F' }];
+    return [];
   }, [currentProduct?.colors]);
 
   // Derive available sizes for current product
@@ -157,7 +157,7 @@ export default function MultiProductOrderPage() {
     if (currentProduct?.sizes && currentProduct.sizes.length > 0) {
       return currentProduct.sizes.map((s) => s.abbreviation || s.name);
     }
-    return ['Standard Unit'];
+    return [];
   }, [currentProduct?.sizes]);
 
   // Reset active state when changing product step
@@ -166,16 +166,18 @@ export default function MultiProductOrderPage() {
     const existing = productConfigs.get(currentProduct.id) || [];
     setCurrentGroups(existing);
     if (availableColors.length > 0) {
-      setActiveColor(availableColors[0]);
+      setActiveColor(null); // Wait for user to pick color like Dart
+    } else {
+      setActiveColor({ label: 'Standard / As Shown', color: '#1C1B1F' });
     }
     const initialQtys: Record<string, number> = {};
-    availableSizes.forEach((s) => (initialQtys[s] = 0));
-    // Default first size to MOQ or 1 if nothing configured yet
-    if (existing.length === 0 && availableSizes.length > 0) {
-      initialQtys[availableSizes[0]] = currentProduct.moq || 1;
+    if (availableSizes.length === 0) {
+      initialQtys['Standard Unit'] = currentProduct.moq || 1;
+    } else {
+      availableSizes.forEach((s) => (initialQtys[s] = 0));
     }
     setActiveSizeQtys(initialQtys);
-  }, [currentStepIndex, currentProduct?.id]);
+  }, [currentStepIndex, currentProduct?.id, availableColors.length, availableSizes.length]);
 
   const handleQtyChange = (size: string, delta: number) => {
     setActiveSizeQtys((prev) => {

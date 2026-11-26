@@ -68,9 +68,7 @@ export default function SpecsOrderPage() {
         color: c.hexCode || '#1C1B1F',
       }));
     }
-    return [
-      { label: 'Standard / As Shown', color: '#1C1B1F' },
-    ];
+    return [];
   }, [product?.colors]);
 
   // Dynamically derive the product's actual sizes from database
@@ -78,7 +76,7 @@ export default function SpecsOrderPage() {
     if (product?.sizes && product.sizes.length > 0) {
       return product.sizes.map((s) => s.abbreviation || s.name);
     }
-    return ['Standard Unit'];
+    return [];
   }, [product?.sizes]);
 
   // Confirmed color/size groupings
@@ -91,7 +89,7 @@ export default function SpecsOrderPage() {
   const [bulkDraftName, setBulkDraftName] = useState('');
 
   // Current builder selections
-  const [selectedColor, setSelectedColor] = useState<ColorVariant>(availableColors[0]);
+  const [selectedColor, setSelectedColor] = useState<ColorVariant | null>(null);
   // Map of active sizes -> quantity
   const [sizeQtys, setSizeQtys] = useState<Record<string, number>>({});
 
@@ -121,24 +119,32 @@ export default function SpecsOrderPage() {
     }
   }, [draftId]);
 
-  // Keep selectedColor in sync with dynamic product data
+  // Keep selectedColor in sync with dynamic product data:
+  // If product has no colors, default to Standard Unit color
   useEffect(() => {
     if (availableColors.length > 0) {
-      const stillValid = availableColors.some((c) => c.label === selectedColor?.label);
-      if (!stillValid) {
-        setSelectedColor(availableColors[0]);
+      if (!selectedColor || !availableColors.some((c) => c.label === selectedColor.label)) {
+        setSelectedColor(null); // User must tap a color first, just like Dart
       }
+    } else {
+      // Product has no colors defined -> use Standard / As Shown
+      setSelectedColor({ label: 'Standard / As Shown', color: '#1C1B1F' });
     }
   }, [availableColors]);
 
-  // Initialize first size into sizeQtys
+  // Keep sizeQtys empty initially until color & size are chosen (like Dart)
   useEffect(() => {
-    if (availableSizes.length > 0 && Object.keys(sizeQtys).length === 0) {
-      setSizeQtys({ [availableSizes[0]]: product?.moq || 1 });
+    if (availableSizes.length === 0 && selectedColor && Object.keys(sizeQtys).length === 0) {
+      // No explicit sizes in product -> single quantity row for the color
+      setSizeQtys({ 'Standard Unit': product?.moq || 1 });
     }
-  }, [availableSizes]);
+  }, [availableSizes, selectedColor, product?.moq]);
 
   const toggleSize = (size: string) => {
+    if (!selectedColor && availableColors.length > 0) {
+      showWarning('Select Color First', 'Please tap a color variant before selecting sizes.');
+      return;
+    }
     setSizeQtys((prev) => {
       const next = { ...prev };
       if (next[size] !== undefined) {
@@ -165,7 +171,7 @@ export default function SpecsOrderPage() {
   // Add currently selected color & sizes to the confirmed list
   const handleAddGroup = () => {
     if (!selectedColor) {
-      showWarning('Color Required', 'Please select a color variant.');
+      showWarning('Color Required', 'Please select a color variant first.');
       return;
     }
     const activeEntries = Object.entries(sizeQtys).filter(([_, q]) => q > 0);
@@ -201,7 +207,13 @@ export default function SpecsOrderPage() {
       }
     });
 
-    showSuccess('Added to Breakdown', `Added ${selectedColor.label} variants.`);
+    // Reset current builder selection so user can pick the next color, matching Dart!
+    if (availableColors.length > 0) {
+      setSelectedColor(null);
+    }
+    setSizeQtys({});
+
+    showSuccess('Added to Breakdown', `Added ${selectedColor.label} to order breakdown.`);
   };
 
   const handleRemoveGroup = (colorLabel: string) => {
@@ -233,6 +245,8 @@ export default function SpecsOrderPage() {
   );
 
   // Effective total units for this wholesale order:
+  // If the user has confirmed groups in their breakdown, order ONLY reflects the confirmed breakdown.
+  // Otherwise, if they configured in the active picker, they can add it directly.
   const totalUnits = confirmedUnits > 0 ? confirmedUnits : activePickerUnits;
 
   // Wholesale tiered pricing calculation based on totalUnits:
@@ -345,6 +359,18 @@ export default function SpecsOrderPage() {
         profile = {};
       }
 
+      const buyerPhone = profile.phone || (user as any).phone || (user as any).phoneNumber;
+      const buyerName = profile.legalBusinessName || profile.fullName || user.name || user.email?.split('@')[0];
+      const buyerAddress = profile.warehouseAddress;
+
+      // In Dart, identity & logistics are mandatory to ensure supplier can dispatch
+      if (!buyerPhone || buyerPhone.trim().length < 5) {
+        showWarning('Phone Number Required', 'Please provide a contact phone number in Profile so the supplier can coordinate wholesale delivery.');
+        router.push('/profile');
+        setIsSubmitting(false);
+        return;
+      }
+
       const orderId =
         'ORD-' +
         Date.now().toString(36).toUpperCase() +
@@ -357,15 +383,10 @@ export default function SpecsOrderPage() {
       const orderPayload = {
         order_id: orderId,
         supplier_id: product.supplierId || '1a47f0fe-3f4d-487f-95b5-1f7cfe27b7b7',
-        business_name:
-          profile.legalBusinessName ||
-          profile.fullName ||
-          user.name ||
-          user.email?.split('@')[0] ||
-          'Wholesale Buyer',
-        business_phone: profile.phone || (user as any).phone || (user as any).phoneNumber || '0700000000',
+        business_name: buyerName || 'Wholesale Buyer',
+        business_phone: buyerPhone,
         business_city: 'Kampala',
-        business_address: profile.warehouseAddress || 'Kampala Wholesale Hub, Uganda',
+        business_address: buyerAddress || 'Kampala Wholesale Hub, Uganda',
         total_amount: totalOrderAmount,
         entries_json: groupsToSubmit.map((g) => {
           const groupUnits = Object.values(g.sizeQtys).reduce((s, q) => s + q, 0);
@@ -589,143 +610,172 @@ export default function SpecsOrderPage() {
             {/* ── Left / Top: Configuration Controls (Flat, No Card Box) ── */}
             <View style={[styles.configColumn, { borderRightColor: isDesktop ? gitBorder : 'transparent' }]}>
               {/* 1. SELECT COLOUR YOU WANT (Dart 1:1 Parity) */}
-              <View style={[styles.sectionGroup, { borderBottomColor: gitBorder }]}>
-                <View style={styles.sectionHeaderRow}>
-                  <Text style={[styles.sectionTitle, { color: colors.onSurface }]}>SELECT COLOUR YOU WANT</Text>
-                  <Text style={[styles.sectionBadge, { color: colors.primary }]}>
-                    {availableColors.length} Option{availableColors.length !== 1 ? 's' : ''}
-                  </Text>
-                </View>
-                <Text style={[styles.sectionHelper, { color: gitSubtleText }]}>
-                  tap the color you want, then tap the sizes
-                </Text>
-
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.colorSwatchesRow}
-                >
-                  {availableColors.map((variant) => {
-                    const isSelected = selectedColor?.label === variant.label;
-                    return (
-                      <TouchableOpacity
-                        key={variant.label}
-                        activeOpacity={0.8}
-                        onPress={() => setSelectedColor(variant)}
-                        style={styles.swatchWrapper}
-                      >
-                        <View
-                          style={[
-                            styles.swatchCircle,
-                            { backgroundColor: variant.color },
-                            isSelected && {
-                              borderColor: colors.primary,
-                              borderWidth: 3,
-                              shadowColor: variant.color,
-                              shadowOpacity: 0.5,
-                              shadowRadius: 8,
-                            },
-                          ]}
-                        >
-                          {isSelected && (
-                            <MaterialIcon name="check" size={18} color="#FFFFFF" />
-                          )}
-                        </View>
-                        <Text
-                          style={[
-                            styles.swatchLabel,
-                            { color: isSelected ? colors.primary : gitSubtleText },
-                            isSelected && { fontWeight: '700' },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {variant.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-
-              {/* 2. SELECT SIZE / CARTON */}
-              <View style={[styles.sectionGroup, { borderBottomColor: gitBorder }]}>
-                <View style={styles.sectionHeaderRow}>
-                  <Text style={[styles.sectionTitle, { color: colors.onSurface }]}>SELECT SIZE / CARTON</Text>
-                  <Text style={[styles.sectionBadge, { color: colors.primary }]}>
-                    {availableSizes.length} Option{availableSizes.length !== 1 ? 's' : ''}
-                  </Text>
-                </View>
-
-                <View style={styles.sizesPillsWrap}>
-                  {availableSizes.map((size) => {
-                    const isActive = sizeQtys[size] !== undefined;
-                    return (
-                      <TouchableOpacity
-                        key={size}
-                        activeOpacity={0.75}
-                        onPress={() => toggleSize(size)}
-                        style={[
-                          styles.sizePill,
-                          { borderColor: isActive ? colors.primary : gitBorder },
-                          isActive
-                            ? { backgroundColor: colors.primary }
-                            : { backgroundColor: gitHeaderBg },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.sizePillText,
-                            { color: isActive ? '#FFFFFF' : colors.onSurface },
-                          ]}
-                        >
-                          {size}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-
-                {/* Quantities for selected sizes */}
-                {Object.keys(sizeQtys).length > 0 && (
-                  <View style={styles.qtysContainer}>
-                    <Text style={[styles.qtySectionHeader, { color: gitSubtleText }]}>
-                      QUANTITIES FOR {selectedColor?.label ? selectedColor.label.toUpperCase() : 'SELECTED COLOR'}
+              {availableColors.length > 0 && (
+                <View style={[styles.sectionGroup, { borderBottomColor: gitBorder }]}>
+                  <View style={styles.sectionHeaderRow}>
+                    <Text style={[styles.sectionTitle, { color: colors.onSurface }]}>SELECT COLOUR YOU WANT</Text>
+                    <Text style={[styles.sectionBadge, { color: colors.primary }]}>
+                      {availableColors.length} Option{availableColors.length !== 1 ? 's' : ''}
                     </Text>
-                    {Object.entries(sizeQtys).map(([sz, qty]) => (
-                      <View key={sz} style={[styles.qtyRow, { borderBottomColor: gitBorder }]}>
-                        <Text style={[styles.qtySizeName, { color: colors.onSurface }]}>{sz}</Text>
-                        <View style={styles.stepperContainer}>
-                          <TouchableOpacity
-                            activeOpacity={0.7}
-                            onPress={() => changeSizeQty(sz, -1)}
-                            style={[styles.stepperBtn, { borderColor: gitBorder, backgroundColor: gitHeaderBg }]}
-                          >
-                            <MaterialIcon name="remove" size={16} color={colors.onSurface} />
-                          </TouchableOpacity>
-                          <Text style={[styles.stepperNumber, { color: colors.onSurface }]}>{qty}</Text>
-                          <TouchableOpacity
-                            activeOpacity={0.7}
-                            onPress={() => changeSizeQty(sz, 1)}
-                            style={[styles.stepperBtn, { borderColor: gitBorder, backgroundColor: gitHeaderBg }]}
-                          >
-                            <MaterialIcon name="add" size={16} color={colors.onSurface} />
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    ))}
                   </View>
-                )}
+                  <Text style={[styles.sectionHelper, { color: gitSubtleText }]}>
+                    tap the color you want, then tap the sizes
+                  </Text>
 
-                {/* Add to Order Breakdown CTA */}
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  onPress={handleAddGroup}
-                  style={[styles.addGroupBtn, { backgroundColor: colors.primary }]}
-                >
-                  <MaterialIcon name="add_shopping_cart" size={18} color="#FFFFFF" />
-                  <Text style={styles.addGroupBtnText}>Add to Order Breakdown</Text>
-                </TouchableOpacity>
-              </View>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.colorSwatchesRow}
+                  >
+                    {availableColors.map((variant) => {
+                      const isSelected = selectedColor?.label === variant.label;
+                      const isAlreadyAdded = confirmedGroups.some((g) => g.color.label === variant.label);
+                      return (
+                        <TouchableOpacity
+                          key={variant.label}
+                          activeOpacity={0.8}
+                          onPress={() => {
+                            if (isSelected) {
+                              setSelectedColor(null);
+                              setSizeQtys({});
+                            } else {
+                              setSelectedColor(variant);
+                              setSizeQtys({});
+                            }
+                          }}
+                          style={styles.swatchWrapper}
+                        >
+                          <View
+                            style={[
+                              styles.swatchCircle,
+                              { backgroundColor: variant.color },
+                              isSelected && {
+                                borderColor: colors.primary,
+                                borderWidth: 3,
+                                shadowColor: variant.color,
+                                shadowOpacity: 0.5,
+                                shadowRadius: 8,
+                              },
+                            ]}
+                          >
+                            {isSelected ? (
+                              <MaterialIcon name="check" size={18} color="#FFFFFF" />
+                            ) : isAlreadyAdded ? (
+                              <MaterialIcon name="check_circle" size={14} color="rgba(255,255,255,0.7)" />
+                            ) : null}
+                          </View>
+                          <Text
+                            style={[
+                              styles.swatchLabel,
+                              { color: isSelected ? colors.primary : gitSubtleText },
+                              isSelected && { fontWeight: '700' },
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {variant.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              )}
+
+              {/* 2. SELECT SIZE / CARTON (Available when color is selected or no colors exist) */}
+              {(selectedColor || availableColors.length === 0) && (
+                <View style={[styles.sectionGroup, { borderBottomColor: gitBorder }]}>
+                  <View style={styles.sectionHeaderRow}>
+                    <Text style={[styles.sectionTitle, { color: colors.onSurface }]}>
+                      SELECT {availableSizes.length > 0 ? 'SIZE / CARTON' : 'QUANTITY'}
+                    </Text>
+                    {availableSizes.length > 0 && (
+                      <Text style={[styles.sectionBadge, { color: colors.primary }]}>
+                        {availableSizes.length} Option{availableSizes.length !== 1 ? 's' : ''}
+                      </Text>
+                    )}
+                  </View>
+
+                  {availableSizes.length > 0 ? (
+                    <View style={styles.sizesPillsWrap}>
+                      {availableSizes.map((size) => {
+                        const isActive = sizeQtys[size] !== undefined;
+                        return (
+                          <TouchableOpacity
+                            key={size}
+                            activeOpacity={0.75}
+                            onPress={() => toggleSize(size)}
+                            style={[
+                              styles.sizePill,
+                              { borderColor: isActive ? colors.primary : gitBorder },
+                              isActive
+                                ? { backgroundColor: colors.primary }
+                                : { backgroundColor: gitHeaderBg },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.sizePillText,
+                                { color: isActive ? '#FFFFFF' : colors.onSurface },
+                              ]}
+                            >
+                              {size}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  ) : null}
+
+                  {/* Quantities for selected sizes */}
+                  {Object.keys(sizeQtys).length > 0 ? (
+                    <View style={styles.qtysContainer}>
+                      <Text style={[styles.qtySectionHeader, { color: gitSubtleText }]}>
+                        QUANTITIES FOR {selectedColor?.label ? selectedColor.label.toUpperCase() : 'STANDARD UNIT'}
+                      </Text>
+                      {Object.entries(sizeQtys).map(([sz, qty]) => (
+                        <View key={sz} style={[styles.qtyRow, { borderBottomColor: gitBorder }]}>
+                          <Text style={[styles.qtySizeName, { color: colors.onSurface }]}>{sz}</Text>
+                          <View style={styles.stepperContainer}>
+                            <TouchableOpacity
+                              activeOpacity={0.7}
+                              onPress={() => changeSizeQty(sz, -1)}
+                              style={[styles.stepperBtn, { borderColor: gitBorder, backgroundColor: gitHeaderBg }]}
+                            >
+                              <MaterialIcon name="remove" size={16} color={colors.onSurface} />
+                            </TouchableOpacity>
+                            <Text style={[styles.stepperNumber, { color: colors.onSurface }]}>{qty}</Text>
+                            <TouchableOpacity
+                              activeOpacity={0.7}
+                              onPress={() => changeSizeQty(sz, 1)}
+                              style={[styles.stepperBtn, { borderColor: gitBorder, backgroundColor: gitHeaderBg }]}
+                            >
+                              <MaterialIcon name="add" size={16} color={colors.onSurface} />
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text style={{ fontSize: 12, color: gitSubtleText, marginTop: 8 }}>
+                      Tap one or more sizes above to specify quantities.
+                    </Text>
+                  )}
+
+                  {/* Add to Order Breakdown CTA */}
+                  {Object.keys(sizeQtys).length > 0 && (
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      onPress={handleAddGroup}
+                      style={[styles.addGroupBtn, { backgroundColor: colors.primary }]}
+                    >
+                      <MaterialIcon name="add_shopping_cart" size={18} color="#FFFFFF" />
+                      <Text style={styles.addGroupBtnText}>
+                        Add {selectedColor?.label ? `"${selectedColor.label}"` : 'Items'} to Order Breakdown
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
             </View>
 
             {/* ── Right / Bottom: Order Breakdown (Flat Git-style, No Box) ── */}

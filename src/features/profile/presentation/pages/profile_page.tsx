@@ -12,7 +12,9 @@ import {
   Image,
   useWindowDimensions,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
+import { API_CONFIG } from '@/core/api/api_config';
 import { useAppNavigation } from '@/core/utils/use_app_navigation';
 import { AppColors } from '@/core/theme/app_theme';
 import { useAppTheme } from '@/core/theme/theme_context';
@@ -213,10 +215,33 @@ export function ProfilePage() {
     }
   };
 
-  const handleOpenPdf = (doc: PdfDocumentItem) => {
-    showInfo('Document Downloading', `${doc.title} (${doc.fileSize}) is being downloaded.`);
-    if (doc.downloadUrl && Platform.OS === 'web') {
-      window.open(doc.downloadUrl, '_blank');
+  const handleOpenPdf = async (doc: any) => {
+    const rawUrl = doc.downloadUrl || (doc.orderId ? `/orders/${doc.orderId}/pdf` : (doc.id ? `/orders/${doc.id}/pdf` : ''));
+    if (!rawUrl) {
+      showToast({
+        title: 'Document Unavailable',
+        message: 'No PDF download link available for this record.',
+        status: 'warning',
+      });
+      return;
+    }
+
+    const fullUrl = rawUrl.startsWith('http')
+      ? rawUrl
+      : `${API_CONFIG.BASE_URL}${API_CONFIG.API_PREFIX}${rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`}`;
+
+    showInfo('Document Downloading', `${doc.title || 'Order Spec Sheet'} is opening...`);
+
+    if (Platform.OS === 'web') {
+      window.open(fullUrl, '_blank');
+    } else {
+      Linking.openURL(fullUrl).catch(() => {
+        showToast({
+          title: 'Open Failed',
+          message: 'Could not open PDF viewer on your device.',
+          status: 'error',
+        });
+      });
     }
   };
 
