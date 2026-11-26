@@ -197,13 +197,16 @@ export class ProfileApiService {
           moqText: `${snap.moq || 1} min order`,
         };
 
+      const matchedColor = (snap.colors || product.colors || []).find(
+        (c: any) => (c.name || '').toLowerCase() === (item.selected_color || '').toLowerCase()
+      );
       return {
         id: item.id,
         product,
         quantity: item.quantity || 1,
         selectedColor: {
           label: item.selected_color || 'Standard',
-          color: '#333333',
+          color: snap.selectedColorHex || matchedColor?.hexCode || '#333333',
         },
         selectedSize: item.selected_size || 'Default',
         addedAt: item.created_at || new Date().toISOString(),

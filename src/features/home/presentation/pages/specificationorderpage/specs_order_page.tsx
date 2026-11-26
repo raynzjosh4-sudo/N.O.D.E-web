@@ -21,10 +21,8 @@ import {
   TouchableOpacity,
   useWindowDimensions,
   View,
-  Platform,
-  Linking,
 } from 'react-native';
-import { API_CONFIG } from '@/core/api/api_config';
+import { buildSpecSheetPayload, makeAndOpenSpecSheetPdf } from '@/core/utils/pdf_spec_sheet';
 import {
   ColorGroup,
   ColorVariant,
@@ -96,7 +94,7 @@ export default function SpecsOrderPage() {
 
   // Restore saved draft if draftId was provided
   useEffect(() => {
-    if (draftId) {
+    if (draftId && isAuthenticated) {
       ProfileApiService.getDraftOrders().then((drafts) => {
         const found = drafts.find((d) => d.id === draftId);
         if (found) {
@@ -265,22 +263,41 @@ export default function SpecsOrderPage() {
   const moq = product?.moq || 1;
   const meetsMoq = totalUnits >= moq;
 
-  // Save to user's saved wishlist / bulk bag with real selected colors
+  // Save to user's saved wishlist / bulk bag with ALL selected colors
   const handleSaveToBag = async () => {
-    let groupsToSave = [...confirmedGroups];
-    if (groupsToSave.length === 0 && selectedColor) {
+    if (!isAuthenticated || !user) {
+      showWarning('Sign In Required', 'Please log in to save items to your bag.');
+      router.push('/login');
+      return;
+    }
+
+    // Merge confirmed breakdown groups AND any active unsaved color/size selection
+    const mergedMap = new Map<string, ColorGroup>();
+    confirmedGroups.forEach((g) => {
+      mergedMap.set(g.color.label, { color: g.color, sizeQtys: { ...g.sizeQtys } });
+    });
+    if (selectedColor) {
       const activeEntries = Object.entries(sizeQtys).filter(([_, q]) => q > 0);
       if (activeEntries.length > 0) {
-        const mapped: Record<string, number> = {};
-        activeEntries.forEach(([sz, q]) => (mapped[sz] = q));
-        groupsToSave = [{ color: selectedColor, sizeQtys: mapped }];
+        const existing = mergedMap.get(selectedColor.label);
+        const combinedQtys = existing ? { ...existing.sizeQtys } : {};
+        activeEntries.forEach(([sz, q]) => {
+          combinedQtys[sz] = (combinedQtys[sz] || 0) + q;
+        });
+        mergedMap.set(selectedColor.label, { color: selectedColor, sizeQtys: combinedQtys });
       }
     }
+    const groupsToSave = Array.from(mergedMap.values());
 
     if (groupsToSave.length === 0 || !product) {
       showWarning('Configuration Needed', 'Select at least one color/size with quantity > 0.');
       return;
     }
+    const savedUnitsCount = groupsToSave.reduce(
+      (acc, g) => acc + Object.values(g.sizeQtys).reduce((s, q) => s + q, 0),
+      0
+    );
+    const effectiveUnitPrice = getWholesaleUnitPrice(product, savedUnitsCount);
     try {
       for (const group of groupsToSave) {
         for (const [size, qty] of Object.entries(group.sizeQtys)) {
@@ -293,7 +310,7 @@ export default function SpecsOrderPage() {
               {
                 id: product.id,
                 name: product.name,
-                srp: currentUnitPrice,
+                srp: effectiveUnitPrice,
                 brand: product.brand,
                 imageUrl: product.imageUrl,
                 warehouseLoc: product.warehouseLoc,
@@ -301,12 +318,13 @@ export default function SpecsOrderPage() {
                 colors: product.colors,
                 sizes: product.sizes,
                 moq: product.moq,
+                selectedColorHex: group.color.color,
               }
             );
           }
         }
       }
-      showSuccess('Saved to Bag', `Saved ${totalUnits} units of ${product.name} to your bulk order bag.`);
+      showSuccess('Saved to Bag', `Saved ${savedUnitsCount} units of ${product.name} (${groupsToSave.length} color${groupsToSave.length > 1 ? 's' : ''}) to your bag.`);
     } catch (e: any) {
       showError('Save Failed', e?.message || 'Could not save items to bag.');
     }
@@ -429,6 +447,11 @@ export default function SpecsOrderPage() {
 
   // Open Name Prompt or Save Bulk Draft
   const handleSaveDraftClick = () => {
+    if (!isAuthenticated || !user) {
+      showWarning('Sign In Required', 'Please log in to save wholesale drafts.');
+      router.push('/login');
+      return;
+    }
     if (confirmedGroups.length === 0 || !product || isSavingDraft) return;
     if (!bulkDraftName) {
       setBulkDraftName(`${product.name} Bulk Order`);
@@ -488,7 +511,7 @@ export default function SpecsOrderPage() {
     }
   };
 
-  // Instant Make / Download PDF Spec Sheet (Matching Dart _handleDownloadPdf)
+  // Instant Make / Download PDF Spec Sheet (Works both authenticated and unauthenticated)
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const handleDownloadPdf = async () => {
     if (totalUnits === 0 || !product || isGeneratingPdf) {
@@ -501,10 +524,12 @@ export default function SpecsOrderPage() {
 
     try {
       let profile: any = {};
-      try {
-        profile = await ProfileApiService.getProfile();
-      } catch {
-        profile = {};
+      if (isAuthenticated && user) {
+        try {
+          profile = await ProfileApiService.getProfile();
+        } catch {
+          profile = {};
+        }
       }
 
       let groupsToPrint = [...confirmedGroups];
@@ -517,53 +542,26 @@ export default function SpecsOrderPage() {
         }
       }
 
-      const tempOrderId = 'SPEC-' + Date.now().toString(36).toUpperCase();
-      const draftPayload = {
-        order_id: tempOrderId,
+      const payload = buildSpecSheetPayload({
         title: `Spec Sheet - ${product.name}`,
-        supplier_id: product.supplierId || '',
-        business_name: profile.legalBusinessName || profile.fullName || user?.name || 'Wholesale Buyer',
-        business_phone: profile.phone || (user as any)?.phone || '0700000000',
-        business_city: 'Kampala',
-        business_address: profile.warehouseAddress || 'Kampala Wholesale Hub, Uganda',
-        total_amount: subtotal,
-        status: 'draft',
-        entries_json: groupsToPrint.map((g) => ({
-          name: product.name,
-          product_id: product.id,
-          product: {
-            id: product.id,
-            name: product.name,
-            brand: product.brand,
-            sku: product.sku,
-            srp: product.srp,
-            imageUrl: product.imageUrl,
-            price_tiers: product.priceTiers,
-            moq: product.moq,
+        items: [
+          {
+            product,
+            groups: groupsToPrint,
+            unitPrice: currentUnitPrice,
           },
-          imageUrl: product.imageUrl,
-          image_url: product.imageUrl,
-          color: g.color.label,
-          colorHex: g.color.color,
-          size_quantities: g.sizeQtys,
-          unit_price: currentUnitPrice,
-          total_units: Object.values(g.sizeQtys).reduce((s, q) => s + q, 0),
-          subtotal: Object.values(g.sizeQtys).reduce((s, q) => s + q, 0) * currentUnitPrice,
-        })),
-      };
+        ],
+        buyerProfile: {
+          fullName: profile.fullName || user?.name,
+          legalBusinessName: profile.legalBusinessName || user?.legalBusinessName,
+          email: profile.email || user?.email,
+          phone: profile.phone || (user as any)?.phone,
+          warehouseAddress: profile.warehouseAddress,
+        },
+        isAuthenticated: Boolean(isAuthenticated && user),
+      });
 
-      // Save as draft so backend can compile official PDF
-      await ProfileApiService.saveDraftOrder(draftPayload);
-
-      // Open streamable PDF endpoint
-      const pdfUrl = `${API_CONFIG.BASE_URL}${API_CONFIG.API_PREFIX}/orders/${tempOrderId}/pdf`;
-      if (Platform.OS === 'web') {
-        window.open(pdfUrl, '_blank');
-      } else {
-        Linking.openURL(pdfUrl).catch(() => {
-          showError('PDF Error', 'Could not open PDF viewer on your device.');
-        });
-      }
+      await makeAndOpenSpecSheetPdf(payload);
       showSuccess('PDF Ready', 'Official order spec sheet generated!');
     } catch (err: any) {
       showError('PDF Generation Failed', err?.message || 'Could not compile PDF spec sheet.');

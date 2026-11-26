@@ -40,6 +40,7 @@ export const API_ENDPOINTS = {
     DETAIL: (id: string) => `/orders/${id}`,
     UPDATE_STATUS: (id: string) => `/orders/${id}/status`,
     PDF: (orderId: string) => `/orders/${orderId}/pdf`,
+    PDF_PREVIEW: '/orders/pdf/preview',
     DRAFTS: '/orders/drafts',
     DRAFT_BY_ID: (id: string) => `/orders/drafts/${id}`,
     SUPPLIER_INCOMING: '/orders/supplier/incoming',

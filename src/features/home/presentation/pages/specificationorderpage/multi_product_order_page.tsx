@@ -23,6 +23,7 @@ import { Product } from '@/features/inventory/domain/entities/product';
 import { getWholesaleUnitPrice } from '@/features/inventory/utils/wholesale_pricing';
 import { useAuth } from '@/features/auth/context/auth_context';
 import { useProducts } from '@/features/inventory/context/products_context';
+import { buildSpecSheetPayload, makeAndOpenSpecSheetPdf } from '@/core/utils/pdf_spec_sheet';
 import {
   ColorVariant,
   ColorGroup,
@@ -30,6 +31,7 @@ import {
 
 export default function MultiProductOrderPage() {
   const router = useAppNavigation();
+  const { user, isAuthenticated } = useAuth();
   const { showSuccess, showError, showWarning } = useToast();
   const { ids, draftId } = useLocalSearchParams<{ ids?: string; draftId?: string }>();
   const { width } = useWindowDimensions();
@@ -61,6 +63,7 @@ export default function MultiProductOrderPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   // Load products based on IDs passed
   useEffect(() => {
@@ -110,7 +113,7 @@ export default function MultiProductOrderPage() {
 
   // Restore draft if draftId is supplied
   useEffect(() => {
-    if (draftId) {
+    if (draftId && isAuthenticated) {
       ProfileApiService.getDraftOrders().then((drafts) => {
         const found = drafts.find((d) => d.id === draftId);
         if (found) {
@@ -295,6 +298,11 @@ export default function MultiProductOrderPage() {
 
   // Trigger Save Draft prompt
   const handleSaveDraftClick = () => {
+    if (!isAuthenticated || !user) {
+      showWarning('Sign In Required', 'Please log in to save bulk drafts.');
+      router.push('/login');
+      return;
+    }
     if (grandTotalUnits === 0) {
       showWarning('No Items', 'Configure items before saving as a draft.');
       return;
@@ -306,6 +314,52 @@ export default function MultiProductOrderPage() {
       setBulkDraftName(defaultName);
     }
     setShowNamingModal(true);
+  };
+
+  // Generate instant PDF Spec Sheet (works authenticated & unauthenticated)
+  const handleDownloadPdf = async () => {
+    if (grandTotalUnits === 0 || isGeneratingPdf) {
+      showWarning('Selection Needed', 'Configure items before generating a PDF spec sheet.');
+      return;
+    }
+
+    setIsGeneratingPdf(true);
+    showSuccess('Architecting PDF', 'Compiling consolidated wholesale spec sheet...');
+
+    try {
+      let profile: any = {};
+      if (isAuthenticated && user) {
+        try {
+          profile = await ProfileApiService.getProfile();
+        } catch {
+          profile = {};
+        }
+      }
+
+      const payload = buildSpecSheetPayload({
+        title: `Bulk Spec Sheet (${summaryItems.length} Products)`,
+        items: summaryItems.map((item) => ({
+          product: item.product,
+          groups: item.groups,
+          unitPrice: item.unitPrice,
+        })),
+        buyerProfile: {
+          fullName: profile.fullName || user?.name,
+          legalBusinessName: profile.legalBusinessName || user?.legalBusinessName,
+          email: profile.email || user?.email,
+          phone: profile.phone,
+          warehouseAddress: profile.warehouseAddress,
+        },
+        isAuthenticated: Boolean(isAuthenticated && user),
+      });
+
+      await makeAndOpenSpecSheetPdf(payload);
+      showSuccess('PDF Ready', 'Consolidated order spec sheet generated!');
+    } catch (err: any) {
+      showError('PDF Generation Failed', err?.message || 'Could not compile PDF spec sheet.');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   // Save Consolidated Draft with custom name
@@ -367,6 +421,11 @@ export default function MultiProductOrderPage() {
 
   // Submit Consolidated Wholesale Order
   const handleConfirmOrder = async () => {
+    if (!isAuthenticated || !user) {
+      showWarning('Sign In Required', 'Please log in to submit consolidated wholesale orders.');
+      router.push('/login');
+      return;
+    }
     if (isSubmitting || grandTotalUnits === 0) return;
     setIsSubmitting(true);
 
@@ -554,6 +613,18 @@ export default function MultiProductOrderPage() {
 
           {/* Action CTAs */}
           <View style={styles.actionRow}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={[styles.saveDraftBtn, { borderColor: gitBorder, backgroundColor: gitHeaderBg }]}
+              onPress={handleDownloadPdf}
+              disabled={isGeneratingPdf || isSavingDraft || isSubmitting}
+            >
+              <MaterialIcon name="picture_as_pdf" size={18} color="#E53935" />
+              <Text style={[styles.saveDraftText, { color: colors.onSurface }]}>
+                {isGeneratingPdf ? 'Making...' : 'Make PDF'}
+              </Text>
+            </TouchableOpacity>
+
             <TouchableOpacity
               activeOpacity={0.8}
               style={[styles.saveDraftBtn, { borderColor: gitBorder, backgroundColor: gitHeaderBg }]}

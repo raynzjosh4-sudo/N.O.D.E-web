@@ -12,9 +12,8 @@ import {
   Image,
   useWindowDimensions,
   ActivityIndicator,
-  Linking,
 } from 'react-native';
-import { API_CONFIG } from '@/core/api/api_config';
+import { fetchAuthorizedPdfAndOpen } from '@/core/utils/pdf_spec_sheet';
 import { useAppNavigation } from '@/core/utils/use_app_navigation';
 import { AppColors } from '@/core/theme/app_theme';
 import { useAppTheme } from '@/core/theme/theme_context';
@@ -216,7 +215,8 @@ export function ProfilePage() {
   };
 
   const handleOpenPdf = async (doc: any) => {
-    const rawUrl = doc.downloadUrl || (doc.orderId ? `/orders/${doc.orderId}/pdf` : (doc.id ? `/orders/${doc.id}/pdf` : ''));
+    const orderId = doc.orderNumber || doc.orderId || doc.id;
+    const rawUrl = doc.downloadUrl || (orderId ? `/orders/${orderId}/pdf` : '');
     if (!rawUrl) {
       showToast({
         title: 'Document Unavailable',
@@ -226,21 +226,30 @@ export function ProfilePage() {
       return;
     }
 
-    const fullUrl = rawUrl.startsWith('http')
-      ? rawUrl
-      : `${API_CONFIG.BASE_URL}${API_CONFIG.API_PREFIX}${rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`}`;
+    const token = getToken();
+    if (!token && !rawUrl.startsWith('http')) {
+      showToast({
+        title: 'Sign In Required',
+        message: 'Please log in to access your official order invoices.',
+        status: 'warning',
+      });
+      return;
+    }
 
     showInfo('Document Downloading', `${doc.title || 'Order Spec Sheet'} is opening...`);
 
-    if (Platform.OS === 'web') {
-      window.open(fullUrl, '_blank');
-    } else {
-      Linking.openURL(fullUrl).catch(() => {
-        showToast({
-          title: 'Open Failed',
-          message: 'Could not open PDF viewer on your device.',
-          status: 'error',
-        });
+    try {
+      await fetchAuthorizedPdfAndOpen({
+        rawUrl,
+        token,
+        filename: `NODE_Order_${orderId || 'document'}.pdf`,
+        title: doc.title || 'N.O.D.E. Order Invoice',
+      });
+    } catch (err: any) {
+      showToast({
+        title: 'Open Failed',
+        message: err?.message || 'Could not open PDF viewer on your device.',
+        status: 'error',
       });
     }
   };
