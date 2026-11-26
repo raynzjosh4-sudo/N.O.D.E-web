@@ -20,8 +20,11 @@ import {
   TextInput,
   TouchableOpacity,
   useWindowDimensions,
-  View
+  View,
+  Platform,
+  Linking,
 } from 'react-native';
+import { API_CONFIG } from '@/core/api/api_config';
 import {
   ColorGroup,
   ColorVariant,
@@ -485,6 +488,90 @@ export default function SpecsOrderPage() {
     }
   };
 
+  // Instant Make / Download PDF Spec Sheet (Matching Dart _handleDownloadPdf)
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const handleDownloadPdf = async () => {
+    if (totalUnits === 0 || !product || isGeneratingPdf) {
+      showWarning('Selection Needed', 'Please add at least one color/size variant before generating a PDF spec sheet.');
+      return;
+    }
+
+    setIsGeneratingPdf(true);
+    showSuccess('Architecting PDF', 'Compiling official wholesale spec sheet...');
+
+    try {
+      let profile: any = {};
+      try {
+        profile = await ProfileApiService.getProfile();
+      } catch {
+        profile = {};
+      }
+
+      let groupsToPrint = [...confirmedGroups];
+      if (groupsToPrint.length === 0 && selectedColor) {
+        const activeEntries = Object.entries(sizeQtys).filter(([_, q]) => q > 0);
+        if (activeEntries.length > 0) {
+          const mapped: Record<string, number> = {};
+          activeEntries.forEach(([sz, q]) => (mapped[sz] = q));
+          groupsToPrint = [{ color: selectedColor, sizeQtys: mapped }];
+        }
+      }
+
+      const tempOrderId = 'SPEC-' + Date.now().toString(36).toUpperCase();
+      const draftPayload = {
+        order_id: tempOrderId,
+        title: `Spec Sheet - ${product.name}`,
+        supplier_id: product.supplierId || '',
+        business_name: profile.legalBusinessName || profile.fullName || user?.name || 'Wholesale Buyer',
+        business_phone: profile.phone || (user as any)?.phone || '0700000000',
+        business_city: 'Kampala',
+        business_address: profile.warehouseAddress || 'Kampala Wholesale Hub, Uganda',
+        total_amount: subtotal,
+        status: 'draft',
+        entries_json: groupsToPrint.map((g) => ({
+          name: product.name,
+          product_id: product.id,
+          product: {
+            id: product.id,
+            name: product.name,
+            brand: product.brand,
+            sku: product.sku,
+            srp: product.srp,
+            imageUrl: product.imageUrl,
+            price_tiers: product.priceTiers,
+            moq: product.moq,
+          },
+          imageUrl: product.imageUrl,
+          image_url: product.imageUrl,
+          color: g.color.label,
+          colorHex: g.color.color,
+          size_quantities: g.sizeQtys,
+          unit_price: currentUnitPrice,
+          total_units: Object.values(g.sizeQtys).reduce((s, q) => s + q, 0),
+          subtotal: Object.values(g.sizeQtys).reduce((s, q) => s + q, 0) * currentUnitPrice,
+        })),
+      };
+
+      // Save as draft so backend can compile official PDF
+      await ProfileApiService.saveDraftOrder(draftPayload);
+
+      // Open streamable PDF endpoint
+      const pdfUrl = `${API_CONFIG.BASE_URL}${API_CONFIG.API_PREFIX}/orders/${tempOrderId}/pdf`;
+      if (Platform.OS === 'web') {
+        window.open(pdfUrl, '_blank');
+      } else {
+        Linking.openURL(pdfUrl).catch(() => {
+          showError('PDF Error', 'Could not open PDF viewer on your device.');
+        });
+      }
+      showSuccess('PDF Ready', 'Official order spec sheet generated!');
+    } catch (err: any) {
+      showError('PDF Generation Failed', err?.message || 'Could not compile PDF spec sheet.');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
   if (!product) {
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>
@@ -785,16 +872,31 @@ export default function SpecsOrderPage() {
             {/* ── Right / Bottom: Order Breakdown (Flat Git-style, No Box) ── */}
             <View style={[styles.breakdownColumn, isDesktop && styles.desktopBreakdownColumn]}>
               <View style={[styles.breakdownHeader, { borderBottomColor: gitBorder }]}>
-                <Text style={[styles.breakdownTitle, { color: colors.onSurface }]}>
-                  ORDER SUMMARY ({totalUnits} UNITS)
-                </Text>
-                {totalUnits > 0 && (
-                  <View style={{ backgroundColor: meetsMoq ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
-                    <Text style={{ color: meetsMoq ? '#10B981' : '#EF4444', fontSize: 10.5, fontFamily: 'Outfit_700Bold' }}>
-                      {meetsMoq ? 'MOQ MET ✓' : `NEEDS ${moq - totalUnits} MORE`}
-                    </Text>
-                  </View>
-                )}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <Text style={[styles.breakdownTitle, { color: colors.onSurface }]}>
+                    ORDER SUMMARY ({totalUnits} UNITS)
+                  </Text>
+                  {totalUnits > 0 && (
+                    <View style={{ backgroundColor: meetsMoq ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
+                      <Text style={{ color: meetsMoq ? '#10B981' : '#EF4444', fontSize: 10.5, fontFamily: 'Outfit_700Bold' }}>
+                        {meetsMoq ? 'MOQ MET ✓' : `NEEDS ${moq - totalUnits} MORE`}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Make PDF / Download PDF Action (1:1 with Dart SpecsOrderSummaryHeader) */}
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={handleDownloadPdf}
+                  disabled={isGeneratingPdf}
+                  style={styles.downloadPdfHeaderBtn}
+                >
+                  <MaterialIcon name="picture_as_pdf" size={15} color="#E53935" />
+                  <Text style={[styles.downloadPdfHeaderText, { color: colors.primary }]}>
+                    {isGeneratingPdf ? 'Compiling...' : 'Make PDF'}
+                  </Text>
+                </TouchableOpacity>
               </View>
 
               <View style={styles.groupsContainer}>
@@ -889,6 +991,18 @@ export default function SpecsOrderPage() {
 
                 {/* Actions: Save Draft & Place Order */}
                 <View style={styles.actionsRow}>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={handleDownloadPdf}
+                    disabled={isGeneratingPdf}
+                    style={[styles.outlineActionBtn, { borderColor: gitBorder, backgroundColor: gitHeaderBg }]}
+                  >
+                    <MaterialIcon name="picture_as_pdf" size={16} color="#E53935" />
+                    <Text style={[styles.outlineActionText, { color: colors.onSurface }]}>
+                      {isGeneratingPdf ? 'Making...' : 'Make PDF'}
+                    </Text>
+                  </TouchableOpacity>
+
                   <TouchableOpacity
                     activeOpacity={0.8}
                     onPress={handleSaveToBag}
@@ -1198,9 +1312,27 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_700Bold',
   },
   breakdownHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 18,
     borderBottomWidth: 1,
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  downloadPdfHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: 'rgba(229, 57, 53, 0.08)',
+  },
+  downloadPdfHeaderText: {
+    fontSize: 12,
+    fontFamily: 'Outfit_700Bold',
   },
   breakdownTitle: {
     fontSize: 13,
