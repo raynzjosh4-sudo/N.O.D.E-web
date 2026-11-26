@@ -69,7 +69,16 @@ export default function SpecsOrderPage() {
     return [];
   }, [product?.colors]);
 
+  // Dynamically derive the product's actual sizes from database
+  const availableSizes: string[] = useMemo(() => {
+    if (product?.sizes && product.sizes.length > 0) {
+      return product.sizes.map((s) => s.abbreviation || s.name);
+    }
+    return [];
+  }, [product?.sizes]);
 
+  // Confirmed color/size groupings
+  const [confirmedGroups, setConfirmedGroups] = useState<ColorGroup[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
 
