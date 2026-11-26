@@ -23,6 +23,7 @@ import {
   View,
 } from 'react-native';
 import { buildSpecSheetPayload, makeAndOpenSpecSheetPdf } from '@/core/utils/pdf_spec_sheet';
+import { saveGuestDraft } from '@/core/utils/guest_drafts';
 import {
   ColorGroup,
   ColorVariant,
@@ -445,14 +446,12 @@ export default function SpecsOrderPage() {
     }
   };
 
-  // Open Name Prompt or Save Bulk Draft
+  // Open Name Prompt or Save Bulk Draft (Works for authenticated AND guest users!)
   const handleSaveDraftClick = () => {
-    if (!isAuthenticated || !user) {
-      showWarning('Sign In Required', 'Please log in to save wholesale drafts.');
-      router.push('/login');
+    if (confirmedGroups.length === 0 || !product || isSavingDraft) {
+      showWarning('Selection Needed', 'Please configure at least one color/size variant before saving for bulk.');
       return;
     }
-    if (confirmedGroups.length === 0 || !product || isSavingDraft) return;
     if (!bulkDraftName) {
       setBulkDraftName(`${product.name} Bulk Order`);
     }
@@ -467,10 +466,12 @@ export default function SpecsOrderPage() {
 
     try {
       let profile: { legalBusinessName?: string; fullName?: string; phone?: string; warehouseAddress?: string } = {};
-      try {
-        profile = await ProfileApiService.getProfile();
-      } catch {
-        profile = {};
+      if (isAuthenticated) {
+        try {
+          profile = await ProfileApiService.getProfile();
+        } catch {
+          profile = {};
+        }
       }
 
       const draftIdGenerated = draftId || ('DRAFT-' + Date.now().toString(36).toUpperCase());
@@ -480,10 +481,10 @@ export default function SpecsOrderPage() {
         title: finalName,
         name: finalName,
         supplier_id: product.supplierId || '',
-        business_name: profile.legalBusinessName || profile.fullName || '',
-        business_phone: profile.phone || '',
+        business_name: profile.legalBusinessName || profile.fullName || (isAuthenticated ? 'Wholesale Account' : 'Guest Wholesale Buyer'),
+        business_phone: profile.phone || (isAuthenticated ? '' : 'Guest Inquiry'),
         business_city: 'Kampala',
-        business_address: profile.warehouseAddress || '',
+        business_address: profile.warehouseAddress || 'Kampala Wholesale Hub',
         total_amount: subtotal,
         status: 'draft',
         entries_json: confirmedGroups.map((g) => ({
@@ -499,11 +500,16 @@ export default function SpecsOrderPage() {
         })),
       };
 
-      await ProfileApiService.saveDraftOrder(draftPayload);
-      showSuccess('Draft Saved', `"${finalName}" is now available in your Drafts tab.`);
-      setTimeout(() => {
-        router.push('/profile');
-      }, 1200);
+      if (isAuthenticated) {
+        await ProfileApiService.saveDraftOrder(draftPayload);
+        showSuccess('Draft Saved', `"${finalName}" is now available in your Drafts tab.`);
+        setTimeout(() => {
+          router.push('/profile');
+        }, 1200);
+      } else {
+        await saveGuestDraft(draftPayload);
+        showSuccess('Saved for Bulk', `"${finalName}" saved to your local bulk drafts! You can make a PDF or submit anytime.`);
+      }
     } catch (err: any) {
       showError('Save Draft Failed', err?.message || 'Could not save draft order.');
     } finally {
@@ -987,6 +993,22 @@ export default function SpecsOrderPage() {
                   </View>
                 </View>
 
+                {/* Multi-Product Bulk Order Navigation Button */}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={[styles.addBulkProductsBtn, { borderColor: '#00BFFF', backgroundColor: isDark ? 'rgba(0, 191, 255, 0.12)' : 'rgba(0, 191, 255, 0.08)' }]}
+                  onPress={() => {
+                    if (product) {
+                      router.push(`/product/multi-order?ids=${product.id}`);
+                    }
+                  }}
+                >
+                  <MaterialIcon name="library_add" size={16} color="#00BFFF" />
+                  <Text style={styles.addBulkProductsBtnText}>
+                    + Add More Products to this Order (Multi-Product Bulk)
+                  </Text>
+                </TouchableOpacity>
+
                 {/* Actions: Save Draft & Place Order */}
                 <View style={styles.actionsRow}>
                   <TouchableOpacity
@@ -1463,6 +1485,23 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13,
     fontFamily: 'Outfit_700Bold',
+  },
+  addBulkProductsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 12,
+    marginBottom: 10,
+  },
+  addBulkProductsBtnText: {
+    fontSize: 12.5,
+    fontFamily: 'Outfit_700Bold',
+    color: '#00BFFF',
   },
   modalOverlay: {
     flex: 1,

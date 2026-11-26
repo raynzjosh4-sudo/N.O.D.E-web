@@ -16,6 +16,7 @@ export interface SpecSheetOrderEntry {
     price_tiers?: { minQuantity: number; price: number }[];
     moq?: number;
     supplierName?: string;
+    supplierPhone?: string;
     warehouseLoc?: string;
     stockQuantity?: number;
   };
@@ -117,6 +118,7 @@ export function buildSpecSheetPayload(params: {
           price_tiers: item.product.priceTiers,
           moq: item.product.moq,
           supplierName: item.product.supplierName,
+          supplierPhone: (item.product as any).supplierPhone || (item.product as any).phone || '+256 700 000 000',
           warehouseLoc: item.product.warehouseLoc,
           stockQuantity: item.product.stockQuantity,
         },
@@ -288,10 +290,18 @@ export function generateSpecSheetPdfBytes(payload: SpecSheetPayload): Uint8Array
 
   // 1. Dark Executive Header Banner
   drawRect(MARGIN, topY, CONTENT_W, 56, '#0D0D1A');
-  drawRect(MARGIN + 14, topY + 18, 20, 20, '#00BFFF');
-  drawText('N', MARGIN + 14, topY + 33, 13, { bold: true, color: '#0D0D1A', align: 'center', boxWidth: 20 });
-  drawText('N.O.D.E.', MARGIN + 44, topY + 26, 17, { bold: true, color: '#FFFFFF' });
-  drawText('NATIONAL ORDER & DISTRIBUTION EXCHANGE', MARGIN + 44, topY + 40, 7, { bold: true, color: '#8B949E' });
+  // Precision Brand Icon Mark
+  drawRect(MARGIN + 12, topY + 14, 28, 28, '#00BFFF');
+  drawRect(MARGIN + 14, topY + 16, 24, 24, '#0D0D1A');
+  drawRect(MARGIN + 18, topY + 20, 5, 5, '#00BFFF');
+  drawRect(MARGIN + 29, topY + 20, 5, 5, '#FFFFFF');
+  drawRect(MARGIN + 23.5, topY + 31, 5, 5, '#00BFFF');
+  drawLine(MARGIN + 20.5, topY + 22.5, MARGIN + 29.5, topY + 22.5, '#00BFFF', 1.2);
+  drawLine(MARGIN + 20.5, topY + 22.5, MARGIN + 26, topY + 33.5, '#00BFFF', 1.2);
+  drawLine(MARGIN + 31.5, topY + 22.5, MARGIN + 26, topY + 33.5, '#FFFFFF', 1.2);
+
+  drawText('N.O.D.E.', MARGIN + 48, topY + 26, 17, { bold: true, color: '#FFFFFF' });
+  drawText('NATIONAL ORDER & DISTRIBUTION EXCHANGE', MARGIN + 48, topY + 40, 7, { bold: true, color: '#8B949E' });
   drawText('[ OFFICIAL SPEC SHEET ]', MARGIN + CONTENT_W - 210, topY + 23, 8, {
     bold: true,
     color: '#00BFFF',
@@ -307,14 +317,15 @@ export function generateSpecSheetPdfBytes(payload: SpecSheetPayload): Uint8Array
   topY += 56;
 
   // 2. Merchant Identity Bar
-  drawRect(MARGIN, topY, CONTENT_W, 52, '#FAFAFA', '#E4E4E7', 0.6);
+  drawRect(MARGIN, topY, CONTENT_W, 54, '#FAFAFA', '#E4E4E7', 0.6);
   const buyerName = (payload.buyer_user?.full_name || payload.business_name || 'WHOLESALE BUYER').toUpperCase();
   const bizLegal = payload.buyer_business?.legal_name || 'N.O.D.E. Wholesale Spec Sheet';
   const city = (payload.buyer_business?.city || payload.business_city || 'KAMPALA').toUpperCase();
   const address = payload.buyer_business?.physical_address || payload.business_address || 'Kampala Wholesale Hub';
   const phone = payload.buyer_business?.phone_number || payload.business_phone || 'Not Specified';
+  const email = payload.buyer_user?.email || '';
 
-  drawText('ISSUED TO MERCHANT', MARGIN + 12, topY + 14, 6.5, { bold: true, color: '#71717A' });
+  drawText('BUYER / MERCHANT IDENTITY', MARGIN + 12, topY + 14, 6.5, { bold: true, color: '#71717A' });
   drawText(truncateText(buyerName, 26), MARGIN + 12, topY + 27, 8.5, { bold: true, color: '#1A1A2E' });
   drawText(truncateText(bizLegal, 28), MARGIN + 12, topY + 39, 7, { color: '#71717A' });
 
@@ -322,7 +333,7 @@ export function generateSpecSheetPdfBytes(payload: SpecSheetPayload): Uint8Array
   drawText(truncateText(city, 22), MARGIN + CONTENT_W * 0.37, topY + 27, 8.5, { bold: true, color: '#1A1A2E' });
   drawText(truncateText(address, 28), MARGIN + CONTENT_W * 0.37, topY + 39, 7, { color: '#71717A' });
 
-  drawText('CONTACT REGISTRY', MARGIN + CONTENT_W * 0.72, topY + 14, 6.5, {
+  drawText('BUYER CONTACT REGISTRY', MARGIN + CONTENT_W * 0.72, topY + 14, 6.5, {
     bold: true,
     color: '#71717A',
     align: 'right',
@@ -330,13 +341,13 @@ export function generateSpecSheetPdfBytes(payload: SpecSheetPayload): Uint8Array
   });
   drawText(truncateText(phone, 20), MARGIN + CONTENT_W * 0.72, topY + 27, 8.5, {
     bold: true,
-    color: '#1A1A2E',
+    color: '#00BFFF',
     align: 'right',
     boxWidth: CONTENT_W * 0.25,
   });
-  drawText('NODE PARTNER NETWORK', MARGIN + CONTENT_W * 0.72, topY + 39, 6.5, {
+  drawText(email ? truncateText(email, 24) : 'VERIFIED SPEC SHEET', MARGIN + CONTENT_W * 0.72, topY + 39, 6.5, {
     bold: true,
-    color: '#0099CC',
+    color: '#22C55E',
     align: 'right',
     boxWidth: CONTENT_W * 0.25,
   });
@@ -403,32 +414,35 @@ export function generateSpecSheetPdfBytes(payload: SpecSheetPayload): Uint8Array
     });
     topY += 38;
 
-    // Product Specs Sub-row
-    drawRect(MARGIN, topY, CONTENT_W, 34, '#161B22');
-    drawText('SUPPLIER', MARGIN + 12, topY + 12, 6, { bold: true, color: '#71717A' });
-    drawText(
-      truncateText((entry.product?.supplierName || payload.business_name || 'VERIFIED SUPPLIER').toUpperCase(), 24),
-      MARGIN + 12,
-      topY + 24,
-      7.5,
-      { bold: true, color: '#FFFFFF' }
-    );
-    drawText('AVAILABILITY', MARGIN + CONTENT_W * 0.36, topY + 12, 6, { bold: true, color: '#71717A' });
-    drawText(`${entry.product?.stockQuantity ?? 'IN STOCK'}`, MARGIN + CONTENT_W * 0.36, topY + 24, 7.5, {
+    // Product Specs Sub-row with Photo Frame
+    drawRect(MARGIN, topY, CONTENT_W, 40, '#161B22');
+    // Photo Frame
+    drawRect(MARGIN + 6, topY + 4, 32, 32, '#0D1117', '#00BFFF', 0.8);
+    drawText('PHOTO', MARGIN + 6, topY + 22, 6, { bold: true, color: '#00BFFF', align: 'center', boxWidth: 32 });
+
+    const supplierName = (entry.product?.supplierName || payload.business_name || 'VERIFIED SUPPLIER').toUpperCase();
+    const supplierPhone = entry.product?.supplierPhone || '+256 700 000 000';
+    const supplierDepot = entry.product?.warehouseLoc || 'Central Fulfillment Depot';
+
+    drawText('SUPPLIER CONTACT', MARGIN + 44, topY + 12, 6, { bold: true, color: '#71717A' });
+    drawText(truncateText(supplierName, 20), MARGIN + 44, topY + 23, 7.5, { bold: true, color: '#FFFFFF' });
+    drawText(`TEL: ${truncateText(supplierPhone, 16)}`, MARGIN + 44, topY + 33, 6, { bold: true, color: '#00BFFF' });
+
+    drawText('DEPOT LOCATION', MARGIN + CONTENT_W * 0.40, topY + 12, 6, { bold: true, color: '#71717A' });
+    drawText(truncateText(supplierDepot, 20), MARGIN + CONTENT_W * 0.40, topY + 23, 7.5, { bold: true, color: '#A1A1AA' });
+
+    drawText('AVAILABILITY', MARGIN + CONTENT_W * 0.62, topY + 12, 6, { bold: true, color: '#71717A' });
+    drawText(`${entry.product?.stockQuantity ?? 'IN STOCK'}`, MARGIN + CONTENT_W * 0.62, topY + 23, 7.5, {
       bold: true,
       color: '#22C55E',
     });
-    drawText('WHOLESALE RATE', MARGIN + CONTENT_W * 0.56, topY + 12, 6, { bold: true, color: '#71717A' });
-    drawText(`${formatUgx(unitPrice)} / pc`, MARGIN + CONTENT_W * 0.56, topY + 24, 7.5, {
+
+    drawText('WHOLESALE RATE (MOQ)', MARGIN + CONTENT_W * 0.80, topY + 12, 6, { bold: true, color: '#71717A' });
+    drawText(`${formatUgx(unitPrice)} (MOQ ${entry.product?.moq || 1})`, MARGIN + CONTENT_W * 0.80, topY + 23, 7.5, {
       bold: true,
       color: '#00BFFF',
     });
-    drawText('MOQ', MARGIN + CONTENT_W * 0.82, topY + 12, 6, { bold: true, color: '#71717A' });
-    drawText(`${entry.product?.moq || 1} UNITS`, MARGIN + CONTENT_W * 0.82, topY + 24, 7.5, {
-      bold: true,
-      color: '#FFFFFF',
-    });
-    topY += 36;
+    topY += 42;
 
     // Matrix Tables (chunked cleanly for long size lists)
     for (const chunkSizes of sizeChunks) {
@@ -438,7 +452,7 @@ export function generateSpecSheetPdfBytes(payload: SpecSheetPayload): Uint8Array
 
       // Table Header
       drawRect(MARGIN, topY, CONTENT_W, rowHeight, '#0D0D1A');
-      drawText('COLOR', MARGIN + 8, topY + 13, 7, { bold: true, color: '#FFFFFF' });
+      drawText('COLOR VARIANT', MARGIN + 8, topY + 13, 7, { bold: true, color: '#FFFFFF' });
       chunkSizes.forEach((sz, idx) => {
         drawText(truncateText(sz.toUpperCase(), 10), MARGIN + colorColW + idx * sizeColW, topY + 13, 7, {
           bold: true,
@@ -461,7 +475,10 @@ export function generateSpecSheetPdfBytes(payload: SpecSheetPayload): Uint8Array
         const sq = g.sizeQtys || {};
         const groupRowTotal = Object.values(sq).reduce((s, q) => s + (q || 0), 0);
 
-        drawText(truncateText(g.color?.label || 'Standard', 22), MARGIN + 8, topY + 13, 7.5, {
+        // Visual Color Swatch Rectangle (colored badge)
+        const swatchHex = g.color?.color || '#12BBF0';
+        drawRect(MARGIN + 8, topY + 5, 9, 9, swatchHex, '#30363D', 0.5);
+        drawText(truncateText(g.color?.label || 'Standard', 18), MARGIN + 21, topY + 13, 7.5, {
           bold: true,
           color: '#1A1A2E',
         });
@@ -470,7 +487,9 @@ export function generateSpecSheetPdfBytes(payload: SpecSheetPayload): Uint8Array
           const qty = sq[sz] || 0;
           const cellX = MARGIN + colorColW + idx * sizeColW;
           drawLine(cellX, topY, cellX, topY + rowHeight, '#E4E4E7', 0.4);
+          // Quantities in BOLD!
           drawText(qty > 0 ? String(qty) : '-', cellX, topY + 13, 7.5, {
+            bold: qty > 0,
             color: qty > 0 ? '#1A1A2E' : '#A1A1AA',
             align: 'center',
             boxWidth: sizeColW,

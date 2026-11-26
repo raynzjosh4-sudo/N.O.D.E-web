@@ -38,7 +38,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isDesktop = width >= 960;
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const { products, isLoading, isRefreshing, refreshProducts, hasMore, loadMore } = useProducts();
   const { headerCollapseStyle, onScroll: onFeedScroll } = useScrollAppbar({ headerHeight: 125 });
 
@@ -65,6 +65,22 @@ export default function HomeScreen() {
 
   // Selected product for desktop Pinterest-style side panel
   const [activeSideProduct, setActiveSideProduct] = useState<Product | null>(null);
+
+  // Multi-Product Bulk Selection State
+  const [isBulkMode, setIsBulkMode] = useState(false);
+  const [selectedBulkProductIds, setSelectedBulkProductIds] = useState<Set<string>>(new Set());
+
+  const handleToggleSelectProduct = (p: Product) => {
+    setSelectedBulkProductIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(p.id)) {
+        next.delete(p.id);
+      } else {
+        next.add(p.id);
+      }
+      return next;
+    });
+  };
 
   // Authentication State
   const { user, isAuthenticated } = useAuth();
@@ -236,6 +252,9 @@ export default function HomeScreen() {
                   <ProductGridSection
                     products={filteredProducts}
                     onProductPress={handleProductTap}
+                    isSelectMode={isBulkMode}
+                    selectedIds={selectedBulkProductIds}
+                    onToggleSelect={handleToggleSelectProduct}
                   />
                 ) : (
                   <View style={styles.noResultsBox}>
@@ -304,10 +323,46 @@ export default function HomeScreen() {
                   onCartPress={(p) => console.log('Add popular to cart:', p.name)}
                 />
 
-                {/* 7. Product Masonry Waterfall Grid */}
+                {/* 7. Product Masonry Waterfall Grid with Bulk Mode Toggle */}
+                <View style={styles.feedHeaderRow}>
+                  <Text style={[styles.feedSectionTitle, { color: colors.onSurface }]}>
+                    {isBulkMode ? 'Select Products for Bulk' : 'All Wholesale Listings'}
+                  </Text>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      setIsBulkMode((prev) => !prev);
+                      if (isBulkMode) setSelectedBulkProductIds(new Set());
+                    }}
+                    style={[
+                      styles.bulkModeToggle,
+                      isBulkMode
+                        ? { backgroundColor: '#00BFFF', borderColor: '#00BFFF' }
+                        : { backgroundColor: isDark ? '#21262D' : '#F6F8FA', borderColor: isDark ? '#30363D' : '#D0D7DE' },
+                    ]}
+                  >
+                    <MaterialIcon
+                      name={isBulkMode ? "checklist_rtl" : "checklist"}
+                      size={14}
+                      color={isBulkMode ? '#FFFFFF' : (isDark ? '#E6EDF3' : '#1F2328')}
+                    />
+                    <Text
+                      style={[
+                        styles.bulkModeToggleText,
+                        { color: isBulkMode ? '#FFFFFF' : (isDark ? '#E6EDF3' : '#1F2328') },
+                      ]}
+                    >
+                      {isBulkMode ? 'Done Selecting' : 'Multi-Select / Bulk'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
                 <ProductGridSection
                   products={products}
                   onProductPress={handleProductTap}
+                  isSelectMode={isBulkMode}
+                  selectedIds={selectedBulkProductIds}
+                  onToggleSelect={handleToggleSelectProduct}
                 />
               </ScrollView>
             )}
@@ -323,6 +378,37 @@ export default function HomeScreen() {
           )}
         </View>
       </View>
+
+      {/* ── Floating Sticky Dock for Multi-Product Bulk Configuration ── */}
+      {isBulkMode && selectedBulkProductIds.size > 0 && (
+        <View style={[styles.floatingBulkDock, { backgroundColor: isDark ? '#161B22' : '#FFFFFF', borderColor: isDark ? '#30363D' : '#D0D7DE' }]}>
+          <View style={styles.floatingBulkLeft}>
+            <View style={styles.bulkCountCircle}>
+              <Text style={styles.bulkCountText}>{selectedBulkProductIds.size}</Text>
+            </View>
+            <View>
+              <Text style={[styles.bulkDockLabel, { color: colors.onSurface }]}>
+                {selectedBulkProductIds.size === 1 ? '1 Product Selected' : `${selectedBulkProductIds.size} Products Selected`}
+              </Text>
+              <Text style={[styles.bulkDockSub, { color: colors.onSurfaceMuted }]}>
+                Tap to pick colors &amp; make spec sheet
+              </Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={styles.bulkConfigureBtn}
+            onPress={() => {
+              const idsParam = Array.from(selectedBulkProductIds).join(',');
+              router.push(`/product/multi-order?ids=${idsParam}`);
+            }}
+          >
+            <Text style={styles.bulkConfigureBtnText}>Configure Bulk Order</Text>
+            <MaterialIcon name="arrow_forward" size={15} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Auth Prompt Modal Sheet */}
       <AuthPromptSheet
@@ -447,5 +533,94 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Outfit_700Bold',
     color: AppColors.surfaceWhite,
+  },
+  feedHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    marginTop: 18,
+    marginBottom: 6,
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  feedSectionTitle: {
+    fontSize: 15,
+    fontFamily: 'Outfit_700Bold',
+  },
+  bulkModeToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  bulkModeToggleText: {
+    fontSize: 12,
+    fontFamily: 'Outfit_600SemiBold',
+  },
+  floatingBulkDock: {
+    position: 'absolute',
+    bottom: 24,
+    left: 16,
+    right: 16,
+    maxWidth: 600,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    elevation: 8,
+    zIndex: 999,
+  },
+  floatingBulkLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  bulkCountCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#00BFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bulkCountText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  bulkDockLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  bulkDockSub: {
+    fontSize: 10.5,
+    fontWeight: '500',
+  },
+  bulkConfigureBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#00BFFF',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  bulkConfigureBtnText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

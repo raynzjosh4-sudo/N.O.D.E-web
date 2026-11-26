@@ -6,11 +6,17 @@ import { ProductGridCard } from '@/features/home/presentation/widgets/product_gr
 interface ProductGridSectionProps {
   products?: Product[];
   onProductPress?: (product: Product) => void;
+  isSelectMode?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (product: Product) => void;
 }
 
 export function ProductGridSection({
   products = [],
   onProductPress,
+  isSelectMode,
+  selectedIds,
+  onToggleSelect,
 }: ProductGridSectionProps) {
   const { width } = useWindowDimensions();
 
@@ -43,6 +49,9 @@ export function ProductGridSection({
                 product={item}
                 aspectRatio={ratio}
                 onPress={() => onProductPress?.(item)}
+                isSelectMode={isSelectMode}
+                isSelected={selectedIds?.has(item.id)}
+                onSelectToggle={onToggleSelect}
               />
             ))}
           </View>

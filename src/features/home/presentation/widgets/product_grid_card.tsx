@@ -16,12 +16,18 @@ interface ProductGridCardProps {
   product: Product;
   aspectRatio?: number;
   onPress?: () => void;
+  isSelectMode?: boolean;
+  isSelected?: boolean;
+  onSelectToggle?: (product: Product) => void;
 }
 
 export function ProductGridCard({
   product,
   aspectRatio,
   onPress,
+  isSelectMode,
+  isSelected,
+  onSelectToggle,
 }: ProductGridCardProps) {
   const { colors } = useAppTheme();
   const activeRatio = aspectRatio ?? product.aspectRatio ?? 0.85;
@@ -48,19 +54,54 @@ export function ProductGridCard({
     shareProduct(product);
   };
 
+  const handlePress = () => {
+    if (isSelectMode && onSelectToggle) {
+      onSelectToggle(product);
+    } else if (onPress) {
+      onPress();
+    }
+  };
+
   return (
     <TouchableOpacity
       activeOpacity={0.88}
-      style={styles.container}
-      onPress={onPress}
+      style={[
+        styles.container,
+        isSelectMode && isSelected && { transform: [{ scale: 0.98 }] },
+      ]}
+      onPress={handlePress}
     >
       {/* Product Image */}
-      <View style={[styles.imageWrapper, { aspectRatio: activeRatio, backgroundColor: colors.surfaceContainerHighest }]}>
+      <View style={[
+        styles.imageWrapper,
+        { aspectRatio: activeRatio, backgroundColor: colors.surfaceContainerHighest },
+        isSelectMode && isSelected && { borderWidth: 2, borderColor: '#00BFFF' }
+      ]}>
         <Image
           source={{ uri: product.imageUrl }}
           style={styles.image}
           resizeMode="cover"
         />
+
+        {/* Multi-Select Bulk Mode Indicator Checkbox */}
+        {isSelectMode && (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => onSelectToggle?.(product)}
+            style={[
+              styles.selectBadge,
+              isSelected
+                ? { backgroundColor: '#00BFFF', borderColor: '#00BFFF' }
+                : { backgroundColor: 'rgba(13, 17, 23, 0.65)', borderColor: 'rgba(255, 255, 255, 0.8)' },
+            ]}
+          >
+            {isSelected ? (
+              <MaterialIcon name="check" size={14} color="#FFFFFF" />
+            ) : (
+              <View style={styles.unselectedDot} />
+            )}
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Product Details */}
@@ -180,5 +221,28 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_500Medium',
     color: 'rgba(28, 27, 31, 0.45)',
     marginTop: 2,
+  },
+  selectBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  unselectedDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
   },
 });

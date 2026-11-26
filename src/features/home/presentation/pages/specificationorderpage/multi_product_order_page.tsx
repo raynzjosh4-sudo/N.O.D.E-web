@@ -24,6 +24,7 @@ import { getWholesaleUnitPrice } from '@/features/inventory/utils/wholesale_pric
 import { useAuth } from '@/features/auth/context/auth_context';
 import { useProducts } from '@/features/inventory/context/products_context';
 import { buildSpecSheetPayload, makeAndOpenSpecSheetPdf } from '@/core/utils/pdf_spec_sheet';
+import { saveGuestDraft } from '@/core/utils/guest_drafts';
 import {
   ColorVariant,
   ColorGroup,
@@ -296,13 +297,8 @@ export default function MultiProductOrderPage() {
 
   const formatPrice = (val: number) => 'UGX ' + (val || 0).toLocaleString('en-US');
 
-  // Trigger Save Draft prompt
+  // Trigger Save Draft prompt (Works unauthenticated AND authenticated!)
   const handleSaveDraftClick = () => {
-    if (!isAuthenticated || !user) {
-      showWarning('Sign In Required', 'Please log in to save bulk drafts.');
-      router.push('/login');
-      return;
-    }
     if (grandTotalUnits === 0) {
       showWarning('No Items', 'Configure items before saving as a draft.');
       return;
@@ -344,11 +340,11 @@ export default function MultiProductOrderPage() {
           unitPrice: item.unitPrice,
         })),
         buyerProfile: {
-          fullName: profile.fullName || user?.name,
-          legalBusinessName: profile.legalBusinessName || user?.legalBusinessName,
-          email: profile.email || user?.email,
-          phone: profile.phone,
-          warehouseAddress: profile.warehouseAddress,
+          fullName: profile.fullName || user?.name || (isAuthenticated ? 'Wholesale Account' : 'Guest Wholesale Buyer'),
+          legalBusinessName: profile.legalBusinessName || user?.legalBusinessName || 'N.O.D.E. Wholesale Spec Sheet',
+          email: profile.email || user?.email || '',
+          phone: profile.phone || (isAuthenticated ? 'Not Specified' : 'Guest Spec Inquiry'),
+          warehouseAddress: profile.warehouseAddress || 'Kampala Wholesale Hub, Uganda',
         },
         isAuthenticated: Boolean(isAuthenticated && user),
       });
@@ -371,10 +367,12 @@ export default function MultiProductOrderPage() {
 
     try {
       let profile: any = {};
-      try {
-        profile = await ProfileApiService.getProfile();
-      } catch {
-        profile = {};
+      if (isAuthenticated) {
+        try {
+          profile = await ProfileApiService.getProfile();
+        } catch {
+          profile = {};
+        }
       }
 
       const draftIdGenerated = draftId || ('DRAFT-' + Date.now().toString(36).toUpperCase());
@@ -400,18 +398,23 @@ export default function MultiProductOrderPage() {
         title: finalName,
         name: finalName,
         supplier_id: productList[0]?.supplierId || '',
-        business_name: profile.legalBusinessName || profile.fullName || '',
-        business_phone: profile.phone || '',
+        business_name: profile.legalBusinessName || profile.fullName || (isAuthenticated ? 'Wholesale Account' : 'Guest Wholesale Buyer'),
+        business_phone: profile.phone || (isAuthenticated ? '' : 'Guest Inquiry'),
         business_city: 'Kampala',
-        business_address: profile.warehouseAddress || '',
+        business_address: profile.warehouseAddress || 'Kampala Wholesale Hub, Uganda',
         total_amount: grandTotalAmount,
         status: 'draft',
         entries_json: entries,
       };
 
-      await ProfileApiService.saveDraftOrder(draftPayload);
-      showSuccess('Draft Saved', `"${finalName}" saved to your profile drafts.`);
-      setTimeout(() => router.push('/profile'), 1200);
+      if (isAuthenticated && user) {
+        await ProfileApiService.saveDraftOrder(draftPayload);
+        showSuccess('Draft Saved', `"${finalName}" saved to your profile drafts.`);
+        setTimeout(() => router.push('/profile'), 1200);
+      } else {
+        await saveGuestDraft(draftPayload);
+        showSuccess('Saved for Bulk', `"${finalName}" saved to your local bulk drafts! You can return, make a PDF, or submit anytime.`);
+      }
     } catch (err: any) {
       showError('Save Draft Failed', err?.message || 'Could not save draft.');
     } finally {

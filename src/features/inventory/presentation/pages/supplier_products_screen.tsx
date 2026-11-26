@@ -13,6 +13,9 @@ import {
   RefreshControl,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  Linking,
+  TextInput,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAppTheme } from '@/core/theme/theme_context';
@@ -23,6 +26,7 @@ import { EditProductSheet } from '../widgets/edit_product_sheet';
 import { useAuth } from '@/features/auth/context/auth_context';
 import { ProfileApiService } from '@/features/profile/data/services/profile_api_service';
 import { SupplierProductsShimmer } from './shimmer/supplier_products_shimmer';
+import { buildSpecSheetPayload, makeAndOpenSpecSheetPdf } from '@/core/utils/pdf_spec_sheet';
 
 type FilterTab = 'all' | 'active' | 'low_stock' | 'incoming_orders';
 
@@ -146,10 +150,172 @@ export function SupplierProductsScreen() {
       setIncomingOrders((prev) =>
         prev.map((o) => (o.order_id === orderId ? { ...o, status: newStatus } : o))
       );
+      if (inspectedOrder && inspectedOrder.order_id === orderId) {
+        setInspectedOrder((prev: any) => ({ ...prev, status: newStatus }));
+      }
+      // If completed, automatically deduct local inventory counts for immediate dashboard consistency
+      if (newStatus.toLowerCase() === 'completed') {
+        const completedOrder = incomingOrders.find((o) => o.order_id === orderId);
+        if (completedOrder) {
+          const entries = Array.isArray(completedOrder.entries_json) ? completedOrder.entries_json : [];
+          setProducts((prev) =>
+            prev.map((p) => {
+              const matchedEntry = entries.find(
+                (e: any) =>
+                  (e.product_id && String(e.product_id) === String(p.id)) ||
+                  (e.id && String(e.id) === String(p.id)) ||
+                  (e.product?.id && String(e.product.id) === String(p.id))
+              );
+              if (matchedEntry) {
+                const qtyDeducted = Number(matchedEntry.total_units || matchedEntry.quantity || 1);
+                const currentStock = p.stockQuantity ?? 100;
+                const newStock = Math.max(0, currentStock - qtyDeducted);
+                return {
+                  ...p,
+                  stockQuantity: newStock,
+                  status: newStock <= 10 ? 'low_stock' : p.status,
+                };
+              }
+              return p;
+            })
+          );
+        }
+      }
     } catch (err: any) {
       console.warn('Update order status failed:', err.message);
     } finally {
       setUpdatingOrderId(null);
+    }
+  };
+
+  // ── Enhanced Order Management Suite State ──
+  const [orderStatusFilter, setOrderStatusFilter] = useState<'all' | 'new' | 'processing' | 'completed' | 'cancelled'>('all');
+  const [orderSearchQuery, setOrderSearchQuery] = useState('');
+  const [inspectedOrder, setInspectedOrder] = useState<any | null>(null);
+  const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
+  const [verifyCodeInput, setVerifyCodeInput] = useState('');
+  const [verifyFeedback, setVerifyFeedback] = useState<{ success: boolean; message: string } | null>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  // Compute status counts for incoming orders
+  const orderCounts = useMemo(() => {
+    let pending = 0;
+    let processing = 0;
+    let completed = 0;
+    let cancelled = 0;
+    incomingOrders.forEach((o) => {
+      const s = (o.status || 'new').toLowerCase();
+      if (s === 'new' || s === 'seen' || s === 'draft') pending++;
+      else if (s === 'processing') processing++;
+      else if (s === 'completed') completed++;
+      else if (s === 'cancelled') cancelled++;
+    });
+    return { all: incomingOrders.length, pending, processing, completed, cancelled };
+  }, [incomingOrders]);
+
+  // Filtered incoming orders based on sub-tabs & search query
+  const filteredIncomingOrders = useMemo(() => {
+    return incomingOrders.filter((ord) => {
+      const s = (ord.status || 'new').toLowerCase();
+      if (orderStatusFilter === 'new') {
+        if (s !== 'new' && s !== 'seen' && s !== 'draft') return false;
+      } else if (orderStatusFilter === 'processing') {
+        if (s !== 'processing') return false;
+      } else if (orderStatusFilter === 'completed') {
+        if (s !== 'completed') return false;
+      } else if (orderStatusFilter === 'cancelled') {
+        if (s !== 'cancelled') return false;
+      }
+
+      if (orderSearchQuery.trim()) {
+        const q = orderSearchQuery.toLowerCase().trim();
+        const idMatch = (ord.order_id || '').toLowerCase().includes(q);
+        const nameMatch = (ord.business_name || '').toLowerCase().includes(q);
+        const phoneMatch = (ord.business_phone || '').toLowerCase().includes(q);
+        if (!idMatch && !nameMatch && !phoneMatch) return false;
+      }
+
+      return true;
+    });
+  }, [incomingOrders, orderStatusFilter, orderSearchQuery]);
+
+  const handleCallBuyer = (phone: string) => {
+    if (!phone) return;
+    Linking.openURL(`tel:${phone.replace(/[^0-9+]/g, '')}`);
+  };
+
+  const handleWhatsAppBuyer = (phone: string) => {
+    if (!phone) return;
+    const clean = phone.replace(/[^0-9]/g, '');
+    Linking.openURL(`https://wa.me/${clean}`);
+  };
+
+  const handleViewOrderPdf = async (ord: any) => {
+    setIsGeneratingPdf(true);
+    try {
+      const entries = Array.isArray(ord.entries_json) ? ord.entries_json : [];
+      const payload = buildSpecSheetPayload({
+        orderId: ord.order_id,
+        title: `Order ${ord.order_id} Spec Sheet`,
+        items: entries.map((item: any) => ({
+          product: {
+            id: item.product_id || item.id || 'N/A',
+            name: item.name || item.product_name || 'Wholesale Product',
+            brand: item.brand || 'N.O.D.E.',
+            sku: item.sku || 'SKU-N/A',
+            srp: item.unit_price || 0,
+            imageUrl: item.imageUrl || item.image_url,
+            supplierName: user?.legalBusinessName || user?.name || 'Verified Supplier',
+            supplierPhone: (user as any)?.phone || '+256 700 000 000',
+            warehouseLoc: 'Uganda Fulfillment Depot',
+          } as unknown as Product,
+          groups: item.confirmedGroups || [{
+            color: { label: item.color || 'Standard', color: item.colorHex || '#12BBF0' },
+            sizeQtys: item.size_quantities || { 'Std': item.total_units || 1 },
+          }],
+          unitPrice: item.unit_price || 0,
+        })),
+        buyerProfile: {
+          fullName: ord.business_name || 'Wholesale Buyer',
+          phone: ord.business_phone || '',
+          warehouseAddress: ord.business_address || ord.business_city || 'Kampala Wholesale Hub',
+        },
+        isAuthenticated: true,
+      });
+
+      await makeAndOpenSpecSheetPdf(payload);
+    } catch (e: any) {
+      console.warn('PDF export error:', e);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  const handleVerifyCodeSubmit = async () => {
+    const raw = verifyCodeInput.trim().toUpperCase();
+    if (!raw) return;
+
+    const matched = incomingOrders.find((o) => {
+      const id = (o.order_id || '').toUpperCase();
+      return id === raw || id.replace(/[^A-Z0-9]/g, '') === raw.replace(/[^A-Z0-9]/g, '');
+    });
+
+    if (matched) {
+      await handleUpdateStatus(matched.order_id, 'completed');
+      setVerifyFeedback({
+        success: true,
+        message: `Order #${matched.order_id} cleared & verified successfully!`,
+      });
+      setTimeout(() => {
+        setIsVerifyModalOpen(false);
+        setVerifyCodeInput('');
+        setVerifyFeedback(null);
+      }, 1500);
+    } else {
+      setVerifyFeedback({
+        success: false,
+        message: `No active order found matching clearance token "${raw}".`,
+      });
     }
   };
 
@@ -330,181 +496,546 @@ export function SupplierProductsScreen() {
 
                 {/* ── Table Items: INCOMING ORDERS vs PRODUCTS ── */}
                 {activeTab === 'incoming_orders' ? (
-                  isLoadingOrders ? (
-                    <View style={{ padding: 16, gap: 12 }}>
-                      {[1, 2, 3, 4].map((k) => (
-                        <View
-                          key={k}
-                          style={{
-                            height: 80,
-                            borderRadius: 6,
-                            backgroundColor: gitColors.canvasSubtle,
-                            borderWidth: 1,
+                  <View style={{ width: '100%' }}>
+                    {/* 1. Order Suite Search & Verify Code Bar */}
+                    <View
+                      style={[
+                        styles.orderToolbar,
+                        {
+                          backgroundColor: gitColors.canvasSubtle,
+                          borderBottomWidth: 1,
+                          borderBottomColor: gitColors.border,
+                        },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.orderSearchBox,
+                          {
+                            backgroundColor: gitColors.canvas,
                             borderColor: gitColors.border,
-                            opacity: 0.6,
-                          }}
+                          },
+                        ]}
+                      >
+                        <MaterialIcon name="search" size={16} color={gitColors.textSecondary} />
+                        <TextInput
+                          value={orderSearchQuery}
+                          onChangeText={setOrderSearchQuery}
+                          placeholder="Search orders by ID, buyer name, or phone..."
+                          placeholderTextColor={gitColors.textSecondary}
+                          style={[styles.orderSearchInput, { color: gitColors.textPrimary }]}
                         />
-                      ))}
+                        {orderSearchQuery.length > 0 && (
+                          <TouchableOpacity onPress={() => setOrderSearchQuery('')}>
+                            <MaterialIcon name="close" size={16} color={gitColors.textSecondary} />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+
+                      <TouchableOpacity
+                        activeOpacity={0.8}
+                        onPress={() => {
+                          setVerifyCodeInput('');
+                          setVerifyFeedback(null);
+                          setIsVerifyModalOpen(true);
+                        }}
+                        style={[
+                          styles.verifyTokenBtn,
+                          {
+                            backgroundColor: gitColors.greenBtn,
+                            borderColor: gitColors.border,
+                          },
+                        ]}
+                      >
+                        <MaterialIcon name="qr_code_scanner" size={15} color="#FFFFFF" />
+                        <Text style={styles.verifyTokenBtnText}>Verify Clearance Code</Text>
+                      </TouchableOpacity>
                     </View>
-                  ) : incomingOrders.length === 0 ? (
-                    <View style={styles.emptyContainer}>
-                      <MaterialIcon name="inbox" size={48} color={gitColors.textSecondary} />
-                      <Text style={[styles.emptyTitle, { color: gitColors.textPrimary }]}>
-                        No incoming wholesale orders yet.
-                      </Text>
-                      <Text style={[styles.emptySubtitle, { color: gitColors.textSecondary }]}>
-                        Orders placed by verified retail buyers for your products will appear here for processing and fulfillment.
-                      </Text>
-                    </View>
-                  ) : (
-                    incomingOrders.map((ord, idx) => {
-                      const isLast = idx === incomingOrders.length - 1;
-                      const isUpdating = updatingOrderId === ord.order_id;
-                      const entries = Array.isArray(ord.entries_json) ? ord.entries_json : [];
-                      const status = (ord.status || 'new').toLowerCase();
 
-                      const statusColor =
-                        status === 'completed'
-                          ? gitColors.labelGreenText
-                          : status === 'processing'
-                          ? gitColors.labelYellowText
-                          : status === 'seen'
-                          ? gitColors.textLink
-                          : status === 'cancelled'
-                          ? '#D32F2F'
-                          : gitColors.labelGreenText;
-
-                      const statusBg =
-                        status === 'completed'
-                          ? gitColors.labelGreenBg
-                          : status === 'processing'
-                          ? gitColors.labelYellowBg
-                          : status === 'seen'
-                          ? 'rgba(88, 166, 255, 0.15)'
-                          : status === 'cancelled'
-                          ? 'rgba(211, 47, 47, 0.15)'
-                          : gitColors.labelGreenBg;
-
-                      return (
-                        <View
-                          key={ord.order_id || idx}
-                          style={[
-                            styles.gitOrderRow,
-                            !isLast && { borderBottomWidth: 1, borderBottomColor: gitColors.border },
-                            { backgroundColor: gitColors.canvas },
-                          ]}
-                        >
-                          <View style={styles.orderHeaderRow}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                              <Text style={[styles.orderIdText, { color: gitColors.textLink }]}>
-                                #{ord.order_id}
+                    {/* 2. Order Pipeline Filter Tabs */}
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.pipelineTabsScroll}
+                    >
+                      {[
+                        { key: 'all', label: 'All Orders', count: incomingOrders.length },
+                        {
+                          key: 'new',
+                          label: 'Pending / New',
+                          count: incomingOrders.filter((o) =>
+                            ['new', 'seen', 'pending', 'submitted'].includes((o.status || '').toLowerCase())
+                          ).length,
+                        },
+                        {
+                          key: 'processing',
+                          label: 'Processing',
+                          count: incomingOrders.filter(
+                            (o) => (o.status || '').toLowerCase() === 'processing'
+                          ).length,
+                        },
+                        {
+                          key: 'completed',
+                          label: 'Delivered & Cleared',
+                          count: incomingOrders.filter(
+                            (o) => (o.status || '').toLowerCase() === 'completed'
+                          ).length,
+                        },
+                        {
+                          key: 'cancelled',
+                          label: 'Declined',
+                          count: incomingOrders.filter(
+                            (o) => (o.status || '').toLowerCase() === 'cancelled'
+                          ).length,
+                        },
+                      ].map((tab) => {
+                        const isSelected = orderStatusFilter === tab.key;
+                        return (
+                          <TouchableOpacity
+                            key={tab.key}
+                            onPress={() => setOrderStatusFilter(tab.key as any)}
+                            activeOpacity={0.7}
+                            style={[
+                              styles.pipelineTabPill,
+                              {
+                                backgroundColor: isSelected ? gitColors.btnBg : 'transparent',
+                                borderColor: isSelected ? gitColors.border : 'transparent',
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.pipelineTabText,
+                                {
+                                  color: isSelected ? gitColors.textPrimary : gitColors.textSecondary,
+                                  fontWeight: isSelected ? '700' : '500',
+                                },
+                              ]}
+                            >
+                              {tab.label}
+                            </Text>
+                            <View
+                              style={[
+                                styles.pipelineCountBadge,
+                                {
+                                  backgroundColor: isSelected
+                                    ? gitColors.canvasSubtle
+                                    : gitColors.borderMuted,
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.pipelineCountText,
+                                  { color: isSelected ? gitColors.textLink : gitColors.textSecondary },
+                                ]}
+                              >
+                                {tab.count}
                               </Text>
-                              <View style={[styles.statusPill, { backgroundColor: statusBg }]}>
-                                <Text style={[styles.statusPillText, { color: statusColor }]}>
-                                  {status.toUpperCase()}
-                                </Text>
-                              </View>
                             </View>
-                            <Text style={[styles.orderDateText, { color: gitColors.textSecondary }]}>
-                              {ord.created_at ? new Date(ord.created_at).toLocaleDateString() : ''}
-                            </Text>
-                          </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
 
-                          <View style={styles.buyerInfoRow}>
-                            <MaterialIcon name="store" size={14} color={gitColors.textSecondary} />
-                            <Text style={[styles.buyerNameText, { color: gitColors.textPrimary }]}>
-                              {ord.business_name || 'Wholesale Buyer'}
+                    {/* 3. Orders List or Empty / Loading */}
+                    {isLoadingOrders ? (
+                      <View style={{ padding: 16, gap: 12 }}>
+                        {[1, 2, 3, 4].map((k) => (
+                          <View
+                            key={k}
+                            style={{
+                              height: 100,
+                              borderRadius: 6,
+                              backgroundColor: gitColors.canvasSubtle,
+                              borderWidth: 1,
+                              borderColor: gitColors.border,
+                              opacity: 0.6,
+                            }}
+                          />
+                        ))}
+                      </View>
+                    ) : filteredIncomingOrders.length === 0 ? (
+                      <View style={styles.emptyContainer}>
+                        <MaterialIcon name="inbox" size={48} color={gitColors.textSecondary} />
+                        <Text style={[styles.emptyTitle, { color: gitColors.textPrimary }]}>
+                          No wholesale orders found.
+                        </Text>
+                        <Text style={[styles.emptySubtitle, { color: gitColors.textSecondary }]}>
+                          {orderSearchQuery || orderStatusFilter !== 'all'
+                            ? 'No incoming orders matched your search or status filter.'
+                            : 'Orders placed by verified retail buyers for your products will appear here for processing and fulfillment.'}
+                        </Text>
+                        {(orderSearchQuery || orderStatusFilter !== 'all') && (
+                          <TouchableOpacity
+                            onPress={() => {
+                              setOrderSearchQuery('');
+                              setOrderStatusFilter('all');
+                            }}
+                            style={[
+                              styles.actionBtn,
+                              {
+                                borderColor: gitColors.border,
+                                backgroundColor: gitColors.btnBg,
+                                marginTop: 12,
+                              },
+                            ]}
+                          >
+                            <Text style={[styles.actionBtnText, { color: gitColors.textLink }]}>
+                              Clear Filter &amp; Search
                             </Text>
-                            {ord.business_phone ? (
-                              <Text style={[styles.buyerPhoneText, { color: gitColors.textSecondary }]}>
-                                • {ord.business_phone}
-                              </Text>
-                            ) : null}
-                            {ord.business_city ? (
-                              <Text style={[styles.buyerCityText, { color: gitColors.textSecondary }]}>
-                                • {ord.business_city}
-                              </Text>
-                            ) : null}
-                          </View>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    ) : (
+                      filteredIncomingOrders.map((ord, idx) => {
+                        const isLast = idx === filteredIncomingOrders.length - 1;
+                        const isUpdating = updatingOrderId === ord.order_id;
+                        const entries = Array.isArray(ord.entries_json) ? ord.entries_json : [];
+                        const status = (ord.status || 'new').toLowerCase();
 
-                          {entries.length > 0 && (
-                            <View style={[styles.entriesList, { backgroundColor: gitColors.canvasSubtle, borderColor: gitColors.border }]}>
-                              {entries.map((item: any, eIdx: number) => (
-                                <View key={eIdx} style={styles.entryLine}>
-                                  <Text style={[styles.entryName, { color: gitColors.textPrimary }]} numberOfLines={1}>
-                                    {item.name || item.product_name || 'Product Item'}
-                                  </Text>
-                                  <Text style={[styles.entryQty, { color: gitColors.textSecondary }]}>
-                                    {item.color ? `${item.color} • ` : ''}
-                                    {item.total_units || item.quantity || 1} units
+                        const statusColor =
+                          status === 'completed'
+                            ? gitColors.labelGreenText
+                            : status === 'processing'
+                            ? gitColors.labelYellowText
+                            : status === 'seen'
+                            ? gitColors.textLink
+                            : status === 'cancelled'
+                            ? '#D32F2F'
+                            : gitColors.labelGreenText;
+
+                        const statusBg =
+                          status === 'completed'
+                            ? gitColors.labelGreenBg
+                            : status === 'processing'
+                            ? gitColors.labelYellowBg
+                            : status === 'seen'
+                            ? 'rgba(88, 166, 255, 0.15)'
+                            : status === 'cancelled'
+                            ? 'rgba(211, 47, 47, 0.15)'
+                            : gitColors.labelGreenBg;
+
+                        const totalUnits = entries.reduce((acc: number, item: any) => {
+                          const u = Number(item.total_units || item.quantity || 1);
+                          return acc + u;
+                        }, 0);
+
+                        return (
+                          <View
+                            key={ord.order_id || idx}
+                            style={[
+                              styles.gitOrderRow,
+                              !isLast && { borderBottomWidth: 1, borderBottomColor: gitColors.border },
+                              { backgroundColor: gitColors.canvas },
+                            ]}
+                          >
+                            {/* Card Top: Order ID + Status + Date */}
+                            <View style={styles.orderHeaderRow}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                <Text style={[styles.orderIdText, { color: gitColors.textLink }]}>
+                                  #{ord.order_id}
+                                </Text>
+                                <View style={[styles.statusPill, { backgroundColor: statusBg }]}>
+                                  <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+                                  <Text style={[styles.statusPillText, { color: statusColor }]}>
+                                    {status.toUpperCase()}
                                   </Text>
                                 </View>
-                              ))}
-                            </View>
-                          )}
-
-                          <View style={styles.orderFooterRow}>
-                            <Text style={[styles.orderTotalText, { color: gitColors.textPrimary }]}>
-                              Total:{' '}
-                              <Text style={{ color: gitColors.textLink, fontWeight: '700' }}>
-                                UGX {(ord.total_amount || 0).toLocaleString()}
+                              </View>
+                              <Text style={[styles.orderDateText, { color: gitColors.textSecondary }]}>
+                                {ord.created_at ? new Date(ord.created_at).toLocaleDateString() : ''}
                               </Text>
-                            </Text>
+                            </View>
 
-                            <View style={styles.orderActionsRow}>
-                              {status === 'new' && (
+                            {/* Buyer Contact Card with Instant Call & WhatsApp */}
+                            <View
+                              style={[
+                                styles.buyerCard,
+                                {
+                                  backgroundColor: gitColors.canvasSubtle,
+                                  borderColor: gitColors.border,
+                                },
+                              ]}
+                            >
+                              <View style={{ flex: 1, minWidth: 180 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                  <MaterialIcon name="storefront" size={16} color={gitColors.textLink} />
+                                  <Text style={[styles.buyerNameText, { color: gitColors.textPrimary }]}>
+                                    {ord.business_name || 'Wholesale Buyer'}
+                                  </Text>
+                                </View>
+                                <Text style={[styles.buyerMetaText, { color: gitColors.textSecondary, marginTop: 2 }]}>
+                                  📍 {ord.business_address || ord.business_city || 'Kampala Wholesale Hub'}
+                                  {ord.business_phone ? ` • 📞 ${ord.business_phone}` : ''}
+                                </Text>
+                              </View>
+
+                              {ord.business_phone ? (
+                                <View style={styles.buyerActionGroup}>
+                                  <TouchableOpacity
+                                    activeOpacity={0.8}
+                                    onPress={() => handleCallBuyer(ord.business_phone)}
+                                    style={[
+                                      styles.buyerQuickBtn,
+                                      {
+                                        backgroundColor: gitColors.btnBg,
+                                        borderColor: gitColors.border,
+                                      },
+                                    ]}
+                                  >
+                                    <MaterialIcon name="call" size={13} color={gitColors.textPrimary} />
+                                    <Text style={[styles.buyerQuickBtnText, { color: gitColors.textPrimary }]}>
+                                      Call
+                                    </Text>
+                                  </TouchableOpacity>
+                                  <TouchableOpacity
+                                    activeOpacity={0.8}
+                                    onPress={() => handleWhatsAppBuyer(ord.business_phone)}
+                                    style={[
+                                      styles.buyerQuickBtn,
+                                      {
+                                        backgroundColor: '#25D36622',
+                                        borderColor: '#25D36666',
+                                      },
+                                    ]}
+                                  >
+                                    <MaterialIcon name="chat" size={13} color="#25D366" />
+                                    <Text style={[styles.buyerQuickBtnText, { color: '#25D366' }]}>
+                                      WhatsApp
+                                    </Text>
+                                  </TouchableOpacity>
+                                </View>
+                              ) : null}
+                            </View>
+
+                            {/* Line Items Table with Thumbnails & Color Swatches */}
+                            {entries.length > 0 && (
+                              <View
+                                style={[
+                                  styles.entriesList,
+                                  {
+                                    backgroundColor: gitColors.canvasSubtle,
+                                    borderColor: gitColors.border,
+                                  },
+                                ]}
+                              >
+                                {entries.map((item: any, eIdx: number) => {
+                                  const imgUrl = item.imageUrl || item.image_url;
+                                  const cHex = item.colorHex || (item.color?.color) || '#12BBF0';
+                                  const cName = item.colorName || (item.color?.label) || item.color || 'Standard';
+                                  const itemUnits = item.total_units || item.quantity || 1;
+                                  const itemPrice = item.unit_price || 0;
+
+                                  return (
+                                    <View
+                                      key={eIdx}
+                                      style={[
+                                        styles.entryLine,
+                                        eIdx < entries.length - 1 && {
+                                          borderBottomWidth: 1,
+                                          borderBottomColor: gitColors.borderMuted,
+                                        },
+                                      ]}
+                                    >
+                                      {/* Thumbnail */}
+                                      <View
+                                        style={[
+                                          styles.entryThumbWrap,
+                                          {
+                                            backgroundColor: gitColors.canvas,
+                                            borderColor: gitColors.border,
+                                          },
+                                        ]}
+                                      >
+                                        {imgUrl ? (
+                                          <Image
+                                            source={{ uri: imgUrl }}
+                                            style={styles.entryThumbImage}
+                                            resizeMode="cover"
+                                          />
+                                        ) : (
+                                          <MaterialIcon name="inventory_2" size={16} color={gitColors.textSecondary} />
+                                        )}
+                                      </View>
+
+                                      {/* Info */}
+                                      <View style={{ flex: 1, minWidth: 140 }}>
+                                        <Text
+                                          style={[styles.entryName, { color: gitColors.textPrimary }]}
+                                          numberOfLines={1}
+                                        >
+                                          {item.name || item.product_name || 'Wholesale Product'}
+                                        </Text>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                                          <View
+                                            style={[
+                                              styles.entryColorSwatch,
+                                              { backgroundColor: cHex },
+                                            ]}
+                                          />
+                                          <Text style={[styles.entryColorLabel, { color: gitColors.textSecondary }]}>
+                                            {cName}
+                                          </Text>
+                                        </View>
+                                      </View>
+
+                                      {/* Quantities & Price */}
+                                      <View style={{ alignItems: 'flex-end' }}>
+                                        <Text style={[styles.entryQtyBold, { color: gitColors.textPrimary }]}>
+                                          {itemUnits.toLocaleString()} units
+                                        </Text>
+                                        {itemPrice > 0 && (
+                                          <Text style={[styles.entrySubPrice, { color: gitColors.textSecondary }]}>
+                                            @ UGX {itemPrice.toLocaleString()}
+                                          </Text>
+                                        )}
+                                      </View>
+                                    </View>
+                                  );
+                                })}
+                              </View>
+                            )}
+
+                            {/* Card Footer: Totals & Wholesale Action Pipeline */}
+                            <View style={styles.orderFooterRow}>
+                              <View>
+                                <Text style={[styles.orderTotalText, { color: gitColors.textPrimary }]}>
+                                  Total:{' '}
+                                  <Text style={{ color: gitColors.textLink, fontWeight: '700', fontSize: 14 }}>
+                                    UGX {(ord.total_amount || 0).toLocaleString()}
+                                  </Text>
+                                </Text>
+                                <Text style={[styles.orderUnitsSummary, { color: gitColors.textSecondary }]}>
+                                  {totalUnits} units total across {entries.length} items
+                                </Text>
+                              </View>
+
+                              <View style={styles.orderActionsRow}>
+                                {/* Download / View PDF Spec Sheet */}
                                 <TouchableOpacity
                                   activeOpacity={0.7}
-                                  disabled={isUpdating}
-                                  onPress={() => handleUpdateStatus(ord.order_id, 'seen')}
-                                  style={[styles.actionBtn, { borderColor: gitColors.border, backgroundColor: gitColors.btnBg }]}
+                                  onPress={() => handleViewOrderPdf(ord)}
+                                  disabled={isGeneratingPdf}
+                                  style={[
+                                    styles.actionBtn,
+                                    {
+                                      borderColor: gitColors.border,
+                                      backgroundColor: gitColors.btnBg,
+                                    },
+                                  ]}
+                                >
+                                  <MaterialIcon name="picture_as_pdf" size={14} color="#E056FD" />
+                                  <Text style={[styles.actionBtnText, { color: gitColors.textPrimary }]}>
+                                    PDF
+                                  </Text>
+                                </TouchableOpacity>
+
+                                {/* Inspect Order Details */}
+                                <TouchableOpacity
+                                  activeOpacity={0.7}
+                                  onPress={() => setInspectedOrder(ord)}
+                                  style={[
+                                    styles.actionBtn,
+                                    {
+                                      borderColor: gitColors.border,
+                                      backgroundColor: gitColors.btnBg,
+                                    },
+                                  ]}
                                 >
                                   <MaterialIcon name="visibility" size={14} color={gitColors.textLink} />
-                                  <Text style={[styles.actionBtnText, { color: gitColors.textLink }]}>Mark Seen</Text>
+                                  <Text style={[styles.actionBtnText, { color: gitColors.textLink }]}>
+                                    Inspect
+                                  </Text>
                                 </TouchableOpacity>
-                              )}
 
-                              {(status === 'new' || status === 'seen') && (
-                                <TouchableOpacity
-                                  activeOpacity={0.7}
-                                  disabled={isUpdating}
-                                  onPress={() => handleUpdateStatus(ord.order_id, 'processing')}
-                                  style={[styles.actionBtn, { borderColor: gitColors.border, backgroundColor: gitColors.btnBg }]}
-                                >
-                                  <MaterialIcon name="conveyor_belt" size={14} color={gitColors.labelYellowText} />
-                                  <Text style={[styles.actionBtnText, { color: gitColors.labelYellowText }]}>Process</Text>
-                                </TouchableOpacity>
-                              )}
+                                {/* Pipeline status controls */}
+                                {status === 'new' && (
+                                  <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    disabled={isUpdating}
+                                    onPress={() => handleUpdateStatus(ord.order_id, 'seen')}
+                                    style={[
+                                      styles.actionBtn,
+                                      {
+                                        borderColor: gitColors.border,
+                                        backgroundColor: gitColors.btnBg,
+                                      },
+                                    ]}
+                                  >
+                                    <MaterialIcon name="check" size={14} color={gitColors.textLink} />
+                                    <Text style={[styles.actionBtnText, { color: gitColors.textLink }]}>
+                                      Mark Seen
+                                    </Text>
+                                  </TouchableOpacity>
+                                )}
 
-                              {status === 'processing' && (
-                                <TouchableOpacity
-                                  activeOpacity={0.7}
-                                  disabled={isUpdating}
-                                  onPress={() => handleUpdateStatus(ord.order_id, 'completed')}
-                                  style={[styles.actionBtn, { borderColor: gitColors.border, backgroundColor: gitColors.greenBtn }]}
-                                >
-                                  <MaterialIcon name="check" size={14} color="#FFFFFF" />
-                                  <Text style={[styles.actionBtnText, { color: '#FFFFFF' }]}>Complete</Text>
-                                </TouchableOpacity>
-                              )}
+                                {(status === 'new' || status === 'seen') && (
+                                  <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    disabled={isUpdating}
+                                    onPress={() => handleUpdateStatus(ord.order_id, 'processing')}
+                                    style={[
+                                      styles.actionBtn,
+                                      {
+                                        borderColor: gitColors.border,
+                                        backgroundColor: gitColors.btnBg,
+                                      },
+                                    ]}
+                                  >
+                                    <MaterialIcon name="conveyor_belt" size={14} color={gitColors.labelYellowText} />
+                                    <Text style={[styles.actionBtnText, { color: gitColors.labelYellowText }]}>
+                                      Process
+                                    </Text>
+                                  </TouchableOpacity>
+                                )}
 
-                              {status !== 'completed' && status !== 'cancelled' && (
-                                <TouchableOpacity
-                                  activeOpacity={0.7}
-                                  disabled={isUpdating}
-                                  onPress={() => handleUpdateStatus(ord.order_id, 'cancelled')}
-                                  style={[styles.actionBtn, { borderColor: gitColors.border, backgroundColor: gitColors.btnBg }]}
-                                >
-                                  <MaterialIcon name="close" size={14} color="#D32F2F" />
-                                  <Text style={[styles.actionBtnText, { color: '#D32F2F' }]}>Decline</Text>
-                                </TouchableOpacity>
-                              )}
+                                {status === 'processing' && (
+                                  <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    disabled={isUpdating}
+                                    onPress={() => handleUpdateStatus(ord.order_id, 'completed')}
+                                    style={[
+                                      styles.actionBtn,
+                                      {
+                                        borderColor: gitColors.border,
+                                        backgroundColor: gitColors.greenBtn,
+                                      },
+                                    ]}
+                                  >
+                                    <MaterialIcon name="check_circle" size={14} color="#FFFFFF" />
+                                    <Text style={[styles.actionBtnText, { color: '#FFFFFF' }]}>
+                                      Complete
+                                    </Text>
+                                  </TouchableOpacity>
+                                )}
+
+                                {status !== 'completed' && status !== 'cancelled' && (
+                                  <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    disabled={isUpdating}
+                                    onPress={() => handleUpdateStatus(ord.order_id, 'cancelled')}
+                                    style={[
+                                      styles.actionBtn,
+                                      {
+                                        borderColor: gitColors.border,
+                                        backgroundColor: gitColors.btnBg,
+                                      },
+                                    ]}
+                                  >
+                                    <MaterialIcon name="close" size={14} color="#D32F2F" />
+                                    <Text style={[styles.actionBtnText, { color: '#D32F2F' }]}>
+                                      Decline
+                                    </Text>
+                                  </TouchableOpacity>
+                                )}
+                              </View>
                             </View>
                           </View>
-                        </View>
-                      );
-                    })
-                  )
+                        );
+                      })
+                    )}
+                  </View>
                 ) : (
                   /* ── Products List ── */
                   filteredProducts.length === 0 ? (
@@ -681,6 +1212,261 @@ export function SupplierProductsScreen() {
         onClose={() => setIsEditModalOpen(false)}
         onSuccess={() => loadMyProducts()}
       />
+
+      {/* ── Order Inspection Modal ── */}
+      <Modal
+        visible={!!inspectedOrder}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setInspectedOrder(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContentCard, { backgroundColor: gitColors.canvas, borderColor: gitColors.border }]}>
+            {inspectedOrder && (
+              <>
+                {/* Modal Header */}
+                <View style={[styles.modalHeader, { borderBottomColor: gitColors.border }]}>
+                  <View>
+                    <Text style={[styles.modalHeaderTitle, { color: gitColors.textPrimary }]}>
+                      Order #{inspectedOrder.order_id}
+                    </Text>
+                    <Text style={[styles.modalHeaderSub, { color: gitColors.textSecondary }]}>
+                      Received on {inspectedOrder.created_at ? new Date(inspectedOrder.created_at).toLocaleString() : ''}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setInspectedOrder(null)}
+                    style={[styles.modalCloseBtn, { backgroundColor: gitColors.canvasSubtle }]}
+                  >
+                    <MaterialIcon name="close" size={18} color={gitColors.textPrimary} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Modal Body */}
+                <ScrollView style={{ maxHeight: 420 }} contentContainerStyle={{ padding: 16, gap: 14 }}>
+                  {/* Buyer Section */}
+                  <View style={[styles.modalSectionBox, { backgroundColor: gitColors.canvasSubtle, borderColor: gitColors.border }]}>
+                    <Text style={[styles.modalSectionLabel, { color: gitColors.textSecondary }]}>
+                      RETAIL BUYER PROFILE
+                    </Text>
+                    <Text style={[styles.modalBuyerName, { color: gitColors.textPrimary }]}>
+                      {inspectedOrder.business_name || 'Wholesale Buyer'}
+                    </Text>
+                    <Text style={[styles.modalBuyerMeta, { color: gitColors.textSecondary }]}>
+                      📍 {inspectedOrder.business_address || inspectedOrder.business_city || 'Kampala Wholesale Hub'}
+                    </Text>
+                    {inspectedOrder.business_phone ? (
+                      <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                        <TouchableOpacity
+                          onPress={() => handleCallBuyer(inspectedOrder.business_phone)}
+                          style={[styles.modalActionPill, { backgroundColor: gitColors.btnBg, borderColor: gitColors.border }]}
+                        >
+                          <MaterialIcon name="call" size={14} color={gitColors.textPrimary} />
+                          <Text style={[styles.modalActionPillText, { color: gitColors.textPrimary }]}>
+                            {inspectedOrder.business_phone}
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => handleWhatsAppBuyer(inspectedOrder.business_phone)}
+                          style={[styles.modalActionPill, { backgroundColor: '#25D36622', borderColor: '#25D36666' }]}
+                        >
+                          <MaterialIcon name="chat" size={14} color="#25D366" />
+                          <Text style={[styles.modalActionPillText, { color: '#25D366' }]}>
+                            WhatsApp
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : null}
+                  </View>
+
+                  {/* Line Items */}
+                  <View>
+                    <Text style={[styles.modalSectionLabel, { color: gitColors.textSecondary, marginBottom: 8 }]}>
+                      ORDER SPECIFICATIONS &amp; QUANTITIES
+                    </Text>
+                    {(Array.isArray(inspectedOrder.entries_json) ? inspectedOrder.entries_json : []).map((item: any, iIdx: number) => {
+                      const img = item.imageUrl || item.image_url;
+                      const cHex = item.colorHex || (item.color?.color) || '#12BBF0';
+                      const cName = item.colorName || (item.color?.label) || item.color || 'Standard';
+                      const units = item.total_units || item.quantity || 1;
+                      const price = item.unit_price || 0;
+
+                      return (
+                        <View
+                          key={iIdx}
+                          style={[
+                            styles.modalItemRow,
+                            { backgroundColor: gitColors.canvasSubtle, borderColor: gitColors.border },
+                          ]}
+                        >
+                          {img ? (
+                            <Image source={{ uri: img }} style={styles.modalItemThumb} resizeMode="cover" />
+                          ) : (
+                            <View style={[styles.modalItemThumb, { backgroundColor: gitColors.canvas, alignItems: 'center', justifyContent: 'center' }]}>
+                              <MaterialIcon name="inventory_2" size={18} color={gitColors.textSecondary} />
+                            </View>
+                          )}
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.modalItemTitle, { color: gitColors.textPrimary }]}>
+                              {item.name || item.product_name || 'Wholesale Product'}
+                            </Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                              <View style={[styles.entryColorSwatch, { backgroundColor: cHex }]} />
+                              <Text style={[styles.entryColorLabel, { color: gitColors.textSecondary }]}>
+                                {cName}
+                              </Text>
+                            </View>
+                          </View>
+                          <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={[styles.entryQtyBold, { color: gitColors.textPrimary }]}>
+                              {units.toLocaleString()} units
+                            </Text>
+                            {price > 0 && (
+                              <Text style={[styles.entrySubPrice, { color: gitColors.textSecondary }]}>
+                                UGX {(units * price).toLocaleString()}
+                              </Text>
+                            )}
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+
+                  {/* Total Amount */}
+                  <View style={[styles.modalTotalBox, { backgroundColor: gitColors.canvasSubtle, borderColor: gitColors.border }]}>
+                    <Text style={[styles.modalTotalLabel, { color: gitColors.textSecondary }]}>
+                      TOTAL WHOLESALE SETTLEMENT:
+                    </Text>
+                    <Text style={[styles.modalTotalVal, { color: gitColors.textLink }]}>
+                      UGX {(inspectedOrder.total_amount || 0).toLocaleString()}
+                    </Text>
+                  </View>
+                </ScrollView>
+
+                {/* Modal Footer Actions */}
+                <View style={[styles.modalFooter, { borderTopColor: gitColors.border }]}>
+                  <TouchableOpacity
+                    onPress={() => handleViewOrderPdf(inspectedOrder)}
+                    disabled={isGeneratingPdf}
+                    style={[styles.modalFooterBtn, { backgroundColor: gitColors.btnBg, borderColor: gitColors.border }]}
+                  >
+                    <MaterialIcon name="picture_as_pdf" size={16} color="#E056FD" />
+                    <Text style={[styles.modalFooterBtnText, { color: gitColors.textPrimary }]}>
+                      Download Official Spec Sheet PDF
+                    </Text>
+                  </TouchableOpacity>
+
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                    {inspectedOrder.status !== 'completed' && inspectedOrder.status !== 'cancelled' && (
+                      <TouchableOpacity
+                        onPress={() => handleUpdateStatus(inspectedOrder.order_id, 'completed')}
+                        style={[styles.modalFooterBtn, { flex: 1, backgroundColor: gitColors.greenBtn, borderColor: gitColors.border }]}
+                      >
+                        <MaterialIcon name="check_circle" size={15} color="#FFFFFF" />
+                        <Text style={[styles.modalFooterBtnText, { color: '#FFFFFF' }]}>
+                          Fulfill &amp; Complete Order
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                    {inspectedOrder.status !== 'cancelled' && (
+                      <TouchableOpacity
+                        onPress={() => handleUpdateStatus(inspectedOrder.order_id, 'cancelled')}
+                        style={[styles.modalFooterBtn, { backgroundColor: gitColors.btnBg, borderColor: '#D32F2F55' }]}
+                      >
+                        <MaterialIcon name="close" size={15} color="#D32F2F" />
+                        <Text style={[styles.modalFooterBtnText, { color: '#D32F2F' }]}>
+                          Decline
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Verify Clearance Code Modal ── */}
+      <Modal
+        visible={isVerifyModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsVerifyModalOpen(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContentCard, { maxWidth: 440, backgroundColor: gitColors.canvas, borderColor: gitColors.border }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: gitColors.border }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <MaterialIcon name="verified" size={20} color={gitColors.greenBtn} />
+                <Text style={[styles.modalHeaderTitle, { color: gitColors.textPrimary }]}>
+                  Verify Order Clearance Code
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setIsVerifyModalOpen(false)}
+                style={[styles.modalCloseBtn, { backgroundColor: gitColors.canvasSubtle }]}
+              >
+                <MaterialIcon name="close" size={18} color={gitColors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ padding: 18, gap: 14 }}>
+              <Text style={[styles.verifyDescription, { color: gitColors.textSecondary }]}>
+                Enter the clearance token or Order ID from the buyer’s official N.O.D.E. PDF Spec Sheet to instantly verify, release goods, and mark order as completed.
+              </Text>
+
+              <View style={[styles.verifyInputWrap, { backgroundColor: gitColors.canvasSubtle, borderColor: gitColors.border }]}>
+                <MaterialIcon name="qr_code" size={18} color={gitColors.textSecondary} />
+                <TextInput
+                  value={verifyCodeInput}
+                  onChangeText={setVerifyCodeInput}
+                  placeholder="e.g. ORD-20261126-7890"
+                  placeholderTextColor={gitColors.textSecondary}
+                  style={[styles.verifyInput, { color: gitColors.textPrimary }]}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                />
+              </View>
+
+              {verifyFeedback && (
+                <View
+                  style={[
+                    styles.verifyFeedbackBox,
+                    {
+                      backgroundColor: verifyFeedback.success ? 'rgba(46, 160, 67, 0.15)' : 'rgba(211, 47, 47, 0.15)',
+                      borderColor: verifyFeedback.success ? gitColors.labelGreenText : '#D32F2F',
+                    },
+                  ]}
+                >
+                  <MaterialIcon
+                    name={verifyFeedback.success ? 'check_circle' : 'error'}
+                    size={16}
+                    color={verifyFeedback.success ? gitColors.labelGreenText : '#D32F2F'}
+                  />
+                  <Text
+                    style={[
+                      styles.verifyFeedbackText,
+                      { color: verifyFeedback.success ? gitColors.labelGreenText : '#D32F2F' },
+                    ]}
+                  >
+                    {verifyFeedback.message}
+                  </Text>
+                </View>
+              )}
+
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={handleVerifyCodeSubmit}
+                style={[styles.verifySubmitBtn, { backgroundColor: gitColors.greenBtn }]}
+              >
+                <MaterialIcon name="check" size={16} color="#FFFFFF" />
+                <Text style={styles.verifySubmitBtnText}>Verify &amp; Clear Order</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -967,10 +1753,74 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     maxWidth: 360,
   },
-  // ── Incoming Orders Styles ──
+  // ── Incoming Wholesale Orders Suite Styles ──
+  orderToolbar: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  orderSearchBox: {
+    flex: 1,
+    minWidth: 220,
+    height: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    gap: 8,
+  },
+  orderSearchInput: {
+    flex: 1,
+    fontSize: 13,
+    paddingVertical: 0,
+  },
+  verifyTokenBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 36,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  verifyTokenBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  pipelineTabsScroll: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  pipelineTabPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  pipelineTabText: {
+    fontSize: 12,
+  },
+  pipelineCountBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  pipelineCountText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
   gitOrderRow: {
     padding: 16,
-    gap: 10,
+    gap: 12,
   },
   orderHeaderRow: {
     flexDirection: 'row',
@@ -983,9 +1833,17 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: 12,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   statusPillText: {
     fontSize: 10,
@@ -995,42 +1853,85 @@ const styles = StyleSheet.create({
   orderDateText: {
     fontSize: 11,
   },
-  buyerInfoRow: {
+  buyerCard: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 10,
+    borderRadius: 6,
+    borderWidth: 1,
     flexWrap: 'wrap',
-    gap: 6,
+    gap: 8,
   },
   buyerNameText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  buyerPhoneText: {
-    fontSize: 12,
+  buyerMetaText: {
+    fontSize: 11,
   },
-  buyerCityText: {
-    fontSize: 12,
+  buyerActionGroup: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  buyerQuickBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  buyerQuickBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   entriesList: {
     padding: 8,
     borderRadius: 6,
     borderWidth: 1,
-    gap: 4,
+    gap: 6,
   },
   entryLine: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 10,
+    paddingVertical: 4,
+  },
+  entryThumbWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 4,
+    borderWidth: 1,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  entryThumbImage: {
+    width: '100%',
+    height: '100%',
   },
   entryName: {
     fontSize: 12,
-    fontWeight: '500',
-    flex: 1,
-  },
-  entryQty: {
-    fontSize: 11,
     fontWeight: '600',
-    marginLeft: 8,
+  },
+  entryColorSwatch: {
+    width: 10,
+    height: 10,
+    borderRadius: 2,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0,0,0,0.2)',
+  },
+  entryColorLabel: {
+    fontSize: 11,
+  },
+  entryQtyBold: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  entrySubPrice: {
+    fontSize: 10,
   },
   orderFooterRow: {
     flexDirection: 'row',
@@ -1043,9 +1944,14 @@ const styles = StyleSheet.create({
   orderTotalText: {
     fontSize: 13,
   },
+  orderUnitsSummary: {
+    fontSize: 11,
+    marginTop: 1,
+  },
   orderActionsRow: {
     flexDirection: 'row',
     gap: 6,
+    flexWrap: 'wrap',
   },
   actionBtn: {
     flexDirection: 'row',
@@ -1058,6 +1964,177 @@ const styles = StyleSheet.create({
   },
   actionBtnText: {
     fontSize: 11,
+    fontWeight: '700',
+  },
+  // ── Modals: Inspection & Code Verification ──
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  modalContentCard: {
+    width: '100%',
+    maxWidth: 600,
+    borderRadius: 10,
+    borderWidth: 1,
+    overflow: 'hidden',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+  },
+  modalHeaderTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  modalHeaderSub: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalSectionBox: {
+    padding: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  modalSectionLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  modalBuyerName: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  modalBuyerMeta: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  modalActionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  modalActionPillText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  modalItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 10,
+    borderRadius: 6,
+    borderWidth: 1,
+    marginBottom: 6,
+  },
+  modalItemThumb: {
+    width: 44,
+    height: 44,
+    borderRadius: 6,
+  },
+  modalItemTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  modalTotalBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  modalTotalLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  modalTotalVal: {
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  modalFooter: {
+    padding: 14,
+    borderTopWidth: 1,
+  },
+  modalFooterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  modalFooterBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  verifyDescription: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  verifyInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    height: 44,
+  },
+  verifyInput: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    paddingVertical: 0,
+  },
+  verifyFeedbackBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 10,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  verifyFeedbackText: {
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
+  },
+  verifySubmitBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 44,
+    borderRadius: 6,
+  },
+  verifySubmitBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: '700',
   },
   paginationFooter: {
