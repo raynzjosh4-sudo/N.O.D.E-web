@@ -1,32 +1,30 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TouchableOpacity,
-  Image,
-  Platform,
-  TextInput,
-  Modal,
-  useWindowDimensions,
-} from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
-import { useAppNavigation } from '@/core/utils/use_app_navigation';
-import { AppColors } from '@/core/theme/app_theme';
 import { useAppTheme } from '@/core/theme/theme_context';
+import { useAppNavigation } from '@/core/utils/use_app_navigation';
 import { MaterialIcon } from '@/core/widgets/material_icon';
 import { useToast } from '@/core/widgets/whatsapp_dialog';
-import { ProfileApiService } from '@/features/profile/data/services/profile_api_service';
+import { useAuth } from '@/features/auth/context/auth_context';
+import { useProducts } from '@/features/inventory/context/products_context';
 import { ProductApiService } from '@/features/inventory/data/services/product_api_service';
 import { Product } from '@/features/inventory/domain/entities/product';
-import { useProducts } from '@/features/inventory/context/products_context';
-import { useAuth } from '@/features/auth/context/auth_context';
-import { getWholesaleUnitPrice, getActiveWholesaleTier } from '@/features/inventory/utils/wholesale_pricing';
+import { getActiveWholesaleTier, getWholesaleUnitPrice } from '@/features/inventory/utils/wholesale_pricing';
+import { ProfileApiService } from '@/features/profile/data/services/profile_api_service';
+import { useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  ColorVariant,
+  Image,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  useWindowDimensions,
+  View
+} from 'react-native';
+import {
   ColorGroup,
+  ColorVariant,
 } from './order_models';
 
 export default function SpecsOrderPage() {
@@ -71,16 +69,7 @@ export default function SpecsOrderPage() {
     return [];
   }, [product?.colors]);
 
-  // Dynamically derive the product's actual sizes from database
-  const availableSizes: string[] = useMemo(() => {
-    if (product?.sizes && product.sizes.length > 0) {
-      return product.sizes.map((s) => s.abbreviation || s.name);
-    }
-    return [];
-  }, [product?.sizes]);
 
-  // Confirmed color/size groupings
-  const [confirmedGroups, setConfirmedGroups] = useState<ColorGroup[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
 
@@ -608,7 +597,13 @@ export default function SpecsOrderPage() {
           {/* ── Main Two-Column or Stacked View ── */}
           <View style={[styles.mainLayout, isDesktop && styles.desktopMainLayout]}>
             {/* ── Left / Top: Configuration Controls (Flat, No Card Box) ── */}
-            <View style={[styles.configColumn, { borderRightColor: isDesktop ? gitBorder : 'transparent' }]}>
+            <View
+              style={[
+                styles.configColumn,
+                isDesktop && styles.desktopConfigColumn,
+                { borderRightColor: isDesktop ? gitBorder : 'transparent' },
+              ]}
+            >
               {/* 1. SELECT COLOUR YOU WANT (Dart 1:1 Parity) */}
               {availableColors.length > 0 && (
                 <View style={[styles.sectionGroup, { borderBottomColor: gitBorder }]}>
@@ -779,7 +774,7 @@ export default function SpecsOrderPage() {
             </View>
 
             {/* ── Right / Bottom: Order Breakdown (Flat Git-style, No Box) ── */}
-            <View style={styles.breakdownColumn}>
+            <View style={[styles.breakdownColumn, isDesktop && styles.desktopBreakdownColumn]}>
               <View style={[styles.breakdownHeader, { borderBottomColor: gitBorder }]}>
                 <Text style={[styles.breakdownTitle, { color: colors.onSurface }]}>
                   ORDER SUMMARY ({totalUnits} UNITS)
@@ -1062,10 +1057,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   configColumn: {
+    width: '100%',
+  },
+  desktopConfigColumn: {
     flex: 1,
     borderRightWidth: 1,
   },
   breakdownColumn: {
+    width: '100%',
+  },
+  desktopBreakdownColumn: {
     flex: 1,
   },
   sectionGroup: {
