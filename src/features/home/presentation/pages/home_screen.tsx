@@ -31,6 +31,8 @@ import { useProducts } from '@/features/inventory/context/products_context';
 import { useAuth } from '@/features/auth/context/auth_context';
 import { AuthPromptSheet } from '@/features/auth/presentation/widgets/auth_prompt_sheet';
 import { BecomeSupplierSheet } from '@/features/profile/presentation/widgets/become_supplier_sheet';
+import { BulkOrderFloatingDock } from '@/features/home/presentation/widgets/bulk_order_floating_dock';
+import { useBulkCart } from '@/features/inventory/context/bulk_cart_context';
 import { useScrollAppbar } from '@/core/hooks/use_scroll_appbar';
 import { useCoachmark } from '@/core/coachmarks/coachmark_context';
 
@@ -66,21 +68,8 @@ export default function HomeScreen() {
   // Selected product for desktop Pinterest-style side panel
   const [activeSideProduct, setActiveSideProduct] = useState<Product | null>(null);
 
-  // Multi-Product Bulk Selection State
-  const [isBulkMode, setIsBulkMode] = useState(false);
-  const [selectedBulkProductIds, setSelectedBulkProductIds] = useState<Set<string>>(new Set());
-
-  const handleToggleSelectProduct = (p: Product) => {
-    setSelectedBulkProductIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(p.id)) {
-        next.delete(p.id);
-      } else {
-        next.add(p.id);
-      }
-      return next;
-    });
-  };
+  // Persistent Bulk Cart State
+  const { bulkProductIds, bulkCount, isBulkMode, toggleBulkMode } = useBulkCart();
 
   // Authentication State
   const { user, isAuthenticated } = useAuth();
@@ -252,9 +241,6 @@ export default function HomeScreen() {
                   <ProductGridSection
                     products={filteredProducts}
                     onProductPress={handleProductTap}
-                    isSelectMode={isBulkMode}
-                    selectedIds={selectedBulkProductIds}
-                    onToggleSelect={handleToggleSelectProduct}
                   />
                 ) : (
                   <View style={styles.noResultsBox}>
@@ -323,17 +309,14 @@ export default function HomeScreen() {
                   onCartPress={(p) => console.log('Add popular to cart:', p.name)}
                 />
 
-                {/* 7. Product Masonry Waterfall Grid with Bulk Mode Toggle */}
+                {/* 7. Product Masonry Waterfall Grid with Make Bulk Order Toggle */}
                 <View style={styles.feedHeaderRow}>
                   <Text style={[styles.feedSectionTitle, { color: colors.onSurface }]}>
-                    {isBulkMode ? 'Select Products for Bulk' : 'All Wholesale Listings'}
+                    All Wholesale Listings
                   </Text>
                   <TouchableOpacity
                     activeOpacity={0.8}
-                    onPress={() => {
-                      setIsBulkMode((prev) => !prev);
-                      if (isBulkMode) setSelectedBulkProductIds(new Set());
-                    }}
+                    onPress={toggleBulkMode}
                     style={[
                       styles.bulkModeToggle,
                       isBulkMode
@@ -342,8 +325,8 @@ export default function HomeScreen() {
                     ]}
                   >
                     <MaterialIcon
-                      name={isBulkMode ? "checklist_rtl" : "checklist"}
-                      size={14}
+                      name={isBulkMode ? 'check_circle' : 'playlist_add'}
+                      size={15}
                       color={isBulkMode ? '#FFFFFF' : (isDark ? '#E6EDF3' : '#1F2328')}
                     />
                     <Text
@@ -352,7 +335,11 @@ export default function HomeScreen() {
                         { color: isBulkMode ? '#FFFFFF' : (isDark ? '#E6EDF3' : '#1F2328') },
                       ]}
                     >
-                      {isBulkMode ? 'Done Selecting' : 'Multi-Select / Bulk'}
+                      {isBulkMode
+                        ? bulkCount > 0
+                          ? `Bulk List (${bulkCount})`
+                          : 'Bulk Mode On'
+                        : 'Make Bulk Order'}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -360,9 +347,6 @@ export default function HomeScreen() {
                 <ProductGridSection
                   products={products}
                   onProductPress={handleProductTap}
-                  isSelectMode={isBulkMode}
-                  selectedIds={selectedBulkProductIds}
-                  onToggleSelect={handleToggleSelectProduct}
                 />
               </ScrollView>
             )}
@@ -379,36 +363,8 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* ── Floating Sticky Dock for Multi-Product Bulk Configuration ── */}
-      {isBulkMode && selectedBulkProductIds.size > 0 && (
-        <View style={[styles.floatingBulkDock, { backgroundColor: isDark ? '#161B22' : '#FFFFFF', borderColor: isDark ? '#30363D' : '#D0D7DE' }]}>
-          <View style={styles.floatingBulkLeft}>
-            <View style={styles.bulkCountCircle}>
-              <Text style={styles.bulkCountText}>{selectedBulkProductIds.size}</Text>
-            </View>
-            <View>
-              <Text style={[styles.bulkDockLabel, { color: colors.onSurface }]}>
-                {selectedBulkProductIds.size === 1 ? '1 Product Selected' : `${selectedBulkProductIds.size} Products Selected`}
-              </Text>
-              <Text style={[styles.bulkDockSub, { color: colors.onSurfaceMuted }]}>
-                Tap to pick colors &amp; make spec sheet
-              </Text>
-            </View>
-          </View>
-
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={styles.bulkConfigureBtn}
-            onPress={() => {
-              const idsParam = Array.from(selectedBulkProductIds).join(',');
-              router.push(`/product/multi-order?ids=${idsParam}`);
-            }}
-          >
-            <Text style={styles.bulkConfigureBtnText}>Configure Bulk Order</Text>
-            <MaterialIcon name="arrow_forward" size={15} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-      )}
+      {/* ── Persistent Floating Bulk Order Dock ── */}
+      <BulkOrderFloatingDock bottomInset={Platform.OS === 'ios' ? 24 : 16} />
 
       {/* Auth Prompt Modal Sheet */}
       <AuthPromptSheet

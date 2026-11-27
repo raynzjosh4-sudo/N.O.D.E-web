@@ -14,9 +14,13 @@ import { ProfileApiService } from '@/features/profile/data/services/profile_api_
 import { useToast } from '@/core/widgets/whatsapp_dialog';
 import { CoachmarkAnchor } from '@/core/coachmarks/coachmark_anchor';
 import { useCoachmark } from '@/core/coachmarks/coachmark_context';
+import { useBulkCart } from '@/features/inventory/context/bulk_cart_context';
+import { BulkOrderFloatingDock } from '@/features/home/presentation/widgets/bulk_order_floating_dock';
+import { FullScreenImageViewer } from '@/features/home/presentation/widgets/full_screen_image_viewer';
 import {
   ActivityIndicator,
   Image,
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -55,6 +59,14 @@ export default function ProductDetailScreen() {
   const [isSaved, setIsSaved] = useState(false);
   const [savedCount, setSavedCount] = useState<number>(4);
   const [savedItemId, setSavedItemId] = useState<string | null>(null);
+
+  // Bulk Cart state
+  const { isBulkMode, bulkCount, isInBulkList, toggleBulkItem } = useBulkCart();
+  const isInBulk = product ? isInBulkList(product.id) : false;
+
+  // Full-screen mobile image viewer state (mobile only)
+  const [showFullImage, setShowFullImage] = useState(false);
+  const [fullImageIndex, setFullImageIndex] = useState(0);
 
   // Check if current product is saved in user's saved bag
   useEffect(() => {
@@ -299,11 +311,23 @@ export default function ProductDetailScreen() {
         {/* 👑 IMMERSIVE CURVED HERO HEADER (Dart HeroHeaderDelegate matching) */}
         <View style={[styles.heroWrapper, { height: heroHeight, maxWidth: isDesktop ? 960 : '100%' }]}>
           <View style={styles.heroClipCard}>
-            <Image
-              source={{ uri: product.imageUrl }}
+            <TouchableOpacity
+              activeOpacity={0.96}
+              disabled={isDesktop}
               style={StyleSheet.absoluteFill}
-              resizeMode="cover"
-            />
+              onPress={() => {
+                if (!isDesktop) {
+                  setFullImageIndex(0);
+                  setShowFullImage(true);
+                }
+              }}
+            >
+              <Image
+                source={{ uri: product.imageUrl }}
+                style={StyleSheet.absoluteFill}
+                resizeMode="cover"
+              />
+            </TouchableOpacity>
 
             {/* Subtle top vignette gradient for button visibility */}
             <View style={styles.topVignette} />
@@ -397,15 +421,57 @@ export default function ProductDetailScreen() {
               </Text>
             </View>
 
-            {/* ⚙️ FLOATING SPECIFICATION BUTTON (Bottom-Right Orange Pill) */}
-            <TouchableOpacity
-              activeOpacity={0.85}
-              style={[styles.viewSpecsButton, { backgroundColor: colors.primary }]}
-              onPress={navigateToSpecs}
-            >
-              <Text style={styles.viewSpecsButtonText}>View Specs</Text>
-              <MaterialIcon name="arrow_forward" size={16} color="#FFFFFF" />
-            </TouchableOpacity>
+            {/* Bottom-Right Hero Action Buttons */}
+            <View style={styles.heroActionButtonsRow}>
+              {/* + Add to Bulk List Button (visible when Bulk Mode is enabled or item is in bulk) */}
+              {(isBulkMode || bulkCount > 0 || isInBulk) && (
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  style={[
+                    styles.bulkListHeroButton,
+                    isInBulk
+                      ? { backgroundColor: '#10B981', borderColor: '#10B981' }
+                      : {
+                          backgroundColor: isDark ? 'rgba(22, 27, 34, 0.92)' : 'rgba(255, 255, 255, 0.92)',
+                          borderColor: colors.primary,
+                        },
+                  ]}
+                  onPress={() => {
+                    toggleBulkItem(product.id);
+                    showSuccess(
+                      isInBulk ? 'Removed from Bulk' : 'Added to Bulk List',
+                      isInBulk
+                        ? `${product.name} removed from your bulk list.`
+                        : `${product.name} added to your bulk list. Tap "Proceed to Order" anytime.`
+                    );
+                  }}
+                >
+                  <MaterialIcon
+                    name={isInBulk ? 'check' : 'add'}
+                    size={15}
+                    color={isInBulk ? '#FFFFFF' : colors.primary}
+                  />
+                  <Text
+                    style={[
+                      styles.bulkListHeroButtonText,
+                      { color: isInBulk ? '#FFFFFF' : colors.primary },
+                    ]}
+                  >
+                    {isInBulk ? 'In Bulk List ✓' : 'Add to Bulk List'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {/* ⚙️ FLOATING SPECIFICATION BUTTON */}
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={[styles.viewSpecsButton, { backgroundColor: colors.primary }]}
+                onPress={navigateToSpecs}
+              >
+                <Text style={styles.viewSpecsButtonText}>View Specs</Text>
+                <MaterialIcon name="arrow_forward" size={16} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -438,7 +504,14 @@ export default function ProductDetailScreen() {
                     key={`media-thumb-${idx}`}
                     activeOpacity={0.85}
                     style={[styles.mediaThumbCard, { borderColor: colors.borderLight }]}
-                    onPress={navigateToSpecs}
+                    onPress={() => {
+                      if (!isDesktop) {
+                        setFullImageIndex(idx);
+                        setShowFullImage(true);
+                      } else {
+                        navigateToSpecs();
+                      }
+                    }}
                   >
                     <Image source={{ uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
                   </TouchableOpacity>
@@ -452,7 +525,14 @@ export default function ProductDetailScreen() {
                     key={`media-exp-${idx}`}
                     activeOpacity={0.85}
                     style={[styles.expandedMediaCard, { borderColor: colors.borderLight }]}
-                    onPress={navigateToSpecs}
+                    onPress={() => {
+                      if (!isDesktop) {
+                        setFullImageIndex(idx);
+                        setShowFullImage(true);
+                      } else {
+                        navigateToSpecs();
+                      }
+                    }}
                   >
                     <Image source={{ uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
                   </TouchableOpacity>
@@ -475,15 +555,27 @@ export default function ProductDetailScreen() {
               if (isDesktop) {
                 router.replace(`/product/specs/${selected.id}`);
               } else {
-                setProduct(selected);
-                setIsMediaExpanded(false);
+                router.push(`/product/${selected.id}`);
               }
             }}
           />
         </View>
 
-        <View style={{ height: 80 }} />
+        <View style={{ height: 96 }} />
       </ScrollView>
+
+      {/* ── Persistent Floating Bulk Order Dock ── */}
+      <BulkOrderFloatingDock bottomInset={Platform.OS === 'ios' ? 24 : 16} />
+
+      {/* ── Mobile-Only Full-Screen Image Viewer ── */}
+      <FullScreenImageViewer
+        visible={!isDesktop && showFullImage}
+        imageUrls={mediaUrls}
+        initialIndex={fullImageIndex}
+        productTitle={product.name}
+        onClose={() => setShowFullImage(false)}
+        onShare={() => shareProduct(product)}
+      />
     </SafeAreaView>
   );
 }
@@ -600,10 +692,34 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -0.3,
   },
-  viewSpecsButton: {
+  heroActionButtonsRow: {
     position: 'absolute',
     bottom: 20,
     right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bulkListHeroButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  bulkListHeroButtonText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  viewSpecsButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,

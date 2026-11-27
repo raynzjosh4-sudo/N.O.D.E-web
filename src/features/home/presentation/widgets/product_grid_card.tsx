@@ -11,6 +11,7 @@ import { useAppTheme } from '@/core/theme/theme_context';
 import { MaterialIcon } from '@/core/widgets/material_icon';
 import { shareProduct } from '@/core/utils/share_product';
 import { Product } from '@/features/inventory/domain/entities/product';
+import { useBulkCart } from '@/features/inventory/context/bulk_cart_context';
 
 interface ProductGridCardProps {
   product: Product;
@@ -30,6 +31,9 @@ export function ProductGridCard({
   onSelectToggle,
 }: ProductGridCardProps) {
   const { colors } = useAppTheme();
+  const { isInBulkList, isBulkMode } = useBulkCart();
+  const inGlobalBulk = isInBulkList(product.id);
+  const showBulkBadge = Boolean(inGlobalBulk || (isSelectMode && isSelected));
   const activeRatio = aspectRatio ?? product.aspectRatio ?? 0.85;
 
   // Determine wholesale price tier
@@ -75,7 +79,7 @@ export function ProductGridCard({
       <View style={[
         styles.imageWrapper,
         { aspectRatio: activeRatio, backgroundColor: colors.surfaceContainerHighest },
-        isSelectMode && isSelected && { borderWidth: 2, borderColor: '#00BFFF' }
+        showBulkBadge && { borderWidth: 2, borderColor: inGlobalBulk ? '#10B981' : '#00BFFF' }
       ]}>
         <Image
           source={{ uri: product.imageUrl }}
@@ -83,25 +87,33 @@ export function ProductGridCard({
           resizeMode="cover"
         />
 
-        {/* Multi-Select Bulk Mode Indicator Checkbox */}
-        {isSelectMode && (
+        {/* Bulk List / Multi-Select Indicator Badge */}
+        {showBulkBadge ? (
+          <View
+            style={[
+              styles.inBulkPill,
+              { backgroundColor: inGlobalBulk ? '#10B981' : '#00BFFF' },
+            ]}
+          >
+            <MaterialIcon name="check" size={12} color="#FFFFFF" />
+            <Text style={styles.inBulkPillText}>{inGlobalBulk ? 'In Bulk' : 'Selected'}</Text>
+          </View>
+        ) : isSelectMode ? (
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => onSelectToggle?.(product)}
             style={[
               styles.selectBadge,
-              isSelected
-                ? { backgroundColor: '#00BFFF', borderColor: '#00BFFF' }
-                : { backgroundColor: 'rgba(13, 17, 23, 0.65)', borderColor: 'rgba(255, 255, 255, 0.8)' },
+              { backgroundColor: 'rgba(13, 17, 23, 0.65)', borderColor: 'rgba(255, 255, 255, 0.8)' },
             ]}
           >
-            {isSelected ? (
-              <MaterialIcon name="check" size={14} color="#FFFFFF" />
-            ) : (
-              <View style={styles.unselectedDot} />
-            )}
+            <View style={styles.unselectedDot} />
           </TouchableOpacity>
-        )}
+        ) : isBulkMode ? (
+          <View style={[styles.selectBadge, { backgroundColor: 'rgba(13, 17, 23, 0.55)', borderColor: 'rgba(255, 255, 255, 0.7)' }]}>
+            <MaterialIcon name="playlist_add" size={13} color="#FFFFFF" />
+          </View>
+        ) : null}
       </View>
 
       {/* Product Details */}
@@ -238,6 +250,28 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 2,
     elevation: 3,
+  },
+  inBulkPill: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    zIndex: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  inBulkPillText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontFamily: 'Outfit_700Bold',
   },
   unselectedDot: {
     width: 6,

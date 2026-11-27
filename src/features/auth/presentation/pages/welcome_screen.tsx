@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -13,13 +13,15 @@ import { useAppTheme } from '@/core/theme/theme_context';
 import { NodeIcon } from '@/core/widgets/node_icon';
 import { FashionImageCollage } from '../widgets/fashion_image_collage';
 import { GoogleSignInButton } from '../widgets/google_sign_in_button';
+import { SmartSignInSheet } from '../widgets/smart_sign_in_sheet';
 import { useAuth } from '@/features/auth/context/auth_context';
 import { openNodeLegalPortal } from '@/core/constants/legal';
 
 export function WelcomeScreen() {
   const { colors, isDark } = useAppTheme();
   const router = useRouter();
-  const { signInWithGoogle, isLoading } = useAuth();
+  const { isAuthenticated, signInWithGoogle, isLoading } = useAuth();
+  const [showSmartSignIn, setShowSmartSignIn] = useState(false);
 
   const handleGoogleSignIn = async () => {
     try {
@@ -33,7 +35,11 @@ export function WelcomeScreen() {
   };
 
   const handleGetStarted = () => {
-    router.replace('/');
+    if (!isAuthenticated) {
+      setShowSmartSignIn(true);
+    } else {
+      router.replace('/');
+    }
   };
 
   const handleGoLogin = () => {
@@ -171,6 +177,20 @@ export function WelcomeScreen() {
           </Text>
         </Text>
       </View>
+
+      {/* Smart Sign-in One Tap Bottom Sheet */}
+      <SmartSignInSheet
+        visible={showSmartSignIn}
+        onClose={() => setShowSmartSignIn(false)}
+        onSuccess={() => {
+          setShowSmartSignIn(false);
+          router.replace('/');
+        }}
+        onExploreAsGuest={() => {
+          setShowSmartSignIn(false);
+          router.replace('/');
+        }}
+      />
     </View>
   );
 }

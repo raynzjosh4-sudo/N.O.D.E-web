@@ -230,6 +230,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(authUser));
       await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, token);
+      if (authUser.email) {
+        await AsyncStorage.setItem(
+          '@node_last_known_account',
+          JSON.stringify({
+            email: authUser.email,
+            name: authUser.name,
+            avatarUrl: authUser.avatarUrl,
+          })
+        );
+      }
     } catch (e) {
       console.warn('Error saving auth token:', e);
     }

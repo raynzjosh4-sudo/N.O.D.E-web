@@ -4,6 +4,7 @@ import { MaterialIcon } from '@/core/widgets/material_icon';
 import { useToast } from '@/core/widgets/whatsapp_dialog';
 import { useAuth } from '@/features/auth/context/auth_context';
 import { useProducts } from '@/features/inventory/context/products_context';
+import { useBulkCart } from '@/features/inventory/context/bulk_cart_context';
 import { ProductApiService } from '@/features/inventory/data/services/product_api_service';
 import { Product } from '@/features/inventory/domain/entities/product';
 import { getActiveWholesaleTier, getWholesaleUnitPrice } from '@/features/inventory/utils/wholesale_pricing';
@@ -38,6 +39,7 @@ export default function SpecsOrderPage() {
   const { colors, isDark } = useAppTheme();
   const isDesktop = width >= 960;
   const { getProductById } = useProducts();
+  const { addToBulkList, bulkProductIds } = useBulkCart();
 
   const initialProduct = id ? getProductById(id) : undefined;
   const [product, setProduct] = useState<Product | undefined>(initialProduct);
@@ -1014,7 +1016,14 @@ export default function SpecsOrderPage() {
                   style={[styles.addBulkProductsBtn, { borderColor: '#00BFFF', backgroundColor: isDark ? 'rgba(0, 191, 255, 0.12)' : 'rgba(0, 191, 255, 0.08)' }]}
                   onPress={() => {
                     if (product) {
-                      router.push(`/product/multi-order?ids=${product.id}`);
+                      addToBulkList(product.id);
+                      const combined = Array.from(new Set([...bulkProductIds, product.id]));
+                      if (combined.length > 1) {
+                        router.push(`/product/multi-order?ids=${combined.join(',')}`);
+                      } else {
+                        showSuccess('Added to Bulk List', 'Tap other products to add them, then tap Proceed to Order.');
+                        router.push('/');
+                      }
                     }
                   }}
                 >

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
+  ActivityIndicator,
   View,
   Text,
   StyleSheet,
@@ -13,22 +14,32 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useAppNavigation } from '@/core/utils/use_app_navigation';
-import { AppColors } from '@/core/theme/app_theme';
 import { useAppTheme } from '@/core/theme/theme_context';
 import { MaterialIcon } from '@/core/widgets/material_icon';
 import { useToast } from '@/core/widgets/whatsapp_dialog';
 import { ProfileApiService } from '@/features/profile/data/services/profile_api_service';
 import { ProductApiService } from '@/features/inventory/data/services/product_api_service';
 import { Product } from '@/features/inventory/domain/entities/product';
-import { getWholesaleUnitPrice } from '@/features/inventory/utils/wholesale_pricing';
+import { getActiveWholesaleTier, getWholesaleUnitPrice } from '@/features/inventory/utils/wholesale_pricing';
 import { useAuth } from '@/features/auth/context/auth_context';
 import { useProducts } from '@/features/inventory/context/products_context';
+import { useBulkCart } from '@/features/inventory/context/bulk_cart_context';
 import { buildSpecSheetPayload, makeAndOpenSpecSheetPdf } from '@/core/utils/pdf_spec_sheet';
 import { saveGuestDraft } from '@/core/utils/guest_drafts';
 import {
   ColorVariant,
   ColorGroup,
 } from './order_models';
+
+function isLightHex(hex: string): boolean {
+  const clean = (hex || '').replace('#', '').trim();
+  if (clean.length !== 6) return false;
+  const r = parseInt(clean.substring(0, 2), 16);
+  const g = parseInt(clean.substring(2, 4), 16);
+  const b = parseInt(clean.substring(4, 6), 16);
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return false;
+  return (r * 299 + g * 587 + b * 114) / 1000 > 180;
+}
 
 export default function MultiProductOrderPage() {
   const router = useAppNavigation();
@@ -39,6 +50,7 @@ export default function MultiProductOrderPage() {
   const { colors, isDark } = useAppTheme();
   const isDesktop = width >= 960;
   const { products: contextProducts, getProductById } = useProducts();
+  const { bulkProductIds, clearBulkList } = useBulkCart();
 
   // GitHub Primer flat border colors
   const gitBorder = isDark ? '#30363D' : '#D0D7DE';
@@ -66,41 +78,49 @@ export default function MultiProductOrderPage() {
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
-  // Load products based on IDs passed
+  // Always fetch complete product details (with available_colors, available_sizes, price_tiers)
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
 
     const loadProducts = async () => {
-      // Deduplicate IDs
       const rawIds = (ids || '').split(',').map((s) => s.trim()).filter(Boolean);
-      const uniqueIds = Array.from(new Set(rawIds));
+      const sourceIds = rawIds.length > 0 ? rawIds : bulkProductIds;
+      const uniqueIds = Array.from(new Set(sourceIds));
 
       if (uniqueIds.length === 0) {
         if (contextProducts.length > 0 && isMounted) {
-          setProductList(contextProducts.slice(0, 3));
+          const sliceIds = contextProducts.slice(0, 3).map((p) => p.id);
+          const detailResults = await Promise.allSettled(
+            sliceIds.map((pId) => ProductApiService.getProductById(pId))
+          );
+          const resolved = detailResults
+            .map((res, idx) =>
+              res.status === 'fulfilled' && res.value ? res.value : contextProducts[idx]
+            )
+            .filter(Boolean) as Product[];
+          if (isMounted) setProductList(resolved);
         }
-        setLoading(false);
+        if (isMounted) setLoading(false);
         return;
       }
 
+      const detailResults = await Promise.allSettled(
+        uniqueIds.map((pId) => ProductApiService.getProductById(pId))
+      );
+
       const fetched: Product[] = [];
-      for (const pId of uniqueIds) {
-        const cached = getProductById(pId);
-        if (cached) {
-          fetched.push(cached);
+      detailResults.forEach((res, idx) => {
+        if (res.status === 'fulfilled' && res.value) {
+          fetched.push(res.value);
         } else {
-          try {
-            const p = await ProductApiService.getProductById(pId);
-            if (p) fetched.push(p);
-          } catch (e) {
-            console.log('Error fetching product:', pId, e);
-          }
+          const cached = getProductById(uniqueIds[idx]);
+          if (cached) fetched.push(cached);
         }
-      }
+      });
 
       if (isMounted) {
-        setProductList(fetched.length > 0 ? fetched : contextProducts.slice(0, 3));
+        setProductList(fetched);
         setLoading(false);
       }
     };
@@ -110,7 +130,7 @@ export default function MultiProductOrderPage() {
     return () => {
       isMounted = false;
     };
-  }, [ids, contextProducts]);
+  }, [ids, bulkProductIds.join(',')]);
 
   // Restore draft if draftId is supplied
   useEffect(() => {
@@ -145,7 +165,7 @@ export default function MultiProductOrderPage() {
 
   const currentProduct: Product | undefined = productList[currentStepIndex];
 
-  // Derive available colors for current product
+  // Derive available colors for current product (always show at least Standard / As Shown if DB has none)
   const availableColors: ColorVariant[] = useMemo(() => {
     if (currentProduct?.colors && currentProduct.colors.length > 0) {
       return currentProduct.colors.map((c) => ({
@@ -153,15 +173,16 @@ export default function MultiProductOrderPage() {
         color: c.hexCode || '#1C1B1F',
       }));
     }
-    return [];
+    return [{ label: 'Standard / As Shown', color: '#1C1B1F' }];
   }, [currentProduct?.colors]);
 
-  // Derive available sizes for current product
+  // Derive available sizes for current product (fallback to Standard Unit if DB has none)
+  const hasExplicitSizes = Boolean(currentProduct?.sizes && currentProduct.sizes.length > 0);
   const availableSizes: string[] = useMemo(() => {
     if (currentProduct?.sizes && currentProduct.sizes.length > 0) {
       return currentProduct.sizes.map((s) => s.abbreviation || s.name);
     }
-    return [];
+    return ['Standard Unit'];
   }, [currentProduct?.sizes]);
 
   // Reset active state when changing product step
@@ -169,62 +190,113 @@ export default function MultiProductOrderPage() {
     if (!currentProduct) return;
     const existing = productConfigs.get(currentProduct.id) || [];
     setCurrentGroups(existing);
-    if (availableColors.length > 0) {
-      setActiveColor(null); // Wait for user to pick color like Dart
+
+    // Select first color automatically if only Standard/single option, otherwise prompt user or pick first when single
+    if (availableColors.length === 1) {
+      setActiveColor(availableColors[0]);
     } else {
-      setActiveColor({ label: 'Standard / As Shown', color: '#1C1B1F' });
+      setActiveColor(null);
     }
-    const initialQtys: Record<string, number> = {};
-    if (availableSizes.length === 0) {
-      initialQtys['Standard Unit'] = currentProduct.moq || 1;
+
+    if (!hasExplicitSizes) {
+      setActiveSizeQtys({ 'Standard Unit': currentProduct.moq || 1 });
     } else {
-      availableSizes.forEach((s) => (initialQtys[s] = 0));
+      setActiveSizeQtys({});
     }
-    setActiveSizeQtys(initialQtys);
-  }, [currentStepIndex, currentProduct?.id, availableColors.length, availableSizes.length]);
+  }, [currentStepIndex, currentProduct?.id, availableColors.length, availableSizes.length, hasExplicitSizes]);
+
+  const toggleSize = (size: string) => {
+    if (!activeColor) {
+      // Auto-select first color if there's only 1, else prompt user cleanly
+      if (availableColors.length === 1) {
+        setActiveColor(availableColors[0]);
+      } else {
+        showWarning('Select Color First', 'Please tap a color variant above before selecting sizes.');
+        return;
+      }
+    }
+    setActiveSizeQtys((prev) => {
+      const next = { ...prev };
+      if (next[size] !== undefined) {
+        delete next[size];
+      } else {
+        next[size] = 1;
+      }
+      return next;
+    });
+  };
 
   const handleQtyChange = (size: string, delta: number) => {
     setActiveSizeQtys((prev) => {
       const current = prev[size] || 0;
       const next = Math.max(0, current + delta);
+      if (next === 0 && hasExplicitSizes) {
+        const updated = { ...prev };
+        delete updated[size];
+        return updated;
+      }
       return { ...prev, [size]: next };
     });
   };
 
+  // Merge active unsaved selection helper
+  const buildMergedStepGroups = (): ColorGroup[] => {
+    const merged = currentGroups.map((g) => ({
+      color: g.color,
+      sizeQtys: { ...g.sizeQtys },
+    }));
+
+    const targetColor = activeColor || (availableColors.length === 1 ? availableColors[0] : null);
+    if (targetColor) {
+      const nonZeroEntries = Object.entries(activeSizeQtys).filter(([_, q]) => q > 0);
+      if (nonZeroEntries.length > 0) {
+        const existingIdx = merged.findIndex((g) => g.color.label === targetColor.label);
+        if (existingIdx >= 0) {
+          nonZeroEntries.forEach(([sz, qty]) => {
+            merged[existingIdx].sizeQtys[sz] = (merged[existingIdx].sizeQtys[sz] || 0) + qty;
+          });
+        } else {
+          const filteredQtys: Record<string, number> = {};
+          nonZeroEntries.forEach(([s, q]) => {
+            filteredQtys[s] = q;
+          });
+          merged.push({ color: targetColor, sizeQtys: filteredQtys });
+        }
+      }
+    }
+    return merged;
+  };
+
   const handleAddColorGroup = () => {
-    if (!activeColor) return;
+    const targetColor = activeColor || (availableColors.length === 1 ? availableColors[0] : null);
+    if (!targetColor) {
+      showWarning('Select Color First', 'Please tap one of the color swatches above.');
+      return;
+    }
     const sumUnits = Object.values(activeSizeQtys).reduce((a, b) => a + b, 0);
     if (sumUnits === 0) {
-      showWarning('Quantity Required', 'Please enter at least 1 unit for any size.');
+      showWarning('Quantity Required', 'Please select at least 1 size and enter quantity.');
       return;
     }
 
-    // Add or merge into current groups
-    setCurrentGroups((prev) => {
-      const existingIdx = prev.findIndex((g) => g.color.label === activeColor.label);
-      if (existingIdx >= 0) {
-        const updated = [...prev];
-        const mergedQtys = { ...updated[existingIdx].sizeQtys };
-        Object.entries(activeSizeQtys).forEach(([size, qty]) => {
-          if (qty > 0) {
-            mergedQtys[size] = (mergedQtys[size] || 0) + qty;
-          }
-        });
-        updated[existingIdx] = { color: activeColor, sizeQtys: mergedQtys };
-        return updated;
-      }
-      const filteredQtys: Record<string, number> = {};
-      Object.entries(activeSizeQtys).forEach(([s, q]) => {
-        if (q > 0) filteredQtys[s] = q;
-      });
-      return [...prev, { color: activeColor, sizeQtys: filteredQtys }];
-    });
+    const updatedGroups = buildMergedStepGroups();
+    setCurrentGroups(updatedGroups);
 
-    // Reset size inputs
-    const resetQtys: Record<string, number> = {};
-    availableSizes.forEach((s) => (resetQtys[s] = 0));
-    setActiveSizeQtys(resetQtys);
-    showSuccess('Variant Added', `Added ${sumUnits} units of ${activeColor.label}.`);
+    // Also persist right away
+    if (currentProduct) {
+      setProductConfigs((prev) => {
+        const nextMap = new Map(prev);
+        nextMap.set(currentProduct.id, updatedGroups);
+        return nextMap;
+      });
+    }
+
+    // Reset size inputs cleanly so buyer can immediately add another color
+    setActiveSizeQtys(hasExplicitSizes ? {} : { 'Standard Unit': currentProduct?.moq || 1 });
+    if (availableColors.length > 1) {
+      setActiveColor(null);
+    }
+    showSuccess('Variant Added', `Added ${sumUnits} units of ${targetColor.label}.`);
   };
 
   const handleRemoveGroup = (idx: number) => {
@@ -233,15 +305,16 @@ export default function MultiProductOrderPage() {
 
   const handleNext = () => {
     if (!currentProduct) return;
-    if (currentGroups.length === 0) {
-      showWarning('Selection Required', `Please configure at least one color/size for ${currentProduct.name}.`);
+    const mergedGroups = buildMergedStepGroups();
+    if (mergedGroups.length === 0) {
+      showWarning('Selection Required', `Please configure at least one color & size for ${currentProduct.name}.`);
       return;
     }
 
-    // Save configuration into map
+    setCurrentGroups(mergedGroups);
     setProductConfigs((prev) => {
       const nextMap = new Map(prev);
-      nextMap.set(currentProduct.id, currentGroups);
+      nextMap.set(currentProduct.id, mergedGroups);
       return nextMap;
     });
 
@@ -253,6 +326,16 @@ export default function MultiProductOrderPage() {
   };
 
   const handlePrevious = () => {
+    if (currentProduct && !showingSummary) {
+      const mergedGroups = buildMergedStepGroups();
+      if (mergedGroups.length > 0) {
+        setProductConfigs((prev) => {
+          const nextMap = new Map(prev);
+          nextMap.set(currentProduct.id, mergedGroups);
+          return nextMap;
+        });
+      }
+    }
     if (showingSummary) {
       setShowingSummary(false);
       return;
@@ -263,6 +346,17 @@ export default function MultiProductOrderPage() {
       router.safeGoBack('/profile');
     }
   };
+
+  // Current step live volume/pricing stats
+  const stepConfiguredUnits = currentGroups.reduce(
+    (acc, g) => acc + Object.values(g.sizeQtys).reduce((a, b) => a + b, 0),
+    0
+  );
+  const stepActiveUnits = Object.values(activeSizeQtys).reduce((a, b) => a + b, 0);
+  const stepTotalUnits = stepConfiguredUnits + stepActiveUnits;
+  const stepUnitPrice = currentProduct ? getWholesaleUnitPrice(currentProduct, stepTotalUnits) : 0;
+  const stepActiveTier = currentProduct ? getActiveWholesaleTier(currentProduct, stepTotalUnits) : null;
+  const stepMoq = currentProduct?.moq || 1;
 
   // Calculations for summary - DEDUPLICATED by product id
   const summaryItems = useMemo(() => {
@@ -496,6 +590,7 @@ export default function MultiProductOrderPage() {
         orderIds.push(supOrderId);
       }
 
+      clearBulkList();
       showSuccess('Order Placed!', `Consolidated wholesale order (${orderIds.join(', ')}) placed successfully.`);
       setTimeout(() => router.push('/profile'), 1400);
     } catch (err: any) {
@@ -509,7 +604,10 @@ export default function MultiProductOrderPage() {
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>
         <View style={styles.centerContainer}>
-          <Text style={{ color: colors.onSurface }}>Loading bulk order...</Text>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={{ color: colors.onSurface, marginTop: 12, fontFamily: 'Outfit_600SemiBold' }}>
+            Loading product variants, colors &amp; sizes...
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -667,10 +765,71 @@ export default function MultiProductOrderPage() {
                 <Text style={[styles.bannerName, { color: colors.onSurface }]} numberOfLines={2}>
                   {currentProduct.name}
                 </Text>
-                <Text style={[styles.bannerPrice, { color: colors.primary }]}>
-                  {formatPrice(currentProduct.srp)} <Text style={[styles.bannerPerUnit, { color: gitSubtleText }]}>/ unit</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <Text style={[styles.bannerPrice, { color: colors.primary }]}>
+                    {formatPrice(stepUnitPrice)}{' '}
+                    <Text style={[styles.bannerPerUnit, { color: gitSubtleText }]}>
+                      / unit{stepActiveTier ? ' (Tier)' : ''}
+                    </Text>
+                  </Text>
+                  {currentProduct.srp > stepUnitPrice && (
+                    <Text style={{ fontSize: 12, color: gitSubtleText, textDecorationLine: 'line-through' }}>
+                      {formatPrice(currentProduct.srp)}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Wholesale Volume Tiers Bar */}
+          {currentProduct?.priceTiers && currentProduct.priceTiers.length > 0 && (
+            <View style={{ paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: gitBorder, backgroundColor: gitHeaderBg }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <MaterialIcon name="price_change" size={16} color={colors.primary} />
+                  <Text style={{ fontSize: 12, fontFamily: 'Outfit_700Bold', color: colors.onSurface }}>
+                    WHOLESALE VOLUME TIERS
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 11, color: gitSubtleText }}>
+                  MOQ: <Text style={{ color: colors.onSurface, fontWeight: '700' }}>{stepMoq} units</Text>
                 </Text>
               </View>
+
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                {currentProduct.priceTiers.map((tier, idx) => {
+                  const isTierActive = stepActiveTier?.minQuantity === tier.minQuantity;
+                  return (
+                    <View
+                      key={idx}
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        borderRadius: 8,
+                        borderWidth: 1.5,
+                        borderColor: isTierActive ? '#10B981' : gitBorder,
+                        backgroundColor: isTierActive ? 'rgba(16, 185, 129, 0.14)' : (isDark ? '#0D1117' : '#FFFFFF'),
+                        minWidth: 108,
+                      }}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2, gap: 6 }}>
+                        <Text style={{ fontSize: 11, fontFamily: 'Outfit_700Bold', color: isTierActive ? '#10B981' : colors.onSurface }}>
+                          {tier.minQuantity}+ Units
+                        </Text>
+                        {isTierActive && (
+                          <View style={{ backgroundColor: '#10B981', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 }}>
+                            <Text style={{ fontSize: 8.5, fontFamily: 'Outfit_800ExtraBold', color: '#FFFFFF' }}>ACTIVE</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={{ fontSize: 12.5, fontFamily: 'Outfit_800ExtraBold', color: isTierActive ? '#10B981' : colors.onSurface }}>
+                        {formatPrice(tier.price)}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </ScrollView>
             </View>
           )}
 
@@ -683,33 +842,49 @@ export default function MultiProductOrderPage() {
               </Text>
             </View>
             <Text style={[styles.sectionHelper, { color: gitSubtleText }]}>
-              tap the color you want, then enter quantities for sizes
+              tap the color you want, then tap the sizes below
             </Text>
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.colorSwatchesRow}>
               {availableColors.map((c) => {
                 const isSelected = activeColor?.label === c.label;
+                const isAlreadyAdded = currentGroups.some((g) => g.color.label === c.label);
+                const lightBg = isLightHex(c.color);
+                const checkColor = lightBg ? '#111827' : '#FFFFFF';
                 return (
                   <TouchableOpacity
                     key={c.label}
                     activeOpacity={0.8}
-                    onPress={() => setActiveColor(c)}
+                    onPress={() => {
+                      if (isSelected && availableColors.length > 1) {
+                        setActiveColor(null);
+                        if (hasExplicitSizes) setActiveSizeQtys({});
+                      } else {
+                        setActiveColor(c);
+                      }
+                    }}
                     style={styles.swatchWrapper}
                   >
                     <View
                       style={[
                         styles.swatchCircle,
-                        { backgroundColor: c.color },
+                        {
+                          backgroundColor: c.color,
+                          borderColor: isSelected ? colors.primary : lightBg ? '#94A3B8' : gitBorder,
+                          borderWidth: isSelected ? 3 : 1.5,
+                        },
                         isSelected && {
-                          borderColor: colors.primary,
-                          borderWidth: 3,
                           shadowColor: c.color,
                           shadowOpacity: 0.5,
                           shadowRadius: 8,
                         },
                       ]}
                     >
-                      {isSelected && <MaterialIcon name="check" size={18} color="#FFFFFF" />}
+                      {isSelected ? (
+                        <MaterialIcon name="check" size={18} color={checkColor} />
+                      ) : isAlreadyAdded ? (
+                        <MaterialIcon name="check_circle" size={14} color={checkColor} />
+                      ) : null}
                     </View>
                     <Text
                       style={[
@@ -727,16 +902,63 @@ export default function MultiProductOrderPage() {
             </ScrollView>
           </View>
 
-          {/* 2. SIZES & QUANTITIES (Flat, No Box) */}
+          {/* 2. SELECT SIZES & ENTER QUANTITIES (Always visible so buyer immediately sees both sizes & colors) */}
           <View style={[styles.sectionGroup, { borderBottomColor: gitBorder }]}>
-            <Text style={[styles.sectionTitle, { color: colors.onSurface, marginBottom: 12 }]}>
-              ENTER QUANTITIES FOR {activeColor?.label ? activeColor.label.toUpperCase() : 'SELECTED COLOR'}
+            <View style={styles.sectionHeaderRow}>
+              <Text style={[styles.sectionTitle, { color: colors.onSurface }]}>
+                {hasExplicitSizes ? 'SELECT SIZE / CARTON' : 'ENTER QUANTITY'}
+              </Text>
+              {hasExplicitSizes && (
+                <Text style={[styles.sectionBadge, { color: colors.primary }]}>
+                  {availableSizes.length} Option{availableSizes.length !== 1 ? 's' : ''}
+                </Text>
+              )}
+            </View>
+            <Text style={[styles.sectionHelper, { color: gitSubtleText }]}>
+              {hasExplicitSizes
+                ? activeColor
+                  ? `Tap sizes to set quantities for ${activeColor.label}`
+                  : 'Select a color above, then tap sizes to enter quantities'
+                : `Set units for ${activeColor?.label || 'Standard Unit'}`}
             </Text>
 
-            <View style={styles.sizesList}>
-              {availableSizes.map((size) => {
-                const qty = activeSizeQtys[size] || 0;
-                return (
+            {hasExplicitSizes && (
+              <View style={styles.sizesPillsWrap}>
+                {availableSizes.map((size) => {
+                  const isActive = activeSizeQtys[size] !== undefined;
+                  return (
+                    <TouchableOpacity
+                      key={size}
+                      activeOpacity={0.75}
+                      onPress={() => toggleSize(size)}
+                      style={[
+                        styles.sizePill,
+                        { borderColor: isActive ? colors.primary : gitBorder },
+                        isActive
+                          ? { backgroundColor: colors.primary }
+                          : { backgroundColor: gitHeaderBg },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.sizePillText,
+                          { color: isActive ? '#FFFFFF' : colors.onSurface },
+                        ]}
+                      >
+                        {size}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+
+            {Object.keys(activeSizeQtys).length > 0 ? (
+              <View style={styles.sizesList}>
+                <Text style={[styles.qtyHeaderLabel, { color: gitSubtleText }]}>
+                  QUANTITIES FOR {activeColor?.label ? activeColor.label.toUpperCase() : 'SELECTED COLOR'}
+                </Text>
+                {Object.entries(activeSizeQtys).map(([size, qty]) => (
                   <View key={size} style={[styles.sizeRow, { borderBottomColor: gitBorder }]}>
                     <Text style={[styles.sizeLabel, { color: colors.onSurface }]}>{size}</Text>
                     <View style={styles.stepperContainer}>
@@ -779,26 +1001,34 @@ export default function MultiProductOrderPage() {
                       </TouchableOpacity>
                     </View>
                   </View>
-                );
-              })}
-            </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={{ fontSize: 12, color: gitSubtleText, marginTop: 4 }}>
+                Tap one or more size options above to specify quantities.
+              </Text>
+            )}
 
             {/* Add Color Variant Group Button */}
-            <TouchableOpacity
-              activeOpacity={0.85}
-              style={[styles.addGroupBtn, { backgroundColor: colors.primary }]}
-              onPress={handleAddColorGroup}
-            >
-              <MaterialIcon name="add" size={18} color="#FFFFFF" />
-              <Text style={styles.addGroupBtnText}>Add Color Variant Group</Text>
-            </TouchableOpacity>
+            {Object.values(activeSizeQtys).some((q) => q > 0) && (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={[styles.addGroupBtn, { backgroundColor: colors.primary }]}
+                onPress={handleAddColorGroup}
+              >
+                <MaterialIcon name="add_shopping_cart" size={18} color="#FFFFFF" />
+                <Text style={styles.addGroupBtnText}>
+                  Add {activeColor?.label ? `"${activeColor.label}"` : 'Color Variant'} to Item Breakdown
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Current Configured Groups for this Product */}
           {currentGroups.length > 0 && (
             <View style={[styles.sectionGroup, { borderBottomColor: gitBorder }]}>
               <Text style={[styles.sectionTitle, { color: colors.onSurface, marginBottom: 10 }]}>
-                CURRENT CONFIGURATION ({currentGroups.reduce((acc, g) => acc + Object.values(g.sizeQtys).reduce((a, b) => a + b, 0), 0)} UNITS)
+                CURRENT CONFIGURATION ({stepConfiguredUnits} UNITS)
               </Text>
               {currentGroups.map((group, idx) => (
                 <View key={idx} style={[styles.confirmedGroupRow, { borderBottomColor: gitBorder }]}>
@@ -1036,7 +1266,30 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   sizesList: {
+    marginTop: 8,
     marginBottom: 12,
+  },
+  sizesPillsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 14,
+  },
+  sizePill: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  sizePillText: {
+    fontSize: 13,
+    fontFamily: 'Outfit_700Bold',
+  },
+  qtyHeaderLabel: {
+    fontSize: 11,
+    fontFamily: 'Outfit_700Bold',
+    letterSpacing: 0.4,
+    marginBottom: 8,
   },
   sizeRow: {
     flexDirection: 'row',
@@ -1200,17 +1453,20 @@ const styles = StyleSheet.create({
   },
   actionRow: {
     flexDirection: 'row',
-    gap: 12,
+    flexWrap: 'wrap',
+    gap: 10,
     paddingHorizontal: 20,
     marginTop: 24,
   },
   saveDraftBtn: {
-    flex: 1,
+    flexGrow: 1,
+    minWidth: 130,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 12,
+    paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
   },
@@ -1219,12 +1475,14 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_700Bold',
   },
   confirmOrderBtn: {
-    flex: 1.5,
+    flexGrow: 2,
+    minWidth: 180,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 12,
+    paddingHorizontal: 14,
     borderRadius: 8,
   },
   confirmOrderText: {

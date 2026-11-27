@@ -5,6 +5,9 @@ import { useToast } from '@/core/widgets/whatsapp_dialog';
 import { shareProduct } from '@/core/utils/share_product';
 import { ProductGridSection } from '@/features/home/presentation/widgets/product_grid_section';
 import { useProducts } from '@/features/inventory/context/products_context';
+import { useBulkCart } from '@/features/inventory/context/bulk_cart_context';
+import { BulkOrderFloatingDock } from '@/features/home/presentation/widgets/bulk_order_floating_dock';
+import { FullScreenImageViewer } from '@/features/home/presentation/widgets/full_screen_image_viewer';
 import { ProductApiService } from '@/features/inventory/data/services/product_api_service';
 import { Product } from '@/features/inventory/domain/entities/product';
 import { ProfileApiService } from '@/features/profile/data/services/profile_api_service';
@@ -14,6 +17,7 @@ import {
   ActivityIndicator,
   Image,
   Linking,
+  Platform,
   RefreshControl,
   SafeAreaView,
   ScrollView,
@@ -33,11 +37,14 @@ export default function ProductSpecsScreen() {
   const isDesktop = width >= 960;
   const { colors, isDark } = useAppTheme();
   const { products, getProductById } = useProducts();
+  const { isInBulkList, toggleBulkItem } = useBulkCart();
 
   const initialProduct = (id ? getProductById(id) : undefined) || products[0];
   const [product, setProduct] = useState<Product | undefined>(initialProduct);
+  const isInBulk = product ? isInBulkList(product.id) : false;
   const [isLoading, setIsLoading] = useState(false);
   const [selectedMediaIndex, setSelectedMediaIndex] = useState(0);
+  const [showFullImage, setShowFullImage] = useState(false);
   const [quantity, setQuantity] = useState(product?.moq || 2);
   const [selectedColorName, setSelectedColorName] = useState<string>(
     product?.colors?.[0]?.name || 'Standard'
@@ -231,17 +238,41 @@ export default function ProductSpecsScreen() {
     <View style={styles.mediaContainer}>
       {/* Hero Image Box - Clean 1px GitHub-style Border */}
       <View style={[styles.heroBox, { borderColor: gitBorder }]}>
-        <Image
-          source={{ uri: activeImage }}
-          style={styles.heroMainImage}
-          resizeMode="cover"
-        />
+        <TouchableOpacity
+          activeOpacity={0.94}
+          disabled={isDesktop}
+          style={StyleSheet.absoluteFill}
+          onPress={() => {
+            if (!isDesktop) {
+              setShowFullImage(true);
+            }
+          }}
+        >
+          <Image
+            source={{ uri: activeImage }}
+            style={styles.heroMainImage}
+            resizeMode="cover"
+          />
+        </TouchableOpacity>
+
         {/* Floating Price Badge */}
         <View style={[styles.floatingPriceTag, { backgroundColor: isDark ? '#1C2128' : '#FFFFFF', borderColor: gitBorder }]}>
           <Text style={[styles.floatingPriceText, { color: colors.onSurface }]}>
             {formatPrice(product.srp)}
           </Text>
         </View>
+
+        {/* Mobile-Only Full Page View Pill */}
+        {!isDesktop && (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => setShowFullImage(true)}
+            style={styles.mobileViewBadge}
+          >
+            <MaterialIcon name="zoom_in" size={14} color="#FFFFFF" />
+            <Text style={styles.mobileViewBadgeText}>View</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Thumbnail Strip */}
@@ -372,6 +403,50 @@ export default function ProductSpecsScreen() {
           )}
 
           <View style={styles.actionButtonsRow}>
+            {/* Add to Bulk List Button */}
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={[
+                styles.gitOutlineBtn,
+                isInBulk
+                  ? { borderColor: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.12)' }
+                  : { borderColor: colors.primary, backgroundColor: gitHeaderBg },
+              ]}
+              onPress={() => {
+                toggleBulkItem(product.id);
+                showSuccess(
+                  isInBulk ? 'Removed from Bulk List' : 'Added to Bulk List',
+                  isInBulk
+                    ? `${product.name} removed from your bulk list.`
+                    : `${product.name} added to your bulk order list! Tap "Proceed to Bulk Order" anytime.`
+                );
+              }}
+            >
+              <MaterialIcon
+                name={isInBulk ? 'check_circle' : 'playlist_add'}
+                size={18}
+                color={isInBulk ? '#10B981' : colors.primary}
+              />
+              <Text
+                style={[
+                  styles.gitOutlineBtnText,
+                  { color: isInBulk ? '#10B981' : colors.primary, fontWeight: '700' },
+                ]}
+              >
+                {isInBulk ? 'In Bulk List ✓' : '+ Add to Bulk List'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Order Single Item Button -> Navigates to full order sheet */}
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={[styles.gitPrimaryBtn, { backgroundColor: colors.primary }]}
+              onPress={() => router.push(`/product/order/${product.id}`)}
+            >
+              <Text style={styles.gitPrimaryBtnText}>Order Single Item</Text>
+              <MaterialIcon name="arrow_forward" size={16} color="#FFFFFF" />
+            </TouchableOpacity>
+
             {/* Save to Bag Button (Bulk Ordering Wishlist) */}
             <TouchableOpacity
               activeOpacity={0.85}
@@ -389,16 +464,6 @@ export default function ProductSpecsScreen() {
                   </Text>
                 </>
               )}
-            </TouchableOpacity>
-
-            {/* Order Now Button -> Navigates to full order sheet */}
-            <TouchableOpacity
-              activeOpacity={0.85}
-              style={[styles.gitPrimaryBtn, { backgroundColor: colors.primary }]}
-              onPress={() => router.push(`/product/order/${product.id}`)}
-            >
-              <Text style={styles.gitPrimaryBtnText}>Order Now (Choose Colors & Sizes)</Text>
-              <MaterialIcon name="arrow_forward" size={16} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
         </View>
@@ -680,8 +745,22 @@ export default function ProductSpecsScreen() {
         >
           {renderMediaPane()}
           {renderDetailsPane()}
+          <View style={{ height: 80 }} />
         </ScrollView>
       )}
+
+      {/* ── Persistent Floating Bulk Order Dock ── */}
+      <BulkOrderFloatingDock bottomInset={Platform.OS === 'ios' ? 24 : 16} />
+
+      {/* ── Mobile-Only Full-Screen Image Viewer ── */}
+      <FullScreenImageViewer
+        visible={!isDesktop && showFullImage}
+        imageUrls={mediaList}
+        initialIndex={selectedMediaIndex}
+        productTitle={product.name}
+        onClose={() => setShowFullImage(false)}
+        onShare={() => shareProduct(product, (msg) => showSuccess(msg))}
+      />
     </SafeAreaView>
   );
 }
@@ -779,6 +858,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: -0.3,
+  },
+  mobileViewBadge: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.62)',
+  },
+  mobileViewBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontFamily: 'Outfit_700Bold',
   },
   thumbnailStrip: {
     marginTop: 10,

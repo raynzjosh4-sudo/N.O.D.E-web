@@ -23,6 +23,7 @@ import {
 import { AppThemeProvider, useAppTheme } from '@/core/theme/theme_context';
 import { AuthProvider, useAuth } from '@/features/auth/context/auth_context';
 import { ProductsProvider } from '@/features/inventory/context/products_context';
+import { BulkCartProvider } from '@/features/inventory/context/bulk_cart_context';
 import { ToastProvider } from '@/core/widgets/whatsapp_dialog';
 import { CoachmarkProvider } from '@/core/coachmarks/coachmark_context';
 import { CoachmarkOverlay } from '@/core/coachmarks/coachmark_overlay';
@@ -156,14 +157,16 @@ export default function RootLayout() {
         <AuthProvider>
           <AuthTokenBridge />
           <ProductsProvider>
-            <ToastProvider>
-              <CoachmarkProvider>
-                <NavigationStack />
-                <CoachmarkOverlay />
-                <WebUpdateReloader />
-                <GoogleOneTapPrompt />
-              </CoachmarkProvider>
-            </ToastProvider>
+            <BulkCartProvider>
+              <ToastProvider>
+                <CoachmarkProvider>
+                  <NavigationStack />
+                  <CoachmarkOverlay />
+                  <WebUpdateReloader />
+                  <GoogleOneTapPrompt />
+                </CoachmarkProvider>
+              </ToastProvider>
+            </BulkCartProvider>
           </ProductsProvider>
         </AuthProvider>
       </AppThemeProvider>

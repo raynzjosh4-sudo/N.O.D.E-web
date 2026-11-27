@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -9,21 +9,60 @@ import {
   Image,
   useWindowDimensions,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppTheme } from '@/core/theme/theme_context';
 import { MaterialIcon } from '@/core/widgets/material_icon';
 import { useAuth } from '@/features/auth/context/auth_context';
+import { openNodeLegalPortal } from '@/core/constants/legal';
 
 interface SmartSignInSheetProps {
   visible: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  onExploreAsGuest?: () => void;
 }
 
-export function SmartSignInSheet({ visible, onClose, onSuccess }: SmartSignInSheetProps) {
+interface CachedGoogleAccount {
+  email: string;
+  name?: string;
+  avatarUrl?: string;
+}
+
+export function SmartSignInSheet({
+  visible,
+  onClose,
+  onSuccess,
+  onExploreAsGuest,
+}: SmartSignInSheetProps) {
   const { colors, isDark } = useAppTheme();
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
   const { user, signInWithGoogle, isLoading } = useAuth();
+  const [cachedAccount, setCachedAccount] = useState<CachedGoogleAccount | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem('@node_last_known_account');
+        if (raw && isMounted) {
+          const parsed = JSON.parse(raw);
+          if (parsed?.email) {
+            setCachedAccount(parsed);
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [visible]);
+
+  const activeAccount = user || cachedAccount;
+  const displayEmail = activeAccount?.email || '';
+  const displayName = activeAccount?.name || (displayEmail ? displayEmail.split('@')[0] : '');
 
   const handleGoogleSignIn = async () => {
     try {
@@ -36,6 +75,13 @@ export function SmartSignInSheet({ visible, onClose, onSuccess }: SmartSignInShe
       }
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleExploreGuest = () => {
+    onClose();
+    if (onExploreAsGuest) {
+      onExploreAsGuest();
     }
   };
 
@@ -90,7 +136,7 @@ export function SmartSignInSheet({ visible, onClose, onSuccess }: SmartSignInShe
 
           {/* Title */}
           <Text style={[styles.title, { color: colors.onSurface }]}>
-            Sign in to N.O.D.E.
+            Sign in with Google
           </Text>
 
           {/* Subtitle */}
@@ -100,71 +146,126 @@ export function SmartSignInSheet({ visible, onClose, onSuccess }: SmartSignInShe
               { color: isDark ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.6)' },
             ]}
           >
-            Sign in with Google to access your wholesale dashboard, manage inventory, and track orders.
+            Choose an account to continue to N.O.D.E. Wholesale Exchange
           </Text>
 
-          {/* Saved Account Card if exists */}
-          {user && (
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={handleGoogleSignIn}
-              style={[
-                styles.savedAccountCard,
-                {
-                  backgroundColor: isDark ? colors.cardColor : '#F8F9FA',
-                  borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)',
-                },
-              ]}
-            >
+          {/* Google Account Card */}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={handleGoogleSignIn}
+            disabled={isLoading}
+            style={[
+              styles.savedAccountCard,
+              {
+                backgroundColor: isDark ? colors.cardColor : '#F8F9FA',
+                borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.08)',
+              },
+            ]}
+          >
+            {activeAccount?.avatarUrl ? (
               <Image
-                source={{ uri: user.avatarUrl }}
+                source={{ uri: activeAccount.avatarUrl }}
                 style={styles.accountAvatar}
               />
-              <View style={styles.accountInfo}>
-                <Text style={[styles.accountName, { color: colors.onSurface }]}>
-                  {user.name}
-                </Text>
-                <Text
-                  style={[
-                    styles.accountEmail,
-                    { color: isDark ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)' },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {user.email}
-                </Text>
+            ) : (
+              <View
+                style={[
+                  styles.avatarFallback,
+                  { backgroundColor: colors.primary + '20' },
+                ]}
+              >
+                <Image
+                  source={require('@/../assets/google/google-logo.png')}
+                  style={styles.cardGoogleIcon}
+                  resizeMode="contain"
+                />
               </View>
-              <MaterialIcon
-                name="chevron_right"
-                size={22}
-                color={colors.primary}
-              />
-            </TouchableOpacity>
-          )}
+            )}
+            <View style={styles.accountInfo}>
+              <Text
+                style={[styles.accountName, { color: colors.onSurface }]}
+                numberOfLines={1}
+              >
+                {displayName ? `Continue as ${displayName}` : 'Continue with Google'}
+              </Text>
+              <Text
+                style={[
+                  styles.accountEmail,
+                  { color: isDark ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)' },
+                ]}
+                numberOfLines={1}
+              >
+                {displayEmail || 'Use your Google Account to sign in'}
+              </Text>
+            </View>
+            <MaterialIcon
+              name="chevron_right"
+              size={22}
+              color={colors.primary}
+            />
+          </TouchableOpacity>
 
-          <View style={{ height: 16 }} />
+          <View style={{ height: 12 }} />
 
-          {/* Continue with Google Button */}
+          {/* Primary Action Button */}
           <TouchableOpacity
             activeOpacity={0.85}
             onPress={handleGoogleSignIn}
             disabled={isLoading}
             style={[styles.primaryButton, { backgroundColor: colors.primary }]}
           >
-            <Text style={styles.primaryButtonText}>Continue with Google</Text>
-            <MaterialIcon name="arrow_forward" size={18} color="#FFFFFF" />
+            <Image
+              source={require('@/../assets/google/google-logo.png')}
+              style={styles.buttonGoogleIcon}
+              resizeMode="contain"
+            />
+            <Text style={styles.primaryButtonText}>
+              {displayEmail ? `Continue as ${displayEmail}` : 'Continue with Google'}
+            </Text>
+          </TouchableOpacity>
+
+          <View style={{ height: 10 }} />
+
+          {/* Explore as Guest Button */}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={handleExploreGuest}
+            style={[
+              styles.guestButton,
+              {
+                borderColor: isDark ? colors.borderLight : 'rgba(0, 0, 0, 0.12)',
+              },
+            ]}
+          >
+            <Text style={[styles.guestButtonText, { color: colors.onSurface }]}>
+              Explore as Guest
+            </Text>
           </TouchableOpacity>
 
           <View style={{ height: 20 }} />
 
-          {/* Footer */}
+          {/* Footer Terms & Privacy */}
           <Text
             style={[
               styles.footerText,
               { color: isDark ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.4)' },
             ]}
           >
-            Secure wholesale access powered by Google Authentication.
+            By continuing, Google shares your name, email address, and profile picture with N.O.D.E. See{' '}
+            <Text
+              onPress={openNodeLegalPortal}
+              style={{ color: colors.primary, fontWeight: '700' }}
+            >
+              Privacy Policy
+            </Text>
+            {' & '}
+            <Text
+              onPress={openNodeLegalPortal}
+              style={{ color: colors.primary, fontWeight: '700' }}
+            >
+              Terms
+            </Text>
+            .
           </Text>
         </View>
       </View>
@@ -238,16 +339,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'PlusJakartaSans_500Medium',
     lineHeight: 20,
-    marginTop: 8,
+    marginTop: 6,
     marginBottom: 20,
   },
   savedAccountCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    padding: 14,
     borderRadius: 16,
     borderWidth: 1,
-    marginBottom: 12,
     gap: 12,
   },
   accountAvatar: {
@@ -255,11 +355,22 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
   },
+  avatarFallback: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardGoogleIcon: {
+    width: 24,
+    height: 24,
+  },
   accountInfo: {
     flex: 1,
   },
   accountName: {
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: 'Outfit_700Bold',
   },
   accountEmail: {
@@ -274,16 +385,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 10,
+    paddingHorizontal: 16,
+  },
+  buttonGoogleIcon: {
+    width: 18,
+    height: 18,
   },
   primaryButtonText: {
     color: '#FFFFFF',
     fontSize: 15,
     fontFamily: 'Outfit_700Bold',
   },
+  guestButton: {
+    width: '100%',
+    height: 48,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  guestButtonText: {
+    fontSize: 14,
+    fontFamily: 'Outfit_600SemiBold',
+  },
   footerText: {
     fontSize: 11,
     fontFamily: 'PlusJakartaSans_500Medium',
     textAlign: 'center',
+    lineHeight: 16,
   },
 });

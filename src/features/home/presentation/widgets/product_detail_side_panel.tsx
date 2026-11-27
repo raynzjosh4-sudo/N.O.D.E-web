@@ -12,6 +12,7 @@ import { useAppTheme } from '@/core/theme/theme_context';
 import { MaterialIcon } from '@/core/widgets/material_icon';
 import { shareProduct } from '@/core/utils/share_product';
 import { Product } from '@/features/inventory/domain/entities/product';
+import { useBulkCart } from '@/features/inventory/context/bulk_cart_context';
 
 interface ProductDetailSidePanelProps {
   product: Product;
@@ -25,6 +26,8 @@ export function ProductDetailSidePanel({
   onViewSpecs,
 }: ProductDetailSidePanelProps) {
   const { colors } = useAppTheme();
+  const { isBulkMode, isInBulkList, toggleBulkItem } = useBulkCart();
+  const isInBulk = isInBulkList(product.id);
   const [selectedImage, setSelectedImage] = useState<string>(product.imageUrl);
 
   // Sync selected image whenever product changes (fixes bug where tapping product in waterfall changed text but image stayed old)
@@ -141,6 +144,31 @@ export function ProductDetailSidePanel({
 
         {/* ── Action Buttons ── */}
         <View style={styles.actionButtons}>
+          {(isBulkMode || isInBulk) && (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={[
+                styles.viewSpecsButton,
+                {
+                  marginBottom: 10,
+                  backgroundColor: isInBulk ? '#10B981' : 'transparent',
+                  borderWidth: 1.5,
+                  borderColor: isInBulk ? '#10B981' : colors.primary,
+                },
+              ]}
+              onPress={() => toggleBulkItem(product.id)}
+            >
+              <MaterialIcon
+                name={isInBulk ? 'check_circle' : 'playlist_add'}
+                size={18}
+                color={isInBulk ? '#FFFFFF' : colors.primary}
+              />
+              <Text style={[styles.viewSpecsText, { color: isInBulk ? '#FFFFFF' : colors.primary }]}>
+                {isInBulk ? 'In Bulk Order List ✓' : '+ Add to My Bulk List'}
+              </Text>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             activeOpacity={0.85}
             style={[styles.viewSpecsButton, { backgroundColor: colors.primary }]}
