@@ -405,14 +405,14 @@ export default function SpecsOrderPage() {
       const orderPayload = {
         order_id: orderId,
         supplier_id: product.supplierId || '1a47f0fe-3f4d-487f-95b5-1f7cfe27b7b7',
+        buyer_email: user?.email || (user as any)?.emailAddress || (profile as any)?.email || '',
         business_name: buyerName || 'Wholesale Buyer',
         business_phone: buyerPhone,
         business_city: 'Kampala',
         business_address: buyerAddress || 'Kampala Wholesale Hub, Uganda',
         total_amount: totalOrderAmount,
-        entries_json: groupsToSubmit.map((g) => {
-          const groupUnits = Object.values(g.sizeQtys).reduce((s, q) => s + q, 0);
-          return {
+        entries_json: [
+          {
             name: product.name,
             product_id: product.id,
             product: {
@@ -424,16 +424,16 @@ export default function SpecsOrderPage() {
               imageUrl: product.imageUrl,
               price_tiers: product.priceTiers,
               moq: product.moq,
+              warehouseLoc: product.warehouseLoc,
             },
-            color: g.color.label,
-            colorHex: g.color.color,
-            size_quantities: g.sizeQtys,
-            confirmedGroups: [g],
+            imageUrl: product.imageUrl,
+            image_url: product.imageUrl,
+            confirmedGroups: groupsToSubmit,
             unit_price: unitPriceForOrder,
-            total_units: groupUnits,
-            subtotal: groupUnits * unitPriceForOrder,
-          };
-        }),
+            total_units: orderUnits,
+            subtotal: totalOrderAmount,
+          },
+        ],
       };
 
       await ProfileApiService.createOrder(orderPayload);

@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/features/auth/context/auth_context';
 import { useAppTheme } from '@/core/theme/theme_context';
 import { MaterialIcon } from '@/core/widgets/material_icon';
 import { SupplierProductsScreen } from '@/features/inventory/presentation/pages/supplier_products_screen';
-import { BecomeSupplierSheet } from '@/features/profile/presentation/widgets/become_supplier_sheet';
 import { SupplierProductsShimmer } from '@/features/inventory/presentation/pages/shimmer/supplier_products_shimmer';
 import { CoachmarkAnchor } from '@/core/coachmarks/coachmark_anchor';
 
@@ -13,18 +12,6 @@ export default function PostsRoute() {
   const { user, isAuthenticated, isLoading, isProfileReady } = useAuth();
   const router = useRouter();
   const { colors } = useAppTheme();
-  const [showBecomeSupplier, setShowBecomeSupplier] = useState(false);
-
-  // If user navigates to post but is not a verified supplier, directly launch supplier application sheet
-  useEffect(() => {
-    if (isAuthenticated && isProfileReady && user) {
-      const role = (user.role || '').toLowerCase();
-      const isSupplierOrAdmin = role === 'supplier' || role === 'admin';
-      if (!isSupplierOrAdmin) {
-        setShowBecomeSupplier(true);
-      }
-    }
-  }, [isAuthenticated, isProfileReady, user]);
 
   if (isLoading || !isProfileReady) {
     return (
@@ -65,46 +52,7 @@ export default function PostsRoute() {
     );
   }
 
-  const role = (user.role || '').toLowerCase();
-  const isSupplierOrAdmin = role === 'supplier' || role === 'admin';
-
-  // Logged in as customer (non-supplier)
-  if (!isSupplierOrAdmin) {
-    return (
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.scaffoldBackground }]}>
-        <View style={styles.centerCard}>
-          <View style={[styles.iconCircle, { backgroundColor: colors.cardColor, borderColor: colors.borderLight }]}>
-            <MaterialIcon name="storefront" size={36} color="#F59E0B" />
-          </View>
-          <Text style={[styles.cardTitle, { color: colors.onSurface }]}>Supplier Account Required</Text>
-          <Text style={[styles.cardSubtitle, { color: colors.onSurfaceMuted }]}>
-            Your account ({user.email}) is currently registered as a buyer. To list products and manage wholesale inventory, apply to become a verified supplier.
-          </Text>
-          <CoachmarkAnchor id="apply_supplier_btn" style={{ width: '100%', marginBottom: 12 }}>
-            <TouchableOpacity
-              style={[styles.primaryBtn, { backgroundColor: colors.primary, marginBottom: 0 }]}
-              onPress={() => setShowBecomeSupplier(true)}
-            >
-              <Text style={styles.primaryBtnText}>Apply to Become a Supplier</Text>
-            </TouchableOpacity>
-          </CoachmarkAnchor>
-          <TouchableOpacity
-            style={styles.textBtn}
-            onPress={() => router.replace('/')}
-          >
-            <Text style={[styles.textBtnLabel, { color: colors.onSurfaceMuted }]}>Back to Shopping</Text>
-          </TouchableOpacity>
-        </View>
-
-        <BecomeSupplierSheet
-          visible={showBecomeSupplier}
-          onClose={() => setShowBecomeSupplier(false)}
-          onSuccess={() => setShowBecomeSupplier(false)}
-        />
-      </SafeAreaView>
-    );
-  }
-
+  // Any authenticated user can manage and post supplier inventory
   return <SupplierProductsScreen />;
 }
 

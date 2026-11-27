@@ -546,38 +546,35 @@ export default function MultiProductOrderPage() {
       const orderIds: string[] = [];
       for (const [supplierId, supItems] of itemsBySupplier.entries()) {
         const supOrderId = 'ORD-' + Date.now().toString(36).toUpperCase() + '-' + (supplierId ? supplierId.slice(0, 4) : 'BULK');
-        const supEntries = supItems.flatMap((item) =>
-          item.groups.map((g) => ({
-            product_id: item.product.id,
+        const supEntries = supItems.map((item) => ({
+          product_id: item.product.id,
+          name: item.product.name,
+          product: {
+            id: item.product.id,
             name: item.product.name,
-            product: {
-              id: item.product.id,
-              name: item.product.name,
-              brand: item.product.brand,
-              sku: item.product.sku,
-              srp: item.product.srp,
-              imageUrl: item.product.imageUrl,
-              price_tiers: item.product.priceTiers,
-              moq: item.product.moq,
-            },
+            brand: item.product.brand,
+            sku: item.product.sku,
+            srp: item.product.srp,
             imageUrl: item.product.imageUrl,
-            image_url: item.product.imageUrl,
-            color: g.color.label,
-            colorHex: g.color.color,
-            size_quantities: g.sizeQtys,
-            confirmedGroups: [g],
-            unit_price: item.unitPrice,
-            total_units: Object.values(g.sizeQtys).reduce((a, b) => a + b, 0),
-            subtotal: Object.values(g.sizeQtys).reduce((a, b) => a + b, 0) * item.unitPrice,
-            supplier_id: supplierId || '1a47f0fe-3f4d-487f-95b5-1f7cfe27b7b7',
-            business_name: profile.legalBusinessName || profile.fullName || 'Wholesale Buyer',
-          }))
-        );
+            price_tiers: item.product.priceTiers,
+            moq: item.product.moq,
+            warehouseLoc: item.product.warehouseLoc,
+          },
+          imageUrl: item.product.imageUrl,
+          image_url: item.product.imageUrl,
+          confirmedGroups: item.groups,
+          unit_price: item.unitPrice,
+          total_units: item.totalUnits,
+          subtotal: item.subtotal,
+          supplier_id: supplierId || '1a47f0fe-3f4d-487f-95b5-1f7cfe27b7b7',
+          business_name: profile.legalBusinessName || profile.fullName || 'Wholesale Buyer',
+        }));
         const supTotalAmount = supItems.reduce((acc, item) => acc + item.subtotal, 0);
 
         const orderPayload = {
           order_id: supOrderId,
           supplier_id: supplierId || '1a47f0fe-3f4d-487f-95b5-1f7cfe27b7b7',
+          buyer_email: user?.email || (user as any)?.emailAddress || (profile as any)?.email || '',
           business_name: profile.legalBusinessName || profile.fullName || 'Wholesale Buyer',
           business_phone: profile.phone || '0700000000',
           business_city: 'Kampala',
