@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <!-- Core App Pages -->
@@ -6,7 +6,7 @@
     <loc>https://node.crimchart.com/</loc>
     <image:image>
       <image:loc>https://node.crimchart.com/nodeicon_full.png</image:loc>
-      <image:title>N.O.D.E. Wholesale — National Online Distribution &amp; Enterprise</image:title>
+      <image:title>N.O.D.E. Wholesale — National Order and Distribution Exchanges</image:title>
       <image:caption>Uganda B2B Wholesale Marketplace &amp; Verified Supplier Network in Kampala</image:caption>
     </image:image>
     <changefreq>daily</changefreq>

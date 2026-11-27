@@ -691,6 +691,19 @@ export default function SpecsOrderPage() {
                   );
                 })}
               </ScrollView>
+              {!activeTier && product.priceTiers && product.priceTiers.length > 0 && (() => {
+                const sorted = [...product.priceTiers].sort((a, b) => (Number(a.minQuantity) || 0) - (Number(b.minQuantity) || 0));
+                const firstTier = sorted[0];
+                const needed = firstTier ? Math.max(0, (Number(firstTier.minQuantity) || 0) - totalUnits) : 0;
+                if (needed > 0) {
+                  return (
+                    <Text style={{ fontSize: 11, color: gitSubtleText, marginTop: 8 }}>
+                      ℹ️ Add <Text style={{ color: '#00E5FF', fontWeight: '700' }}>{needed.toLocaleString()} more units</Text> to unlock wholesale volume tier ({formatPrice(firstTier.price)} / pc).
+                    </Text>
+                  );
+                }
+                return null;
+              })()}
             </View>
           )}
 
@@ -975,7 +988,9 @@ export default function SpecsOrderPage() {
                     <Text style={[styles.calcVal, { color: colors.onSurface }]}>{totalUnits} Units</Text>
                   </View>
                   <View style={styles.calcRow}>
-                    <Text style={[styles.calcLabel, { color: gitSubtleText }]}>Tiered Wholesale Price</Text>
+                    <Text style={[styles.calcLabel, { color: gitSubtleText }]}>
+                      {activeTier ? 'Tiered Wholesale Price' : 'Unit Price (Base SRP)'}
+                    </Text>
                     <View style={{ alignItems: 'flex-end' }}>
                       <Text style={[styles.calcVal, { color: '#00E5FF', fontFamily: 'Outfit_700Bold' }]}>
                         {formatPrice(currentUnitPrice)} / pc

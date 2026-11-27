@@ -31,7 +31,7 @@ export default function TermsRoute() {
         />
         <View style={styles.brandInfo}>
           <Text style={styles.appTitle}>N.O.D.E. Wholesale</Text>
-          <Text style={styles.appSubtitle}>National Online Distribution & Enterprise</Text>
+          <Text style={styles.appSubtitle}>National Order and Distribution Exchanges</Text>
         </View>
       </View>
 
@@ -82,7 +82,7 @@ export default function TermsRoute() {
 
       <View style={styles.footerBox}>
         <Text style={styles.footerText}>
-          &copy; {new Date().getFullYear()} N.O.D.E. (National Online Distribution & Enterprise).
+          &copy; {new Date().getFullYear()} N.O.D.E. (National Order and Distribution Exchanges).
         </Text>
         <Text style={styles.footerSubtext}>
           Kampala, Uganda &bull; B2B Wholesale Distribution Network

@@ -2,9 +2,9 @@ import { ScrollViewStyleReset } from 'expo-router/html';
 import { type PropsWithChildren } from 'react';
 
 const APP_NAME = "N.O.D.E. Wholesale";
-const APP_FULL_NAME = "National Online Distribution & Enterprise";
+const APP_FULL_NAME = "National Order and Distribution Exchanges";
 const APP_TITLE = `${APP_NAME} — ${APP_FULL_NAME} | Uganda B2B Wholesale Marketplace`;
-const APP_DESC = "N.O.D.E. (National Online Distribution & Enterprise) connects retailers, institutions, and traders across Uganda directly with verified wholesale suppliers, manufacturers, and importers in Kampala. Access bulk tier pricing, verified inventory, escrow protection, and minimum order quantities.";
+const APP_DESC = "N.O.D.E. (National Order and Distribution Exchanges) connects retailers, institutions, and traders across Uganda directly with verified wholesale suppliers, manufacturers, and importers in Kampala. Access bulk tier pricing, verified inventory, escrow protection, and minimum order quantities.";
 const APP_URL = "https://node.crimchart.com";
 const APP_ICON = `${APP_URL}/nodeicon_full.png`;
 
@@ -48,7 +48,7 @@ export default function Root({ children }: PropsWithChildren) {
         "applicationSubCategory": "ShoppingApplication",
         "image": APP_ICON,
         "screenshot": APP_ICON,
-        "description": "Official wholesale marketplace application for National Online Distribution & Enterprise (N.O.D.E.).",
+        "description": "Official wholesale marketplace application for National Order and Distribution Exchanges (N.O.D.E.).",
         "offers": {
           "@type": "Offer",
           "price": "0",
@@ -102,7 +102,7 @@ export default function Root({ children }: PropsWithChildren) {
         <meta name="title" content={APP_TITLE} />
         <meta name="description" content={APP_DESC} />
         <meta name="google-site-verification" content="uteCDPNtn4l-xAMk1xTZ1qOP8zDoABq96chhXfdMqKc" />
-        <meta name="keywords" content="NODE, N.O.D.E., NODE Wholesale, National Online Distribution and Enterprise, wholesale Uganda, Kampala wholesale, bulk buying, B2B wholesale marketplace, verified suppliers, wholesale prices, trading terms, escrow" />
+        <meta name="keywords" content="NODE, N.O.D.E., NODE Wholesale, National Order and Distribution Exchanges, wholesale Uganda, Kampala wholesale, bulk buying, B2B wholesale marketplace, verified suppliers, wholesale prices, trading terms, escrow" />
         <link rel="canonical" href={APP_URL} />
 
         {/* Google Identity Services SDK for instant Google Sign-In */}

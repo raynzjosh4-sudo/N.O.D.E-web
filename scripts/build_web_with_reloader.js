@@ -35,9 +35,9 @@ if (fs.existsSync(indexPath)) {
     <meta name="app-build-time" content="${now}" />
 
     <!-- Search Engine Optimization (SEO) & Web Crawler Indexing -->
-    <meta name="title" content="N.O.D.E. Wholesale &mdash; National Online Distribution &amp; Enterprise | Uganda B2B Wholesale Marketplace" />
-    <meta name="description" content="N.O.D.E. (National Online Distribution &amp; Enterprise) connects retailers, institutions, and traders across Uganda directly with verified wholesale suppliers, manufacturers, and importers in Kampala. Access bulk tier pricing, verified inventory, escrow protection, and minimum order quantities." />
-    <meta name="keywords" content="NODE, N.O.D.E., NODE Wholesale, National Online Distribution and Enterprise, wholesale Uganda, Kampala wholesale, bulk buying, B2B wholesale marketplace, verified suppliers, wholesale prices, trading terms, escrow, electronics wholesale, solar wholesale, apparel wholesale, Kampala distributors" />
+    <meta name="title" content="N.O.D.E. Wholesale &mdash; National Order and Distribution Exchanges | Uganda B2B Wholesale Marketplace" />
+    <meta name="description" content="N.O.D.E. (National Order and Distribution Exchanges) connects retailers, institutions, and traders across Uganda directly with verified wholesale suppliers, manufacturers, and importers in Kampala. Access bulk tier pricing, verified inventory, escrow protection, and minimum order quantities." />
+    <meta name="keywords" content="NODE, N.O.D.E., NODE Wholesale, National Order and Distribution Exchanges, wholesale Uganda, Kampala wholesale, bulk buying, B2B wholesale marketplace, verified suppliers, wholesale prices, trading terms, escrow, electronics wholesale, solar wholesale, apparel wholesale, Kampala distributors" />
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
     <meta name="googlebot" content="index, follow" />
     <meta name="google-site-verification" content="uteCDPNtn4l-xAMk1xTZ1qOP8zDoABq96chhXfdMqKc" />
@@ -48,9 +48,9 @@ if (fs.existsSync(indexPath)) {
 
     <!-- Open Graph / Facebook / WhatsApp Preview -->
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="N.O.D.E. Wholesale &mdash; National Online Distribution &amp; Enterprise" />
+    <meta property="og:site_name" content="N.O.D.E. Wholesale &mdash; National Order and Distribution Exchanges" />
     <meta property="og:url" content="https://node.crimchart.com" />
-    <meta property="og:title" content="N.O.D.E. Wholesale &mdash; National Online Distribution &amp; Enterprise | Uganda B2B Wholesale Marketplace" />
+    <meta property="og:title" content="N.O.D.E. Wholesale &mdash; National Order and Distribution Exchanges | Uganda B2B Wholesale Marketplace" />
     <meta property="og:description" content="Connect directly with verified wholesale suppliers, manufacturers, and importers in Kampala, Uganda. Bulk tier pricing, verified stock, and escrow protection." />
     <meta property="og:image" content="https://node.crimchart.com/nodeicon_full.png" />
     <meta property="og:image:width" content="512" />
@@ -59,7 +59,7 @@ if (fs.existsSync(indexPath)) {
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="N.O.D.E. Wholesale &mdash; National Online Distribution &amp; Enterprise | Uganda B2B Marketplace" />
+    <meta name="twitter:title" content="N.O.D.E. Wholesale &mdash; National Order and Distribution Exchanges | Uganda B2B Marketplace" />
     <meta name="twitter:description" content="Uganda's verified B2B wholesale platform connecting retail businesses with manufacturers and wholesale distributors." />
     <meta name="twitter:image" content="https://node.crimchart.com/nodeicon_full.png" />
 
@@ -73,8 +73,8 @@ if (fs.existsSync(indexPath)) {
           "@id": "https://node.crimchart.com/#website",
           "url": "https://node.crimchart.com",
           "name": "N.O.D.E. Wholesale",
-          "alternateName": ["N.O.D.E.", "NODE Wholesale", "National Online Distribution & Enterprise"],
-          "description": "N.O.D.E. (National Online Distribution & Enterprise) connects retailers, institutions, and traders across Uganda directly with verified wholesale suppliers, manufacturers, and importers in Kampala. Access bulk tier pricing, verified inventory, escrow protection, and minimum order quantities.",
+          "alternateName": ["N.O.D.E.", "NODE Wholesale", "National Order and Distribution Exchanges"],
+          "description": "N.O.D.E. (National Order and Distribution Exchanges) connects retailers, institutions, and traders across Uganda directly with verified wholesale suppliers, manufacturers, and importers in Kampala. Access bulk tier pricing, verified inventory, escrow protection, and minimum order quantities.",
           "potentialAction": {
             "@type": "SearchAction",
             "target": "https://node.crimchart.com/search?q={search_term_string}",
@@ -85,7 +85,7 @@ if (fs.existsSync(indexPath)) {
           "@type": "Organization",
           "@id": "https://node.crimchart.com/#organization",
           "name": "N.O.D.E. Wholesale Network",
-          "alternateName": "National Online Distribution & Enterprise",
+          "alternateName": "National Order and Distribution Exchanges",
           "url": "https://node.crimchart.com",
           "logo": "https://node.crimchart.com/nodeicon_full.png",
           "image": "https://node.crimchart.com/nodeicon_full.png",
@@ -103,7 +103,7 @@ if (fs.existsSync(indexPath)) {
           "applicationCategory": "BusinessApplication",
           "applicationSubCategory": "ShoppingApplication",
           "image": "https://node.crimchart.com/nodeicon_full.png",
-          "description": "Official wholesale marketplace application for National Online Distribution & Enterprise (N.O.D.E.).",
+          "description": "Official wholesale marketplace application for National Order and Distribution Exchanges (N.O.D.E.).",
           "offers": {
             "@type": "Offer",
             "price": "0",
@@ -126,7 +126,7 @@ if (fs.existsSync(indexPath)) {
   `;
 
   // Replace default bare title with full rich SEO title
-  html = html.replace(/<title>.*?<\/title>/i, '<title>N.O.D.E. Wholesale &mdash; National Online Distribution &amp; Enterprise | Uganda B2B Wholesale Marketplace</title>');
+  html = html.replace(/<title>.*?<\/title>/i, '<title>N.O.D.E. Wholesale &mdash; National Order and Distribution Exchanges | Uganda B2B Wholesale Marketplace</title>');
 
   if (html.includes('<head>')) {
     html = html.replace('<head>', `<head>${seoAndCacheTags}`);
@@ -137,14 +137,14 @@ if (fs.existsSync(indexPath)) {
     <noscript>
       <div style="max-width: 960px; margin: 40px auto; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #E6EDF3; background-color: #0D1117; border-radius: 12px; border: 1px solid #30363D;">
         <header style="border-bottom: 1px solid #30363D; padding-bottom: 16px; margin-bottom: 24px;">
-          <h1 style="color: #58A6FF; font-size: 26px; margin: 0 0 8px 0;">N.O.D.E. Wholesale — National Online Distribution &amp; Enterprise</h1>
+          <h1 style="color: #58A6FF; font-size: 26px; margin: 0 0 8px 0;">N.O.D.E. Wholesale — National Order and Distribution Exchanges</h1>
           <p style="font-size: 16px; color: #8B949E; margin: 0;">Uganda's Leading B2B Wholesale Marketplace &amp; Verified Importers Network</p>
         </header>
 
         <section style="margin-bottom: 28px;">
           <h2 style="color: #FFFFFF; font-size: 20px;">Direct Wholesale Buying in Kampala &amp; Across Uganda</h2>
           <p style="line-height: 1.7; color: #C9D1D9;">
-            <strong>National Online Distribution &amp; Enterprise (N.O.D.E.)</strong> connects retail shops, enterprises, institutions, and independent traders across Uganda directly with verified manufacturers, importers, and bulk distributors based in Kampala (including Kikuubo Commercial District, Nalukolongo, and Central Kampala warehouses).
+            <strong>National Order and Distribution Exchanges (N.O.D.E.)</strong> connects retail shops, enterprises, institutions, and independent traders across Uganda directly with verified manufacturers, importers, and bulk distributors based in Kampala (including Kikuubo Commercial District, Nalukolongo, and Central Kampala warehouses).
           </p>
           <p style="line-height: 1.7; color: #C9D1D9;">
             Buyers benefit from transparent wholesale price tiers in Ugandan Shillings (UGX), verified warehouse stock quantities, minimum order quantities (MOQs), secure escrow payment protection, and same-day warehouse clearance.
@@ -181,7 +181,7 @@ if (fs.existsSync(indexPath)) {
             <a href="https://node.crimchart.com/login" style="color: #58A6FF; margin-right: 18px;">Supplier / Buyer Sign In</a>
             <a href="https://node.crimchart.com/signup" style="color: #58A6FF;">Register Business</a>
           </p>
-          <p style="color: #8B949E; font-size: 13px; margin-top: 12px;">&copy; 2026 N.O.D.E. Wholesale (National Online Distribution &amp; Enterprise). Kampala, Uganda.</p>
+          <p style="color: #8B949E; font-size: 13px; margin-top: 12px;">&copy; 2026 N.O.D.E. Wholesale (National Order and Distribution Exchanges). Kampala, Uganda.</p>
         </footer>
       </div>
     </noscript>
@@ -244,7 +244,7 @@ if (fs.existsSync(indexPath)) {
         }
       </style>
       <div class="crawler-context">
-        <h1>N.O.D.E. Wholesale — National Online Distribution &amp; Enterprise Uganda</h1>
+        <h1>N.O.D.E. Wholesale — National Order and Distribution Exchanges Uganda</h1>
         <p>B2B wholesale marketplace connecting retailers, traders, and institutions in Uganda directly with verified manufacturers, importers, and suppliers in Kampala. Bulk tier pricing, verified warehouse stock, escrow protection, and wholesale order specification sheet PDF downloads.</p>
       </div>
       <div class="shimmer-header">
