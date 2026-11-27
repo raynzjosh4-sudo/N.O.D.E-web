@@ -15,6 +15,7 @@ import { NodeIcon } from '@/core/widgets/node_icon';
 import { MaterialIcon } from '@/core/widgets/material_icon';
 import { UserProfile } from '../../domain/entities/profile_models';
 import { ProfileApiService } from '../../data/services/profile_api_service';
+import { openNodeLegalPortal } from '@/core/constants/legal';
 
 type SettingsSubView = 'main' | 'manifesto' | 'profile_info' | 'warehouse' | 'terms' | 'theme';
 
@@ -670,7 +671,7 @@ export function SettingsTab({
       {renderSectionHeader('Support & Legal')}
       {renderTile('Wholesale Trading Terms', 'description', () => setSubView('terms'))}
       {renderTile('Help Center & FAQs', 'help_outline', () => setSubView('terms'), 'Online 24/7')}
-      {renderTile('Privacy Policy & Escrow Guarantee', 'privacy_tip', () => setSubView('terms'))}
+      {renderTile('Privacy Policy & Legal Portal', 'privacy_tip', openNodeLegalPortal, 'External')}
 
       {renderSectionHeader('Session')}
       {renderTile('Sign Out from N.O.D.E.', 'logout', onLogout, undefined, true)}

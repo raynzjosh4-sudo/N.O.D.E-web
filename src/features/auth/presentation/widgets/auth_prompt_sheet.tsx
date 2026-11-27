@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { useAppTheme } from '@/core/theme/theme_context';
 import { GoogleSignInButton } from './google_sign_in_button';
 import { useAuth } from '@/features/auth/context/auth_context';
+import { openNodeLegalPortal } from '@/core/constants/legal';
 
 interface AuthPromptSheetProps {
   visible: boolean;
@@ -116,11 +117,17 @@ export function AuthPromptSheet({ visible, onClose, onSuccess }: AuthPromptSheet
             ]}
           >
             By continuing you agree to Node's{' '}
-            <Text style={{ color: colors.primary, fontWeight: '700' }}>
+            <Text
+              onPress={openNodeLegalPortal}
+              style={{ color: colors.primary, fontWeight: '700' }}
+            >
               Terms of Service
             </Text>
             {' & '}
-            <Text style={{ color: colors.primary, fontWeight: '700' }}>
+            <Text
+              onPress={openNodeLegalPortal}
+              style={{ color: colors.primary, fontWeight: '700' }}
+            >
               Privacy Policy
             </Text>
           </Text>

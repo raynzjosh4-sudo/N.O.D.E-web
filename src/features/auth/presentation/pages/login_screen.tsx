@@ -16,6 +16,7 @@ import { MaterialIcon } from '@/core/widgets/material_icon';
 import { GoogleSignInButton } from '../widgets/google_sign_in_button';
 import { ForgotPasswordSheet } from '../widgets/forgot_password_sheet';
 import { useAuth } from '@/features/auth/context/auth_context';
+import { openNodeLegalPortal } from '@/core/constants/legal';
 
 export function LoginScreen() {
   const { colors, isDark } = useAppTheme();
@@ -296,11 +297,17 @@ export function LoginScreen() {
             ]}
           >
             By logging in, you agree to our{' '}
-            <Text style={{ color: colors.primary, fontWeight: '700' }}>
+            <Text
+              onPress={openNodeLegalPortal}
+              style={{ color: colors.primary, fontWeight: '700' }}
+            >
               Terms of Service
             </Text>
             {' & '}
-            <Text style={{ color: colors.primary, fontWeight: '700' }}>
+            <Text
+              onPress={openNodeLegalPortal}
+              style={{ color: colors.primary, fontWeight: '700' }}
+            >
               Privacy Policy
             </Text>
           </Text>

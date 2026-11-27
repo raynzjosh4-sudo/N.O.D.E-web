@@ -117,7 +117,7 @@ if (fs.existsSync(indexPath)) {
             { "@type": "SiteNavigationElement", "position": 1, "name": "Explore Wholesale Products", "url": "https://node.crimchart.com/explore" },
             { "@type": "SiteNavigationElement", "position": 2, "name": "Verified Suppliers Directory", "url": "https://node.crimchart.com/suppliers" },
             { "@type": "SiteNavigationElement", "position": 3, "name": "Wholesale Trading Terms & MOQs", "url": "https://node.crimchart.com/terms" },
-            { "@type": "SiteNavigationElement", "position": 4, "name": "Privacy Policy & Escrow Guarantee", "url": "https://node.crimchart.com/privacy" }
+            { "@type": "SiteNavigationElement", "position": 4, "name": "Privacy Policy & Legal Portal", "url": "https://raynzjosh4-sudo.github.io/N.O.D.E.T/" }
           ]
         }
       ]
@@ -177,7 +177,7 @@ if (fs.existsSync(indexPath)) {
             <a href="https://node.crimchart.com/explore" style="color: #58A6FF; margin-right: 18px;">Explore Products</a>
             <a href="https://node.crimchart.com/suppliers" style="color: #58A6FF; margin-right: 18px;">Verified Suppliers Directory</a>
             <a href="https://node.crimchart.com/terms" style="color: #58A6FF; margin-right: 18px;">Wholesale Trading Terms</a>
-            <a href="https://node.crimchart.com/privacy" style="color: #58A6FF; margin-right: 18px;">Privacy Policy &amp; Escrow</a>
+            <a href="https://raynzjosh4-sudo.github.io/N.O.D.E.T/" target="_blank" rel="noopener noreferrer" style="color: #58A6FF; margin-right: 18px;">Privacy Policy &amp; Legal Portal</a>
             <a href="https://node.crimchart.com/login" style="color: #58A6FF; margin-right: 18px;">Supplier / Buyer Sign In</a>
             <a href="https://node.crimchart.com/signup" style="color: #58A6FF;">Register Business</a>
           </p>

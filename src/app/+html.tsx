@@ -80,8 +80,8 @@ export default function Root({ children }: PropsWithChildren) {
           {
             "@type": "SiteNavigationElement",
             "position": 4,
-            "name": "Privacy Policy & Escrow Guarantee",
-            "url": `${APP_URL}/privacy`
+            "name": "Privacy Policy & Legal Portal",
+            "url": "https://raynzjosh4-sudo.github.io/N.O.D.E.T/"
           }
         ]
       }
